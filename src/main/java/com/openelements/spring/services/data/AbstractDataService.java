@@ -3,7 +3,9 @@ package com.openelements.spring.services.data;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional
 public abstract class AbstractDataService<E extends DbEntity, D extends WithId> implements DataService<E, D> {
 
     protected abstract E createDetachedEntity();
