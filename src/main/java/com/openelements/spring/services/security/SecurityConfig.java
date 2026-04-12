@@ -2,7 +2,10 @@ package com.openelements.spring.services.security;
 
 import com.openelements.spring.services.apikey.ApiKeyAuthenticationFilter;
 import com.openelements.spring.services.apikey.ApiKeyConfig;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,6 +24,9 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @Import(ApiKeyConfig.class)
+@ComponentScan
+@AutoConfiguration
+@EnableAutoConfiguration
 public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;

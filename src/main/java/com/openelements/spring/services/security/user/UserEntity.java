@@ -1,4 +1,4 @@
-package com.openelements.spring.services.user;
+package com.openelements.spring.services.security.user;
 
 import com.openelements.spring.services.data.AbstractEntity;
 import jakarta.persistence.*;

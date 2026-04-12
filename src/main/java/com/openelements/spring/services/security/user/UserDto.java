@@ -1,4 +1,4 @@
-package com.openelements.spring.services.user;
+package com.openelements.spring.services.security.user;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

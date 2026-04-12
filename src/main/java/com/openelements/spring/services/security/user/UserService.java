@@ -1,10 +1,9 @@
-package com.openelements.spring.services.user;
+package com.openelements.spring.services.security.user;
 
+import com.openelements.spring.services.security.AuthService;
+import com.openelements.spring.services.security.UserInformation;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,45 +20,36 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuthService authService;
 
     public UserService(final UserRepository userRepository,
-                       final ApplicationEventPublisher eventPublisher) {
+                       final ApplicationEventPublisher eventPublisher,
+                       final AuthService authService) {
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
         this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher must not be null");
+        this.authService = Objects.requireNonNull(authService, "authService must not be null");
     }
 
     private UserEntity getCurrentUserEntity() {
-        final Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof final Jwt jwt)) {
-            throw new IllegalStateException("No authenticated user in SecurityContext");
-        }
-        final String sub = jwt.getSubject();
-        if (sub == null) {
-            throw new IllegalStateException("JWT has no sub claim");
-        }
-        final String name = jwt.getClaimAsString("name");
-        final String email = jwt.getClaimAsString("email");
-        final String resolvedName = name != null ? name : "Unknown";
-        final String resolvedEmail = email != null ? email : "";
-
-        return userRepository.findBySub(sub)
+        final UserInformation userInformation = authService.getUserInformation();
+        return userRepository.findBySub(userInformation.id())
                 .map(existing -> {
                     boolean changed = false;
-                    if (!resolvedName.equals(existing.getName())) {
-                        existing.setName(resolvedName);
+                    if (!Objects.equals(userInformation.name(), existing.getName())) {
+                        existing.setName(userInformation.name());
                         changed = true;
                     }
-                    if (!resolvedEmail.equals(existing.getEmail())) {
-                        existing.setEmail(resolvedEmail);
+                    if (!Objects.equals(userInformation.email(), existing.getEmail())) {
+                        existing.setEmail(userInformation.email());
                         changed = true;
                     }
                     return changed ? userRepository.saveAndFlush(existing) : existing;
                 })
                 .orElseGet(() -> {
                     final UserEntity entity = new UserEntity();
-                    entity.setSub(sub);
-                    entity.setName(resolvedName);
-                    entity.setEmail(resolvedEmail);
+                    entity.setSub(userInformation.id());
+                    entity.setName(userInformation.name());
+                    entity.setEmail(userInformation.email());
                     final UserEntity saved = userRepository.saveAndFlush(entity);
                     return saved;
                 });

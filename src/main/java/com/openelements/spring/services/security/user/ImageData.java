@@ -1,4 +1,4 @@
-package com.openelements.spring.services.user;
+package com.openelements.spring.services.security.user;
 
 /**
  * Holds binary image data together with its MIME content type.

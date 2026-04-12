@@ -1,6 +1,6 @@
 package com.openelements.spring.services.apikey;
 
-import com.openelements.spring.services.user.UserService;
+import com.openelements.spring.services.security.user.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
