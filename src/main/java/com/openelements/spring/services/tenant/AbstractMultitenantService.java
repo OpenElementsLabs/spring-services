@@ -2,6 +2,10 @@ package com.openelements.spring.services.tenant;
 
 import com.openelements.spring.services.data.DbBackedDataService;
 import com.openelements.spring.services.data.WithId;
+import com.openelements.spring.services.events.OnObjectCreate;
+import com.openelements.spring.services.events.OnObjectDelete;
+import com.openelements.spring.services.events.OnObjectUpdate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Objects;
@@ -11,6 +15,12 @@ import java.util.UUID;
 public abstract class AbstractMultitenantService<E extends AbstractMultitenantEntity, D extends WithId> implements
         DbBackedDataService<E, D> {
 
+    private final ApplicationEventPublisher eventPublisher;
+
+    public AbstractMultitenantService(final ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher must not be null");
+    }
+
     protected abstract RepositoryWithTenantSupport<E, UUID> getRepository();
 
     protected abstract TenantService getTenantService();
@@ -18,8 +28,27 @@ public abstract class AbstractMultitenantService<E extends AbstractMultitenantEn
     @Override
     public D save(D data) {
         Objects.requireNonNull(data, "data must not be null");
-        final E savedEntity = getRepository().save(mapToEntity(data));
-        return mapToData(savedEntity);
+        final UUID id = data.id();
+        final String tenantId = getCurrentTenant();
+        preSave(data);
+        if (id == null) {
+            final E entity = createNewEntity();
+            entity.setTenantId(tenantId);
+            updateEntity(entity, data);
+            final E savedEntity = getRepository().save(entity);
+            final D savedData = mapToData(savedEntity);
+            postSave(true, savedData);
+            return savedData;
+        } else {
+            final E entity = getRepository().findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Entity with id " + id + " not found for tenant " + tenantId));
+            updateEntity(entity, data);
+            getRepository().save(entity);
+            final E savedEntity = getRepository().save(entity);
+            final D savedData = mapToData(savedEntity);
+            postSave(false, savedData);
+            return savedData;
+        }
     }
 
     @Override
@@ -47,7 +76,16 @@ public abstract class AbstractMultitenantService<E extends AbstractMultitenantEn
     @Override
     public void delete(final D data) {
         Objects.requireNonNull(data, "data must not be null");
-        delete(data.id());
+        final UUID id = data.id();
+        if (id == null) {
+            throw new IllegalArgumentException("Cannot delete entity without id");
+        }
+        final String tenantId = getCurrentTenant();
+        preDelete(data);
+        final E entity = getRepository().findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Entity with id " + id + " not found for tenant " + tenantId));
+        getRepository().delete(entity);
+        postDelete(data);
     }
 
     @Override
@@ -67,27 +105,30 @@ public abstract class AbstractMultitenantService<E extends AbstractMultitenantEn
 
     protected abstract D mapToData(E entity);
 
-    protected E mapToEntity(D data) {
-        Objects.requireNonNull(data, "data must not be null");
-        final UUID id = data.id();
-        final E entity;
-        final String tenantId = getCurrentTenant();
-        if (id == null) {
-            entity = createNewEntity();
-            entity.setTenantId(tenantId);
-        } else {
-            entity = getRepository().findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new IllegalArgumentException("Entity with id " + id + " not found for tenant " + tenantId));
-        }
-        return updateEntity(entity, data);
-    }
-
     protected abstract E updateEntity(E entity, D data);
 
     protected abstract E createNewEntity();
 
     protected String getCurrentTenant() {
         return getTenantService().getCurrentTenant();
+    }
+
+    protected void preSave(final D data) {
+    }
+
+    protected void preDelete(final D data) {
+    }
+
+    protected void postDelete(D data) {
+        eventPublisher.publishEvent(new OnObjectDelete<>(data));
+    }
+
+    protected void postSave(final boolean insert, D data) {
+        if (insert) {
+            eventPublisher.publishEvent(new OnObjectCreate<>(data));
+        } else {
+            eventPublisher.publishEvent(new OnObjectUpdate<>(data));
+        }
     }
 
 }
