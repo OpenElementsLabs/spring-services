@@ -6,18 +6,20 @@ import com.openelements.spring.services.events.OnObjectCreate;
 import com.openelements.spring.services.events.OnObjectDelete;
 import com.openelements.spring.services.events.OnObjectUpdate;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+@Transactional
 public abstract class AbstractMultitenantService<E extends AbstractMultitenantEntity, D extends WithId> implements
         DbBackedDataService<E, D> {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    public AbstractMultitenantService(final ApplicationEventPublisher eventPublisher) {
+    protected AbstractMultitenantService(final ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher must not be null");
     }
 
