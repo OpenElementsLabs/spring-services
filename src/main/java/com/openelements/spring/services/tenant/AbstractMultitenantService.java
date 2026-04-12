@@ -1,14 +1,15 @@
 package com.openelements.spring.services.tenant;
 
-import com.openelements.spring.services.data.DataService;
+import com.openelements.spring.services.data.DbBackedDataService;
 import com.openelements.spring.services.data.WithId;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 public abstract class AbstractMultitenantService<E extends AbstractMultitenantEntity, D extends WithId> implements
-        DataService<E, D> {
+        DbBackedDataService<E, D> {
 
     protected abstract RepositoryWithTenantSupport<E, UUID> getRepository();
 
@@ -71,7 +72,7 @@ public abstract class AbstractMultitenantService<E extends AbstractMultitenantEn
         final UUID id = data.id();
         final E entity;
         final String tenantId = getCurrentTenant();
-        if(id == null) {
+        if (id == null) {
             entity = createNewEntity();
             entity.setTenantId(tenantId);
         } else {
