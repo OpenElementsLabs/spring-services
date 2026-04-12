@@ -12,14 +12,6 @@ public class AbstractMultitenantEntity extends AbstractEntity implements EntityW
     @Column(nullable = false)
     private String tenantId;
 
-    @PrePersist
-    @PreUpdate
-    public final void checkTenant() {
-        if (tenantId == null) {
-            throw new IllegalStateException("Tenant ID must be set before persisting");
-        }
-    }
-
     @Override
     public String getTenantId() {
         return tenantId;
@@ -28,5 +20,13 @@ public class AbstractMultitenantEntity extends AbstractEntity implements EntityW
     @Override
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public final void checkTenant() {
+        if (tenantId == null) {
+            throw new IllegalStateException("Tenant ID must be set before persisting");
+        }
     }
 }
