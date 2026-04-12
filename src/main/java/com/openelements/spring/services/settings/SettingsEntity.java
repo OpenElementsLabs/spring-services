@@ -1,13 +1,10 @@
 package com.openelements.spring.services.settings;
 
+import com.openelements.spring.services.data.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.Instant;
 import java.util.Objects;
 
 /**
@@ -15,26 +12,14 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "settings")
-public class SettingsEntity {
+public class SettingsEntity extends AbstractEntity {
 
-    @Id
-    @Column(name = "`key`", length = 100)
+    @Column(name = "`key`", length = 100, nullable = false, unique = true)
     private String key;
 
     @Column(name = "`value`", nullable = false, columnDefinition = "TEXT")
     private String value;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
-    /**
-     * Default constructor required by JPA.
-     */
     protected SettingsEntity() {
     }
 
@@ -52,13 +37,5 @@ public class SettingsEntity {
 
     public void setValue(final String value) {
         this.value = Objects.requireNonNull(value, "value must not be null");
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 }
