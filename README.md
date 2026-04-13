@@ -19,7 +19,7 @@ Releases are published to Maven Central via JReleaser. The process is triggered 
 #### Prerequisites
 
 1. Copy `.env.example` to `.env` and fill in your credentials:
-   - `JRELEASER_GITHUB_TOKEN` — GitHub personal access token
+   - `JRELEASER_GITHUB_TOKEN` — GitHub personal access token (Fine-grained PAT with **Contents: Read and Write** permission on this repository, needed to create GitHub Releases and upload assets)
    - `JRELEASER_MAVENCENTRAL_USERNAME` — Maven Central portal username
    - `JRELEASER_MAVENCENTRAL_TOKEN` — Maven Central portal token
    - `JRELEASER_GPG_PASSPHRASE` — GPG key passphrase
