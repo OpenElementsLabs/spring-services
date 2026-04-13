@@ -86,7 +86,6 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
         E entity = getRepository().findById(data.id())
                 .orElseThrow(() -> new IllegalArgumentException("Entity with id " + data.id() + " not found"));
         getRepository().delete(entity);
-        delete(data.id());
         postDelete(data);
     }
 

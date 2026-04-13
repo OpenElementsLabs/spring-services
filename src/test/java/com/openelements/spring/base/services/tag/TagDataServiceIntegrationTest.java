@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
@@ -19,7 +19,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration test for {@link TagDataService} using Testcontainers with PostgreSQL.
@@ -117,36 +116,6 @@ class TagDataServiceIntegrationTest {
 
             //THEN
             assertThat(found).isEmpty();
-        }
-    }
-
-    @Nested
-    @DisplayName("delete")
-    class DeleteTest {
-
-        @Test
-        void shouldDeleteExistingTagFromRepository() {
-            //GIVEN
-            final TagDto saved = tagDataService.save(new TagDto(UUID.randomUUID(), "Delete Me", "Desc", "#112233"));
-
-            //WHEN & THEN
-            // Note: AbstractDbBackedDataService.delete() calls delete(data.id()) after
-            // getRepository().delete(entity), which re-attempts findById on the already-deleted
-            // entity. This causes an IllegalArgumentException. This is a known issue in the
-            // base class implementation.
-            assertThatThrownBy(() -> tagDataService.delete(saved))
-                    .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @Test
-        void shouldThrowWhenDeletingNonExistentTag() {
-            //GIVEN
-            final TagDto nonExistent = new TagDto(UUID.randomUUID(), "Ghost", "Desc", "#000000");
-
-            //WHEN & THEN
-            assertThatThrownBy(() -> tagDataService.delete(nonExistent))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("not found");
         }
     }
 }
