@@ -1,25 +1,37 @@
 # Project Structure
 
-<!-- This file is generated and updated by the /project-analyze skill. You can also edit it manually. -->
+## Repository Layout
 
-<!-- Describe the repository layout and where to find what. Example: -->
+```
+spring-services/
+├── src/main/java/com/openelements/spring/base/
+│   ├── data/                — Base entity, repository, and service abstractions
+│   ├── events/              — Spring event system (create, update, delete events)
+│   ├── security/
+│   │   ├── apikey/          — API key authentication filter and config
+│   │   └── user/            — User entity, service, DTO, and repository
+│   ├── services/
+│   │   ├── apikey/          — API key data service, entity, DTOs
+│   │   ├── settings/        — Key-value settings service
+│   │   ├── tag/             — Tag CRUD service
+│   │   └── webhook/         — Webhook management and async event delivery
+│   └── tenant/              — Multi-tenancy support (entity, service, repository)
+├── src/test/java/           — Unit and integration tests
+├── src/test/resources/      — Test configuration (application-testcontainers.properties)
+├── .github/workflows/
+│   ├── build.yml            — CI: spotless check + build + test on PRs and pushes
+│   └── snapshot.yml         — SNAPSHOT publish to GitHub Packages on push to main
+├── specs/                   — Specification-driven development documents
+├── pom.xml                  — Maven build configuration
+├── jreleaser.toml           — JReleaser config (signing, Maven Central, GitHub Releases)
+├── release.sh               — Manual release script
+├── .env.example             — Template for local release credentials
+└── .editorconfig            — Editor formatting rules
+```
 
-<!-- ## Repository Layout -->
-<!-- ``` -->
-<!-- project-root/ -->
-<!-- ├── backend/          — Java Spring Boot application -->
-<!-- │   ├── src/main/     — Application source code -->
-<!-- │   ├── src/test/     — Tests -->
-<!-- │   └── pom.xml       — Maven build configuration -->
-<!-- ├── frontend/         — Next.js TypeScript application -->
-<!-- │   ├── src/          — Application source code -->
-<!-- │   ├── public/       — Static assets -->
-<!-- │   └── package.json  — Node dependencies -->
-<!-- ├── docs/             — Project documentation (MkDocs) -->
-<!-- └── docker-compose.yml -->
-<!-- ``` -->
+## Key Directories
 
-<!-- ## Key Directories -->
-<!-- - `backend/src/main/java/com/example/` — Main application code -->
-<!-- - `frontend/src/components/` — React components -->
-<!-- - `frontend/src/app/` — Next.js pages and routes -->
+- `src/main/java/com/openelements/spring/base/data/` — Generic CRUD abstractions (`AbstractEntity`, `AbstractDbBackedDataService`)
+- `src/main/java/com/openelements/spring/base/security/` — Spring Security config, JWT, API key filter
+- `src/main/java/com/openelements/spring/base/services/` — Domain services (API keys, tags, webhooks, settings)
+- `src/main/java/com/openelements/spring/base/tenant/` — Multi-tenant entity and service base classes
