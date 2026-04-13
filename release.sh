@@ -27,15 +27,12 @@ NEXT_VERSION="$2"
 export $(grep -v '^#' .env | xargs)
 
 ./mvnw clean
-
 echo "Releasing version $NEW_VERSION"
 ./mvnw versions:set -DnewVersion=$NEW_VERSION
-./mvnw clean verify -DskipTests
+./mvnw clean verify
 git commit -am "Version $NEW_VERSION"
 git push
-./mvnw -Ppublication deploy -DskipTests
 ./mvnw -Ppublication deploy
-
 echo "Setting version to $NEXT_VERSION"
 ./mvnw versions:set -DnewVersion=$NEXT_VERSION
 git commit -am "Version $NEXT_VERSION"
