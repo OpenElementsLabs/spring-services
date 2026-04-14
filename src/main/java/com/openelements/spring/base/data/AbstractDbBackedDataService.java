@@ -49,7 +49,7 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
   @Override
   public D save(final D data) {
     preSave(data);
-    if (data.id() != null) {
+    if (data.id() == null) {
       final E entity = createDetachedEntity();
       updateEntity(entity, data);
       D saved = toData(getRepository().save(entity));
