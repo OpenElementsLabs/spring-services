@@ -4,7 +4,33 @@
 
     <groupId>com.open-elements</groupId>
     <artifactId>spring-services</artifactId>
-    <version>0.4.12</version>
+    <version>0.4.13</version>
+
+    <name>Spring Services</name>
+    <description>Spring Boot service utilities by Open Elements</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Hendrik Ebbers</name>
+            <email>hendrik.ebbers@open-elements.com</email>
+            <organization>Open Elements</organization>
+            <organizationUrl>https://open-elements.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/OpenElementsLabs/spring-services.git</connection>
+        <developerConnection>scm:git:https://github.com/OpenElementsLabs/spring-services.git</developerConnection>
+        <url>https://github.com/OpenElementsLabs/spring-services</url>
+    </scm>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
