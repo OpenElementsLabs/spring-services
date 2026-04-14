@@ -34,7 +34,7 @@ echo "Releasing version $NEW_VERSION"
 git commit -am "Version $NEW_VERSION"
 git push
 ./mvnw -Ppublication deploy -DaltDeploymentRepository=local::file:./target/staging-deploy
-./mvnw jreleaser:full-release
+./mvnw -Ppublication jreleaser:full-release
 echo "Setting version to $NEXT_VERSION"
 ./mvnw versions:set -DnewVersion=$NEXT_VERSION
 git commit -am "Version $NEXT_VERSION"
