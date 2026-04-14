@@ -1,5 +1,5 @@
 [environment]
-properties-file = ".jreleaser.properties"
+variables = ".jreleaser.properties"
 
 [signing]
 active = "ALWAYS"
