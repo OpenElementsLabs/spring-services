@@ -6,14 +6,13 @@ import jakarta.persistence.Entity;
 @Entity
 public class ForTestEntity extends AbstractEntity {
 
-    @Column
-    private String name;
+  @Column private String name;
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 }
