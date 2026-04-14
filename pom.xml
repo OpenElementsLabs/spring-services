@@ -4,7 +4,7 @@
 
     <groupId>com.open-elements</groupId>
     <artifactId>spring-services</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.0-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
