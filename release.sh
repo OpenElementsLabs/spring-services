@@ -24,10 +24,6 @@ fi
 NEW_VERSION="$1"
 NEXT_VERSION="$2"
 
-set -a
-source .env
-set +a
-
 echo "Releasing version $NEW_VERSION"
 ./mvnw versions:set -DnewVersion=$NEW_VERSION
 ./mvnw clean verify

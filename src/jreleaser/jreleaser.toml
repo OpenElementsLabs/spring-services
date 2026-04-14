@@ -1,0 +1,20 @@
+[environment]
+properties-file = ".jreleaser.properties"
+
+[signing]
+active = "ALWAYS"
+
+[signing.pgp]
+armored = true
+
+[deploy.maven.mavenCentral.release-deploy]
+active = "RELEASE"
+url = "https://central.sonatype.com/api/v1/publisher"
+stagingRepositories = ["target/staging-deploy"]
+applyMavenCentralRules = true
+
+[release.github]
+owner = "OpenElementsLabs"
+name = "spring-services"
+changelog.formatted = "ALWAYS"
+changelog.preset = "conventional-commits"
