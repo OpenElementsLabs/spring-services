@@ -1,16 +1,18 @@
 package com.openelements.spring.base.data;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.Serializable;
 import java.util.UUID;
 
 public interface DbEntity extends Serializable, WithId {
 
-  @Override
-  default UUID id() {
-    return getId();
-  }
+    @Override
+    default @Nullable UUID id() {
+        return getId();
+    }
 
-  UUID getId();
+    @Nullable UUID getId();
 
-  void setId(UUID id);
+    void setId(@Nullable UUID id);
 }
