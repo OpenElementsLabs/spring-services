@@ -5,7 +5,7 @@ import org.jspecify.annotations.NonNull;
 
 public class OnObjectCreate<T extends WithId> extends GenericDataEvent<T> {
 
-    public OnObjectCreate(@NonNull T source) {
-        super(source);
-    }
+  public OnObjectCreate(@NonNull T source) {
+    super(source);
+  }
 }

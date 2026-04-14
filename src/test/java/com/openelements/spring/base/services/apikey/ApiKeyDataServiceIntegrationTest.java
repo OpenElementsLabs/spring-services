@@ -94,6 +94,31 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    void shouldProduceUniqueKeysForSameName() {
+      // GIVEN
+      final ApiKeyCreateDto request = new ApiKeyCreateDto("Same Name");
+
+      // WHEN
+      final ApiKeyCreatedDto key1 = apiKeyDataService.create(request);
+      final ApiKeyCreatedDto key2 = apiKeyDataService.create(request);
+
+      // THEN
+      assertThat(key1.id()).isNotEqualTo(key2.id());
+      assertThat(key1.key()).isNotEqualTo(key2.key());
+    }
+
+    @Test
+    void shouldBuildKeyPrefixFromRawKey() {
+      // WHEN
+      final ApiKeyCreatedDto created = apiKeyDataService.create(new ApiKeyCreateDto("Prefix Test"));
+
+      // THEN
+      final String key = created.key();
+      final String expectedPrefix = key.substring(0, 8) + "..." + key.substring(key.length() - 4);
+      assertThat(created.keyPrefix()).isEqualTo(expectedPrefix);
+    }
+
+    @Test
     void shouldRejectNullRequest() {
       assertThatThrownBy(() -> apiKeyDataService.create(null))
           .isInstanceOf(NullPointerException.class);
