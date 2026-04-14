@@ -6,6 +6,9 @@ active = "ALWAYS"
 
 [signing.pgp]
 armored = true
+mode = "FILE"
+publicKey = ".jreleaser-gpg-public.pgp"
+secretKey = ".jreleaser-gpg-secret.pgp"
 
 [deploy.maven.mavenCentral.release-deploy]
 active = "RELEASE"

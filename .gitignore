@@ -2,4 +2,6 @@
 target
 .env
 .jreleaser.properties
+.jreleaser-gpg-public.pgp
+.jreleaser-gpg-secret.pgp
 .claude/settings.local.json
