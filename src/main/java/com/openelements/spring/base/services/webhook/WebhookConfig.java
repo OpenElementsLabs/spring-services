@@ -14,7 +14,7 @@ import org.springframework.web.client.RestClient;
 @ComponentScan
 @AutoConfiguration
 @EnableAutoConfiguration
-class WebhookConfig {
+public class WebhookConfig {
 
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
