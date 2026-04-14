@@ -1,5 +1,9 @@
 package com.openelements.spring.base.data;
 
+import com.openelements.spring.base.events.GenericDataEvent;
+import com.openelements.spring.base.events.OnObjectCreate;
+import com.openelements.spring.base.events.OnObjectDelete;
+import com.openelements.spring.base.events.OnObjectUpdate;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +17,9 @@ public class Tests {
 
     @Autowired
     private ForTestDataService forTestDataService;
+
+    @Autowired
+    private TestApplicationListener testApplicationListener;
 
     @Test
     void testSaveNew() {
@@ -135,5 +142,55 @@ public class Tests {
         //then:
         Assertions.assertFalse(forTestDataService.existsById(saved.id()));
         Assertions.assertFalse(forTestDataService.findById(saved.id()).isPresent());
+    }
+
+    @Test
+    void testSaveNewTriggersEvent() {
+        //given:
+        final ForTestDto dto = new ForTestDto(null, "Foo");
+        testApplicationListener.clearEvent();
+
+        //when:
+        final ForTestDto saved = forTestDataService.save(dto);
+        GenericDataEvent<ForTestDto> forTestDtoGenericDataEvent = testApplicationListener.waitForNextEvent();
+
+        //then:
+        Assertions.assertNotNull(forTestDtoGenericDataEvent);
+        Assertions.assertEquals(saved, forTestDtoGenericDataEvent.getData());
+        Assertions.assertTrue(forTestDtoGenericDataEvent instanceof OnObjectCreate<ForTestDto>);
+    }
+
+    @Test
+    void testSaveUpdateTriggersEvent() {
+        //given:
+        final ForTestDto dto = new ForTestDto(null, "Foo");
+        final ForTestDto saved = forTestDataService.save(dto);
+        testApplicationListener.clearEvent();
+
+        //when:
+        ForTestDto updated = forTestDataService.save(new ForTestDto(saved.id(), "Bar"));
+        GenericDataEvent<ForTestDto> forTestDtoGenericDataEvent = testApplicationListener.waitForNextEvent();
+
+        //then:
+        Assertions.assertNotNull(forTestDtoGenericDataEvent);
+        Assertions.assertEquals(updated, forTestDtoGenericDataEvent.getData());
+        Assertions.assertTrue(forTestDtoGenericDataEvent instanceof OnObjectUpdate<ForTestDto>);
+    }
+
+    @Test
+    void testDeleteTriggersEvent() {
+        //given:
+        final ForTestDto dto = new ForTestDto(null, "Foo");
+        final ForTestDto saved = forTestDataService.save(dto);
+        testApplicationListener.clearEvent();
+
+        //when:
+        forTestDataService.delete(saved.id());
+        GenericDataEvent<ForTestDto> forTestDtoGenericDataEvent = testApplicationListener.waitForNextEvent();
+
+        //then:
+        Assertions.assertNotNull(forTestDtoGenericDataEvent);
+        Assertions.assertEquals(saved, forTestDtoGenericDataEvent.getData());
+        Assertions.assertTrue(forTestDtoGenericDataEvent instanceof OnObjectDelete<ForTestDto>);
     }
 }
