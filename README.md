@@ -18,12 +18,42 @@ Releases are published to Maven Central via JReleaser. The process is triggered 
 
 #### Prerequisites
 
-1. Copy `.env.example` to `.env` and fill in your credentials:
-   - `JRELEASER_GITHUB_TOKEN` — GitHub personal access token (Fine-grained PAT with **Contents: Read and Write** permission on this repository, needed to create GitHub Releases and upload assets)
-   - `JRELEASER_MAVENCENTRAL_USERNAME` — Maven Central portal username
-   - `JRELEASER_MAVENCENTRAL_TOKEN` — Maven Central portal token
-   - `JRELEASER_GPG_PASSPHRASE` — GPG key passphrase
-   - `JRELEASER_GPG_SECRET_KEY` — GPG private key (armored)
+1. Create `~/.jreleaser/config.toml` with the following content and fill in your credentials:
+
+   ```toml
+   # JReleaser configuration for local releases.
+   #
+   # IMPORTANT: The public and secret key values must be valid ASCII-armored PGP keys.
+   # There must be a blank line between the "-----BEGIN ..." header and the key data.
+
+   JRELEASER_GITHUB_TOKEN = "ghp_your_github_personal_access_token"
+
+   JRELEASER_MAVENCENTRAL_USERNAME = "your_maven_central_username"
+   JRELEASER_MAVENCENTRAL_TOKEN = "your_maven_central_token"
+
+   JRELEASER_GPG_PASSPHRASE = "your_gpg_passphrase"
+
+   JRELEASER_GPG_PUBLIC_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+   <your base64-encoded public key data>
+   =XXXX
+   -----END PGP PUBLIC KEY BLOCK-----"""
+
+   JRELEASER_GPG_SECRET_KEY = """-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+   <your base64-encoded secret key data>
+   =XXXX
+   -----END PGP PRIVATE KEY BLOCK-----"""
+   ```
+
+   | Variable | Description |
+   |---|---|
+   | `JRELEASER_GITHUB_TOKEN` | GitHub personal access token (Fine-grained PAT with **Contents: Read and Write** permission on this repository) |
+   | `JRELEASER_MAVENCENTRAL_USERNAME` | Maven Central portal username |
+   | `JRELEASER_MAVENCENTRAL_TOKEN` | Maven Central portal token |
+   | `JRELEASER_GPG_PASSPHRASE` | GPG key passphrase |
+   | `JRELEASER_GPG_PUBLIC_KEY` | GPG public key (ASCII-armored) |
+   | `JRELEASER_GPG_SECRET_KEY` | GPG private key (ASCII-armored) |
 
 2. Ensure your GPG key is available and the passphrase matches.
 
