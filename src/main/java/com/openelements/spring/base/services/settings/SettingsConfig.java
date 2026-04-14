@@ -9,5 +9,4 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan
 @AutoConfiguration
 @EnableAutoConfiguration
-public class SettingsConfig {
-}
+public class SettingsConfig {}

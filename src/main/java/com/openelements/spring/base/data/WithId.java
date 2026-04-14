@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface WithId {
 
-    UUID id();
+  UUID id();
 }

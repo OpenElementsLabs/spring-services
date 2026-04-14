@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public interface WebhookEventPayload {
 
-    UUID eventId();
+  UUID eventId();
 
-    Instant timestamp();
+  Instant timestamp();
 }

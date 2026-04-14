@@ -11,9 +11,10 @@ import jakarta.validation.constraints.Size;
  */
 @Schema(description = "Request body for creating a new API key")
 public record ApiKeyCreateDto(
-        @NotBlank(message = "Name must not be blank")
+    @NotBlank(message = "Name must not be blank")
         @Size(max = 255, message = "Name must not exceed 255 characters")
-        @Schema(description = "Name for the API key", example = "CI Pipeline", requiredMode = Schema.RequiredMode.REQUIRED)
-        String name
-) {
-}
+        @Schema(
+            description = "Name for the API key",
+            example = "CI Pipeline",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        String name) {}

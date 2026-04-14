@@ -6,14 +6,12 @@ import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.O
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
- * Test application context for integration tests with Testcontainers.
- * Excludes OAuth2 auto-configuration since we mock authentication in tests.
+ * Test application context for integration tests with Testcontainers. Excludes OAuth2
+ * auto-configuration since we mock authentication in tests.
  */
 @SpringBootApplication(
-        scanBasePackages = "com.openelements.spring.base",
-        exclude = OAuth2ResourceServerAutoConfiguration.class
-)
+    scanBasePackages = "com.openelements.spring.base",
+    exclude = OAuth2ResourceServerAutoConfiguration.class)
 @EntityScan(basePackages = "com.openelements.spring.base")
 @EnableJpaRepositories(basePackages = "com.openelements.spring.base")
-public class TestApplication {
-}
+public class TestApplication {}

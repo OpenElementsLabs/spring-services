@@ -4,7 +4,7 @@ import com.openelements.spring.base.data.DbEntity;
 
 public interface EntityWithMultitenantSupport extends DbEntity {
 
-    String getTenantId();
+  String getTenantId();
 
-    void setTenantId(String tenantId);
+  void setTenantId(String tenantId);
 }

@@ -5,12 +5,12 @@ import java.util.UUID;
 
 public interface DbEntity extends Serializable, WithId {
 
-    @Override
-    default UUID id() {
-        return getId();
-    }
+  @Override
+  default UUID id() {
+    return getId();
+  }
 
-    UUID getId();
+  UUID getId();
 
-    void setId(UUID id);
+  void setId(UUID id);
 }
