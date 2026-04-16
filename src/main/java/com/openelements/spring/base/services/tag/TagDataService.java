@@ -7,6 +7,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * CRUD service for {@link TagDto}.
+ *
+ * <p>In addition to the standard {@link com.openelements.spring.base.events.OnObjectCreate} /
+ * {@code OnObjectUpdate} / {@code OnObjectDelete} lifecycle events inherited from {@link
+ * AbstractDbBackedDataService}, this service publishes a {@link PreTagDeleteEvent} immediately
+ * before a tag is deleted. Other features that hold references to tags can listen to this event to
+ * detach those references — or to veto the deletion by throwing.
+ */
 @Service
 @Transactional
 public class TagDataService extends AbstractDbBackedDataService<TagEntity, TagDto> {
@@ -43,6 +52,12 @@ public class TagDataService extends AbstractDbBackedDataService<TagEntity, TagDt
     return tagRepository;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Publishes a {@link PreTagDeleteEvent} so that other features can react to (or veto) the
+   * deletion before it happens.
+   */
   @Override
   protected void preDelete(TagDto data) {
     eventPublisher.publishEvent(new PreTagDeleteEvent(data));

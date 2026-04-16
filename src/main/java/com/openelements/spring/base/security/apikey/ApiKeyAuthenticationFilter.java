@@ -19,9 +19,32 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Authentication filter that checks for the X-API-Key header. If present, validates the key and
- * enforces read-only access (GET/HEAD/OPTIONS only). If absent, passes through to the standard JWT
- * authentication filter.
+ * Servlet filter that authenticates requests carrying an {@code X-API-Key} header.
+ *
+ * <p>Registered ahead of Spring Security's standard {@link
+ * org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter}
+ * by {@link com.openelements.spring.base.security.SecurityConfig}, so API-key authentication is
+ * attempted first and JWT authentication only runs as a fallback.
+ *
+ * <h2>Behaviour</h2>
+ *
+ * <ol>
+ *   <li>If the {@code X-API-Key} header is <b>absent</b>, the filter does nothing and forwards the
+ *       request — JWT authentication takes over.
+ *   <li>If the header is <b>present</b>, the raw key is hashed (SHA-256) and looked up via {@link
+ *       ApiKeyDataService#authenticate(String)}.
+ *       <ul>
+ *         <li>Unknown key → respond {@code 401 Unauthorized} with a JSON error body and abort.
+ *         <li>Known key but the HTTP method is not one of {@code GET}, {@code HEAD}, {@code
+ *             OPTIONS} → respond {@code 403 Forbidden}. <b>API keys grant read-only access
+ *             only.</b>
+ *         <li>Known key on a read-only method → place an {@link ApiKeyAuthentication} token (with
+ *             the {@code ROLE_API_KEY} authority) into the security context and continue.
+ *       </ul>
+ * </ol>
+ *
+ * <p>This filter never reads or persists the raw key beyond the lifetime of the request — only the
+ * hash is compared against the database.
  */
 @Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
@@ -32,6 +55,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
   private final ApiKeyDataService apiKeyService;
 
+  /**
+   * @param apiKeyService the data service used to validate API keys
+   */
   public ApiKeyAuthenticationFilter(final ApiKeyDataService apiKeyService) {
     this.apiKeyService = Objects.requireNonNull(apiKeyService, "apiKeyService must not be null");
   }
@@ -74,7 +100,14 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
-  /** Authentication token representing a valid API key. */
+  /**
+   * Spring Security {@link AbstractAuthenticationToken} representing a request that has been
+   * authenticated via a valid API key.
+   *
+   * <p>The principal is the {@link ApiKeyEntity} that matched the key; the token's only granted
+   * authority is {@code ROLE_API_KEY}, which downstream authorization rules can use to distinguish
+   * API-key sessions from JWT sessions.
+   */
   static class ApiKeyAuthentication extends AbstractAuthenticationToken {
 
     private final ApiKeyEntity apiKey;

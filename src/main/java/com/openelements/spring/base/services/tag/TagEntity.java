@@ -7,6 +7,14 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import org.hibernate.annotations.UpdateTimestamp;
 
+/**
+ * JPA entity for a tag — a small, named, color-coded label that other features can attach to their
+ * domain objects.
+ *
+ * <p>The {@code name} column is unique (case-sensitive at the storage level; case-insensitive
+ * lookup is provided by {@link TagRepository#findByNameIgnoreCase(String)}). The {@code color} is
+ * stored as a 7-character string, intended to hold a CSS hex code such as {@code #aabbcc}.
+ */
 @Entity
 @Table(name = "tags")
 public class TagEntity extends AbstractEntity {
