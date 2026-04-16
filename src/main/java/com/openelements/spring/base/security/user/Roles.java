@@ -6,6 +6,6 @@ public final class Roles {
   /** Predefined role for administrators. */
   public static final String ROLE_ADMIN = "ADMIN";
 
-  /** Predefined role for it administrators. */
+  /** Predefined role for IT administrators. */
   public static final String ROLE_IT_ADMIN = "IT-ADMIN";
 }
