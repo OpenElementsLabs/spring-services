@@ -1,10 +1,114 @@
 # Open Elements Spring Boot Services
 
+Reusable Spring Boot building blocks for backend applications: authentication (JWT + API key),
+local user mirror, tags, key/value settings, outbound webhooks, and row-level multi-tenancy. The
+library bundles each feature as an independent Spring `@Configuration`, so applications can opt
+into the full stack with a single import or pick the parts they need.
+
+## Requirements
+
+- Java 21
+- Spring Boot 3.3.x
+- A relational database supported by Spring Data JPA (PostgreSQL is used in CI / integration tests)
+
+## Installation
+
+Releases are published to Maven Central; SNAPSHOTs are published to GitHub Packages on every push
+to `main`.
+
+```xml
+<dependency>
+    <groupId>com.open-elements</groupId>
+    <artifactId>spring-services</artifactId>
+    <version><!-- latest released version --></version>
+</dependency>
+```
+
+## Quick Start
+
+The simplest way to enable every feature is to import `FullSpringServiceConfig`:
+
+```java
+@SpringBootApplication
+@Import(FullSpringServiceConfig.class)
+public class MyApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApplication.class, args);
+    }
+}
+```
+
+Applications that only need a subset can import the individual feature configurations directly —
+for example `SecurityConfig`, `TenantConfig`, `TagConfig`, `WebhookConfig`, `SettingsConfig`,
+`ApiKeyConfig`. Multi-tenancy can also be enabled declaratively via the `@EnableTenant`
+meta-annotation.
+
+## Features
+
+- **JWT / OAuth2 Resource Server** — Standard Spring Security JWT validation with `roles`-claim
+  to `ROLE_*` mapping in addition to the default `SCOPE_*` mapping from `scope`/`scp`.
+- **API Key Authentication** — `X-API-Key` header authentication via a custom Spring Security
+  filter that runs ahead of the bearer-token filter. Keys (`crm_` prefix + 48 random alphanumeric
+  characters from `SecureRandom`) are stored as a SHA-256 hash plus a short display prefix; the
+  raw key is returned exactly once at creation. API keys grant **read-only** access
+  (`GET` / `HEAD` / `OPTIONS`) — mutating operations require a JWT.
+- **User Service** — Lazily provisions a local user row from the JWT subject (`sub`) and keeps
+  `name` / `email` in sync with the JWT claims. Avatar upload/download with size (max 2 MB) and
+  content-type (`image/jpeg`, `image/png`) validation.
+- **Tags** — CRUD service for color-coded labels. A `PreTagDeleteEvent` is published before
+  deletion so other features can detach references — or veto the deletion by throwing.
+- **Settings** — Plain string-key / string-value store via `SettingsDataService`, useful for
+  configuration that lives in the database rather than in `application.yml`.
+- **Webhooks** — Outbound webhook subscriptions. Data lifecycle events trigger a webhook dispatch
+  *after the originating transaction commits*; HTTP POST is performed asynchronously via Spring
+  `RestClient` (10 s connect/read timeout) and the last response status is persisted on the
+  webhook row. A `ping` operation is exposed for testing a subscription on demand.
+- **Multi-Tenancy** — Row-level isolation in a shared schema. Tenant id is taken from the
+  authenticated principal; a JPA pre-persist guard fails fast if a row would be written without
+  one. Tenant-aware base classes mirror the non-tenant data abstractions and make cross-tenant
+  reads/writes impossible by construction.
+- **Generic Data Layer** — Reusable abstractions (`AbstractEntity` with UUID primary key and
+  audit timestamps, `AbstractDbBackedDataService` template) that wire CRUD, transactions and
+  lifecycle events for any domain object.
+- **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
+  synchronously inside the originating transaction; consumers opt into post-commit behaviour
+  with `@TransactionalEventListener`.
+
+For per-package overviews, see the `package-info.java` files under
+`src/main/java/com/openelements/spring/base/`.
+
+## Building
+
+```bash
+./mvnw clean verify       # build + run tests
+./mvnw spotless:apply     # apply Google Java Format
+./mvnw spotless:check     # verify formatting (also runs in CI)
+```
+
+## Project Layout
+
+```
+src/main/java/com/openelements/spring/base/
+├── FullSpringServiceConfig.java   — Aggregate @Import of every feature config
+├── data/                          — Generic CRUD abstractions
+├── events/                        — Lifecycle events
+├── security/                      — Filter chain, JWT converter, AuthService
+│   ├── apikey/                    — X-API-Key authentication filter
+│   └── user/                      — Local user mirror
+├── services/
+│   ├── apikey/                    — API key data layer
+│   ├── settings/                  — Key/value settings
+│   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
+│   └── webhook/                   — Outbound webhook delivery
+└── tenant/                        — Multi-tenancy primitives
+```
+
 ## Release Process
 
 ### SNAPSHOT Publishing (automatic)
 
-Every push to `main` triggers the `snapshot.yml` GitHub Actions workflow, which builds the project, runs all tests, and publishes a SNAPSHOT artifact to GitHub Packages at:
+Every push to `main` triggers the `snapshot.yml` GitHub Actions workflow, which builds the project, runs all tests, and
+publishes a SNAPSHOT artifact to GitHub Packages at:
 
 ```
 https://maven.pkg.github.com/OpenElementsLabs/spring-services
@@ -47,7 +151,7 @@ Releases are published to Maven Central via JReleaser. The process is triggered 
    ```
 
    | Variable | Description |
-   |---|---|
+         |---|---|
    | `JRELEASER_GITHUB_TOKEN` | GitHub personal access token (Fine-grained PAT with **Contents: Read and Write** permission on this repository) |
    | `JRELEASER_MAVENCENTRAL_USERNAME` | Maven Central portal username |
    | `JRELEASER_MAVENCENTRAL_TOKEN` | Maven Central portal token |
@@ -79,4 +183,9 @@ This will:
 6. Set the project version to `1.1.0-SNAPSHOT`
 7. Commit and push the next snapshot version
 
-If any step fails, the script stops immediately (`set -e`). If the failure occurs after the release version commit has been pushed, manual recovery may be required.
+If any step fails, the script stops immediately (`set -e`). If the failure occurs after the release version commit has
+been pushed, manual recovery may be required.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).

@@ -5,33 +5,71 @@
 ```
 spring-services/
 ├── src/main/java/com/openelements/spring/base/
-│   ├── data/                — Base entity, repository, and service abstractions
-│   ├── events/              — Spring event system (create, update, delete events)
+│   ├── FullSpringServiceConfig.java   — Aggregate @Import of every feature config
+│   ├── data/                          — Generic CRUD abstractions (DTO/entity/service templates)
+│   ├── events/                        — OnObjectCreate / OnObjectUpdate / OnObjectDelete
 │   ├── security/
-│   │   ├── apikey/          — API key authentication filter and config
-│   │   └── user/            — User entity, service, DTO, and repository
+│   │   ├── SecurityConfig.java        — Spring Security filter chain, JWT converter
+│   │   ├── AuthService.java           — Facade over SecurityContextHolder
+│   │   ├── UserInformation.java       — Typed view of the JWT subject
+│   │   ├── apikey/                    — ApiKeyAuthenticationFilter (X-API-Key header)
+│   │   └── user/                      — Local user mirror (entity, DTO, repo, service, ImageData)
 │   ├── services/
-│   │   ├── apikey/          — API key data service, entity, DTOs
-│   │   ├── settings/        — Key-value settings service
-│   │   ├── tag/             — Tag CRUD service
-│   │   └── webhook/         — Webhook management and async event delivery
-│   └── tenant/              — Multi-tenancy support (entity, service, repository)
-├── src/test/java/           — Unit and integration tests
-├── src/test/resources/      — Test configuration (application-testcontainers.properties)
+│   │   ├── apikey/                    — API key data layer (entity, DTOs, repo, data service)
+│   │   ├── settings/                  — Key/value SettingsDataService + entity/repo
+│   │   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
+│   │   └── webhook/
+│   │       ├── WebhookConfig.java     — RestClient bean (10s timeouts)
+│   │       ├── WebhookEventListener   — @TransactionalEventListener(AFTER_COMMIT)
+│   │       ├── WebhookSender          — @Async HTTP POST + status persistence
+│   │       ├── data/                  — Webhook entity, DTO, repository, data service
+│   │       └── payload/               — Outbound JSON payload records
+│   └── tenant/                        — Multi-tenancy (entity/repo/service base + EnableTenant)
+├── src/test/java/                     — Unit and integration tests (mirrors main package layout)
+├── src/test/resources/
+│   └── application-testcontainers.properties  — Testcontainers profile config
 ├── .github/workflows/
-│   ├── build.yml            — CI: spotless check + build + test on PRs and pushes
-│   └── snapshot.yml         — SNAPSHOT publish to GitHub Packages on push to main
-├── specs/                   — Specification-driven development documents
-├── pom.xml                  — Maven build configuration
-├── jreleaser.toml           — JReleaser config (signing, Maven Central, GitHub Releases)
-├── release.sh               — Manual release script
-├── .env.example             — Template for local release credentials
-└── .editorconfig            — Editor formatting rules
+│   ├── build.yml                      — CI: spotless:check + mvn clean verify
+│   └── snapshot.yml                   — SNAPSHOT publish to GitHub Packages on push to main
+├── .claude/                           — Claude Code configuration, skills and conventions
+├── specs/
+│   ├── INDEX.md                       — Index of all specifications
+│   └── 001-release-pipeline/          — Spec for the release pipeline
+├── pom.xml                            — Maven build config; JReleaser config inlined in
+│                                        the `publication` profile
+├── release.sh                         — Manual release script (sets version, builds, runs JReleaser)
+├── mvnw, mvnw.cmd, .mvn/              — Maven Wrapper
+├── README.md                          — Release process documentation
+├── CLAUDE.md                          — Project-level Claude Code rules
+└── LICENSE                            — Apache License 2.0
 ```
 
 ## Key Directories
 
-- `src/main/java/com/openelements/spring/base/data/` — Generic CRUD abstractions (`AbstractEntity`, `AbstractDbBackedDataService`)
-- `src/main/java/com/openelements/spring/base/security/` — Spring Security config, JWT, API key filter
-- `src/main/java/com/openelements/spring/base/services/` — Domain services (API keys, tags, webhooks, settings)
-- `src/main/java/com/openelements/spring/base/tenant/` — Multi-tenant entity and service base classes
+- `src/main/java/com/openelements/spring/base/data/` — `WithId`, `DbEntity`,
+  `AbstractEntity` (UUID PK + audit timestamps), `EntityRepository`, `DataService` /
+  `DbBackedDataService` and the `AbstractDbBackedDataService` template that wires CRUD,
+  transactions and lifecycle events.
+- `src/main/java/com/openelements/spring/base/security/` — Security entry point. `SecurityConfig`
+  registers the API-key filter ahead of the bearer-token filter and configures the JWT-to-roles
+  mapping.
+- `src/main/java/com/openelements/spring/base/services/` — Domain features (API keys, settings,
+  tags, webhooks). Each subpackage is self-contained: entity + repository + DTO + data service
+  + Spring `@Configuration`.
+- `src/main/java/com/openelements/spring/base/tenant/` — Tenant-aware analogues of the data
+  abstractions: `AbstractMultitenantEntity` (with pre-persist guard),
+  `RepositoryWithTenantSupport`, `AbstractMultitenantDbBackedDataService`, plus the
+  `@EnableTenant` meta-annotation.
+- `src/test/` — Unit and integration tests, including Testcontainers-based integration tests for
+  PostgreSQL and WireMock-based tests for webhook delivery.
+
+## Where to Find What
+
+- **Application entry point (for consumers):** `FullSpringServiceConfig` (or any individual
+  `*Config` class for à-la-carte usage).
+- **Configuration:** `pom.xml` (build, dependencies, JReleaser); `application-testcontainers.properties`
+  (test profile).
+- **Tests:** `src/test/java/com/openelements/spring/base/...` — package layout mirrors `main`.
+- **Documentation:** `README.md` (release process), `specs/` (specification-driven design docs),
+  per-package `package-info.java` files for in-source overviews.
+- **CI / release scripts:** `.github/workflows/`, `release.sh`, `pom.xml` `publication` profile.
