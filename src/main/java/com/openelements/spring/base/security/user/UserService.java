@@ -1,5 +1,6 @@
 package com.openelements.spring.base.security.user;
 
+import com.openelements.spring.base.data.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import java.util.List;
@@ -20,13 +21,13 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * <h2>Lazy provisioning</h2>
  *
- * The first call for a previously unknown subject creates the {@link UserEntity}. Subsequent calls
- * detect drift in the {@code name} / {@code email} JWT claims and update the local row, so the
- * mirror always reflects the most recent assertions of the identity provider.
+ * <p>The first call for a previously unknown subject creates the {@link UserEntity}. Subsequent
+ * calls detect drift in the {@code name} / {@code email} JWT claims and update the local row, so
+ * the mirror always reflects the most recent assertions of the identity provider.
  *
  * <h2>Avatar handling</h2>
  *
- * Avatar uploads accept {@code image/jpeg} and {@code image/png} up to 2 MB. The image bytes are
+ * <p>Avatar uploads accept {@code image/jpeg} and {@code image/png} up to 2 MB. The image bytes are
  * stored on the user row itself and served back through {@link #getAvatarOfCurrentUser()}.
  */
 @Service

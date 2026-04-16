@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.openelements.spring.base.data.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import java.util.Optional;
@@ -35,6 +36,16 @@ class UserServiceTest {
     entity.setName(name);
     entity.setEmail(email);
     return entity;
+  }
+
+  @Test
+  void shouldRejectNullConstructorArgs() {
+    assertThatThrownBy(() -> new UserService(null, eventPublisher, authService))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new UserService(userRepository, null, authService))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new UserService(userRepository, eventPublisher, null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   @Nested
@@ -238,15 +249,5 @@ class UserServiceTest {
       assertThat(existing.getAvatarContentType()).isNull();
       verify(userRepository).saveAndFlush(existing);
     }
-  }
-
-  @Test
-  void shouldRejectNullConstructorArgs() {
-    assertThatThrownBy(() -> new UserService(null, eventPublisher, authService))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new UserService(userRepository, null, authService))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new UserService(userRepository, eventPublisher, null))
-        .isInstanceOf(NullPointerException.class);
   }
 }
