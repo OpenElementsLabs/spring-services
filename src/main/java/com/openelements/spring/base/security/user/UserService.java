@@ -2,7 +2,7 @@ package com.openelements.spring.base.security.user;
 
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
-import com.openelements.spring.base.data.ImageData;
+import com.openelements.spring.base.data.image.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import org.jspecify.annotations.NonNull;
