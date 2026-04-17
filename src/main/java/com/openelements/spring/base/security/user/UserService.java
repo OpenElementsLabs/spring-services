@@ -7,13 +7,12 @@ import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Application service that bridges the JWT-authenticated subject and the local user-profile mirror.
@@ -38,10 +37,8 @@ import java.util.Objects;
 @Transactional
 public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto> {
 
-    private static final List<String> ALLOWED_AVATAR_TYPES = List.of("image/jpeg", "image/png");
-    private static final int MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
-
     private final UserRepository userRepository;
+
     private final AuthService authService;
 
     public UserService(
@@ -94,30 +91,9 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
         return UserDto.fromEntity(getCurrentUserEntity());
     }
 
-    /**
-     * Replaces the avatar of the current user.
-     *
-     * @param data        the raw image bytes; must be non-empty and at most 2 MB
-     * @param contentType the MIME type; must be {@code image/jpeg} or {@code image/png}
-     * @return the updated profile (with {@code hasAvatar = true})
-     * @throws ResponseStatusException {@code 400 Bad Request} if {@code data} is missing, too large
-     *                                 or has an unsupported {@code contentType}
-     */
-    public UserDto uploadAvatarForCurrentUser(final byte[] data, final String contentType) {
-        if (data == null || data.length == 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No image data provided");
-        }
-        if (data.length > MAX_AVATAR_SIZE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File too large (max 2MB)");
-        }
-        if (!ALLOWED_AVATAR_TYPES.contains(contentType)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid content type: " + contentType + ". Allowed: " + ALLOWED_AVATAR_TYPES);
-        }
+    public UserDto updateAvatarForCurrentUser(final ImageData imageData) {
         final UserEntity user = getCurrentUserEntity();
-        user.setAvatar(data);
-        user.setAvatarContentType(contentType);
+        user.setImageData(imageData);
         return UserDto.fromEntity(userRepository.saveAndFlush(user));
     }
 
@@ -127,12 +103,8 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
      * @return the avatar image bytes together with their MIME content type
      * @throws ResponseStatusException {@code 404 Not Found} if no avatar has been uploaded
      */
-    public ImageData getAvatarOfCurrentUser() {
-        final UserEntity user = getCurrentUserEntity();
-        if (user.getAvatar() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No avatar set");
-        }
-        return new ImageData(user.getAvatar(), user.getAvatarContentType());
+    public Optional<ImageData> getAvatarOfCurrentUser() {
+        return getCurrentUserEntity().imageData();
     }
 
     /**
@@ -141,8 +113,7 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
      */
     public void deleteAvatarOfCurrentUser() {
         final UserEntity user = getCurrentUserEntity();
-        user.setAvatar(null);
-        user.setAvatarContentType(null);
+        user.setImageData(null);
         userRepository.saveAndFlush(user);
     }
 

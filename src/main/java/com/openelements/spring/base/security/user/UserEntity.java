@@ -1,10 +1,12 @@
 package com.openelements.spring.base.security.user;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.image.EntityWithImage;
 import jakarta.persistence.*;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.Instant;
 import java.util.Objects;
-import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * Local mirror of an OAuth2-authenticated user.
@@ -19,101 +21,122 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "users")
-public class UserEntity extends AbstractEntity {
+public class UserEntity extends AbstractEntity implements EntityWithImage {
 
-  @Column(name = "sub", nullable = false, unique = true, length = 255)
-  private String sub;
+    @Column(name = "sub", nullable = false, unique = true, length = 255)
+    private String sub;
 
-  @Column(name = "name", nullable = false, length = 255)
-  private String name;
+    @Column(name = "name", nullable = false, length = 255)
+    private String name;
 
-  @Column(name = "email", length = 255)
-  private String email;
+    @Column(name = "email", length = 255)
+    private String email;
 
-  @Basic(fetch = FetchType.LAZY)
-  @Column(name = "avatar")
-  private byte[] avatar;
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "avatar")
+    private byte[] avatar;
 
-  @Column(name = "avatar_content_type", length = 100)
-  private String avatarContentType;
+    @Column(name = "avatar_content_type", length = 100)
+    private String avatarContentType;
 
-  @UpdateTimestamp
-  @Column(name = "updated_at", nullable = false)
-  private Instant updatedAt;
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
-  public UserEntity() {}
+    public UserEntity() {
+    }
 
-  /**
-   * Returns the OAuth2 subject identifier ({@code sub} claim) of this user.
-   *
-   * @return the subject identifier, never {@code null} for persisted entities
-   */
-  public String getSub() {
-    return sub;
-  }
+    /**
+     * Returns the OAuth2 subject identifier ({@code sub} claim) of this user.
+     *
+     * @return the subject identifier, never {@code null} for persisted entities
+     */
+    public String getSub() {
+        return sub;
+    }
 
-  public void setSub(final String sub) {
-    Objects.requireNonNull(sub, "sub must not be null");
-    this.sub = sub;
-  }
+    public void setSub(final String sub) {
+        Objects.requireNonNull(sub, "sub must not be null");
+        this.sub = sub;
+    }
 
-  /**
-   * Returns the cached display name of the user, kept in sync with the JWT {@code name} claim by
-   * {@link UserService}.
-   */
-  public String getName() {
-    return name;
-  }
+    /**
+     * Returns the cached display name of the user, kept in sync with the JWT {@code name} claim by
+     * {@link UserService}.
+     */
+    public String getName() {
+        return name;
+    }
 
-  public void setName(final String name) {
-    Objects.requireNonNull(name, "name must not be null");
-    this.name = name;
-  }
+    public void setName(final String name) {
+        Objects.requireNonNull(name, "name must not be null");
+        this.name = name;
+    }
 
-  /**
-   * Returns the cached email address of the user, kept in sync with the JWT {@code email} claim by
-   * {@link UserService}. May be {@code null} if the identity provider does not assert it.
-   */
-  public String getEmail() {
-    return email;
-  }
+    /**
+     * Returns the cached email address of the user, kept in sync with the JWT {@code email} claim by
+     * {@link UserService}. May be {@code null} if the identity provider does not assert it.
+     */
+    public String getEmail() {
+        return email;
+    }
 
-  public void setEmail(final String email) {
-    this.email = email;
-  }
+    public void setEmail(final String email) {
+        this.email = email;
+    }
 
-  /**
-   * Returns the avatar image bytes, or {@code null} if no avatar has been uploaded.
-   *
-   * <p>Loaded lazily — accessing this getter outside of an active persistence context throws a
-   * {@code LazyInitializationException}.
-   */
-  public byte[] getAvatar() {
-    return avatar;
-  }
+    /**
+     * Returns the avatar image bytes, or {@code null} if no avatar has been uploaded.
+     *
+     * <p>Loaded lazily — accessing this getter outside of an active persistence context throws a
+     * {@code LazyInitializationException}.
+     */
+    public byte[] getAvatar() {
+        return avatar;
+    }
 
-  public void setAvatar(final byte[] avatar) {
-    this.avatar = avatar;
-  }
+    public void setAvatar(final byte[] avatar) {
+        this.avatar = avatar;
+    }
 
-  /**
-   * Returns the MIME content type of the stored avatar (e.g. {@code image/png}), or {@code null} if
-   * no avatar is set.
-   */
-  public String getAvatarContentType() {
-    return avatarContentType;
-  }
+    /**
+     * Returns the MIME content type of the stored avatar (e.g. {@code image/png}), or {@code null} if
+     * no avatar is set.
+     */
+    public String getAvatarContentType() {
+        return avatarContentType;
+    }
 
-  public void setAvatarContentType(final String avatarContentType) {
-    this.avatarContentType = avatarContentType;
-  }
+    public void setAvatarContentType(final String avatarContentType) {
+        this.avatarContentType = avatarContentType;
+    }
 
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
-  @Override
-  public String toString() {
-    return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
-  }
+    @Override
+    public String toString() {
+        return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
+    }
+
+    @Override
+    public byte[] getRawImageData() {
+        return avatar;
+    }
+
+    @Override
+    public void setRawImageData(byte[] rawImageData) {
+        this.avatar = rawImageData;
+    }
+
+    @Override
+    public String getContentType() {
+        return avatarContentType;
+    }
+
+    @Override
+    public void setContentType(String contentType) {
+        setAvatarContentType(contentType);
+    }
 }

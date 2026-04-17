@@ -10,9 +10,9 @@ public interface EntityWithImage extends DbEntity {
 
     void setRawImageData(byte[] rawImageData);
 
-    ImageType getImageType();
+    String getContentType();
 
-    void setImageType(ImageType imageType);
+    void setContentType(String contentType);
 
     default Optional<ImageData> imageData() {
         final byte[] rawImageData = getRawImageData();
@@ -23,16 +23,30 @@ public interface EntityWithImage extends DbEntity {
         if (imageType == null) {
             return Optional.empty();
         }
-        final ImageData imageData = new ImageData(rawImageData, imageType.getContentType());
+        final ImageData imageData = new ImageData(rawImageData, imageType);
         return Optional.of(imageData);
     }
 
-    default void updateImageData(ImageData imageData) {
+    default ImageType getImageType() {
+        return Optional.ofNullable(getContentType())
+                .map(c -> ImageType.fromContentType(c))
+                .orElse(null);
+    }
+
+    default void setImageType(ImageType imageType) {
+        final String contentType = Optional.ofNullable(imageType)
+                .map(t -> t.getContentType())
+                .orElse(null);
+        setContentType(contentType);
+    }
+
+    default void setImageData(ImageData imageData) {
         if (imageData == null) {
-            removeImageData();
+            setRawImageData(null);
+            setContentType(null);
             return;
         }
-        final ImageType imageType = ImageType.fromContentType(imageData.contentType());
+        final ImageType imageType = imageData.imageType();
         if (imageType == null) {
             throw new IllegalStateException("Image type is null");
         }
@@ -40,10 +54,7 @@ public interface EntityWithImage extends DbEntity {
         if (rawImageData == null) {
             throw new IllegalStateException("Image type is null");
         }
-    }
-
-    default void removeImageData() {
-        setImageType(null);
-        setRawImageData(null);
+        setRawImageData(rawImageData);
+        setContentType(imageType.getContentType());
     }
 }

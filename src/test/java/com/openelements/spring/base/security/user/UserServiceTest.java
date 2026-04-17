@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -139,7 +138,8 @@ class UserServiceTest {
             final byte[] imageData = new byte[]{1, 2, 3, 4};
 
             // WHEN
-            final UserDto dto = userService.uploadAvatarForCurrentUser(imageData, "image/jpeg");
+            final ImageData data = ImageData.of(imageData, "image/jpeg");
+            final UserDto dto = userService.updateAvatarForCurrentUser(data);
 
             // THEN
             assertThat(dto.hasAvatar()).isTrue();
@@ -154,7 +154,7 @@ class UserServiceTest {
             when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(i -> i.getArgument(0));
 
             // WHEN
-            final UserDto dto = userService.uploadAvatarForCurrentUser(new byte[]{1}, "image/png");
+            final UserDto dto = userService.updateAvatarForCurrentUser(ImageData.of(new byte[]{1}, "image/png"));
 
             // THEN
             assertThat(dto.hasAvatar()).isTrue();
@@ -162,16 +162,15 @@ class UserServiceTest {
 
         @Test
         void shouldRejectNullData() {
-            assertThatThrownBy(() -> userService.uploadAvatarForCurrentUser(null, "image/jpeg"))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .hasMessageContaining("No image data");
+            assertThatThrownBy(() -> userService.updateAvatarForCurrentUser(ImageData.of(null, "image/jpeg")))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("data must not be null");
         }
 
         @Test
         void shouldRejectEmptyData() {
-            assertThatThrownBy(() -> userService.uploadAvatarForCurrentUser(new byte[0], "image/jpeg"))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .hasMessageContaining("No image data");
+            assertThatThrownBy(() -> userService.updateAvatarForCurrentUser(ImageData.of(new byte[0], "image/jpeg")))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -180,16 +179,14 @@ class UserServiceTest {
             final byte[] largeData = new byte[2 * 1024 * 1024 + 1]; // >2MB
 
             // WHEN & THEN
-            assertThatThrownBy(() -> userService.uploadAvatarForCurrentUser(largeData, "image/jpeg"))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .hasMessageContaining("too large");
+            assertThatThrownBy(() -> userService.updateAvatarForCurrentUser(ImageData.of(largeData, "image/jpeg")))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
         void shouldRejectInvalidContentType() {
-            assertThatThrownBy(() -> userService.uploadAvatarForCurrentUser(new byte[]{1}, "image/gif"))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .hasMessageContaining("Invalid content type");
+            assertThatThrownBy(() -> userService.updateAvatarForCurrentUser(ImageData.of(new byte[]{1}, "image/gif")))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -207,24 +204,11 @@ class UserServiceTest {
             when(userRepository.findBySub("auth0|avatar")).thenReturn(Optional.of(existing));
 
             // WHEN
-            final ImageData imageData = userService.getAvatarOfCurrentUser();
+            final ImageData imageData = userService.getAvatarOfCurrentUser().orElse(null);
 
             // THEN
             assertThat(imageData.data()).isEqualTo(new byte[]{10, 20, 30});
-            assertThat(imageData.contentType()).isEqualTo("image/png");
-        }
-
-        @Test
-        void shouldThrowWhenNoAvatarSet() {
-            // GIVEN
-            setupAuth("auth0|noavatar", "User", "user@example.com");
-            final UserEntity existing = createExistingUser("auth0|noavatar", "User", "user@example.com");
-            when(userRepository.findBySub("auth0|noavatar")).thenReturn(Optional.of(existing));
-
-            // WHEN & THEN
-            assertThatThrownBy(() -> userService.getAvatarOfCurrentUser())
-                    .isInstanceOf(ResponseStatusException.class)
-                    .hasMessageContaining("No avatar set");
+            assertThat(imageData.imageType().getContentType()).isEqualTo("image/png");
         }
     }
 

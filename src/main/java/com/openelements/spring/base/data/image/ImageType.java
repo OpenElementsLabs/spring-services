@@ -19,7 +19,7 @@ public enum ImageType {
                 return type;
             }
         }
-        throw new IllegalArgumentException(contentType + " is not a valid image type");
+        throw new IllegalArgumentException(contentType + " is not a valid image content type");
     }
 
     public String getContentType() {
