@@ -7,6 +7,7 @@ import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -69,12 +70,16 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
                         })
                 .orElseGet(
                         () -> {
-                            final UserEntity entity = new UserEntity();
-                            entity.setSub(userInformation.id());
-                            entity.setName(userInformation.name());
-                            entity.setEmail(userInformation.email());
-                            final UserEntity saved = userRepository.saveAndFlush(entity);
-                            return saved;
+                            try {
+                                final UserEntity entity = new UserEntity();
+                                entity.setSub(userInformation.id());
+                                entity.setName(userInformation.name());
+                                entity.setEmail(userInformation.email());
+                                return userRepository.saveAndFlush(entity);
+                            } catch (final DataIntegrityViolationException e) {
+                                return userRepository.findBySub(userInformation.id())
+                                        .orElseThrow(() -> e);
+                            }
                         });
     }
 

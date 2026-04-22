@@ -18,4 +18,4 @@ public @interface NeedsAdminRole {
 - Support for Avatar pictures coming from authentik
 - Migrate ApiKeyDataService to our data pattern
 - Migrate SettingsDataService to our data pattern
-- 
+- Metrics
