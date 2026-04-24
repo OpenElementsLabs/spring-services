@@ -16,7 +16,8 @@
  *   <li>If the JWT's {@code name} or {@code email} claim has changed since the last call, the local
  *       entity is updated transparently.
  *   <li>Avatars (max 2 MB, {@code image/jpeg} or {@code image/png}) are stored as a {@code byte[]}
- *       column on the user row and exposed via {@link com.openelements.spring.base.data.image.ImageData}.
+ *       column on the user row and exposed via {@link
+ *       com.openelements.spring.base.data.image.ImageData}.
  * </ul>
  */
 package com.openelements.spring.base.security.user;

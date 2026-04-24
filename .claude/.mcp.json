@@ -6,7 +6,10 @@
     },
     "coolify": {
       "command": "npx",
-      "args": ["-y", "coolify-mcp"],
+      "args": [
+        "-y",
+        "coolify-mcp"
+      ],
       "env": {
         "COOLIFY_API_URL": "${COOLIFY_API_URL}",
         "COOLIFY_API_TOKEN": "${COOLIFY_API_TOKEN}"
@@ -14,32 +17,51 @@
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GH_TOKEN}"
       }
     },
     "drawio": {
       "command": "npx",
-      "args": ["-y", "drawio-mcp"]
+      "args": [
+        "-y",
+        "drawio-mcp"
+      ]
     },
     "figma": {
       "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--figma-api-key=${FIGMA_API_KEY}"]
+      "args": [
+        "-y",
+        "figma-developer-mcp",
+        "--figma-api-key=${FIGMA_API_KEY}"
+      ]
     },
     "docker": {
       "command": "docker",
-      "args": ["mcp", "gateway", "run"],
+      "args": [
+        "mcp",
+        "gateway",
+        "run"
+      ],
       "type": "stdio"
     },
     "maven-central": {
       "command": "npx",
-      "args": ["mcp-maven-deps"],
+      "args": [
+        "mcp-maven-deps"
+      ],
       "type": "stdio"
     },
     "shadcn": {
       "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
     }
   }
 }

@@ -1,11 +1,10 @@
 package com.openelements.spring.base.data;
 
-import org.jspecify.annotations.NonNull;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Generic CRUD contract for a service that manages DTOs of type {@code D}.
@@ -49,84 +48,84 @@ import java.util.UUID;
  */
 public interface DataService<D extends WithId> {
 
-    /**
-     * Inserts or updates the given DTO.
-     *
-     * @param data the DTO to persist; an insert is performed if {@link WithId#id()} is {@code null},
-     *             otherwise an update of the existing record is performed
-     * @return the persisted DTO, including the generated id and any server-side defaults
-     */
-    @NonNull D save(@NonNull final D data);
+  /**
+   * Inserts or updates the given DTO.
+   *
+   * @param data the DTO to persist; an insert is performed if {@link WithId#id()} is {@code null},
+   *     otherwise an update of the existing record is performed
+   * @return the persisted DTO, including the generated id and any server-side defaults
+   */
+  @NonNull D save(@NonNull final D data);
 
-    /**
-     * Returns all stored DTOs.
-     *
-     * <p>This method materialises every record. Prefer {@link DbBackedDataService#findAll(
-     *org.springframework.data.domain.Pageable)} for collections that may grow beyond a few hundred
-     * entries.
-     *
-     * @return all stored DTOs, never {@code null}
-     */
-    @NonNull List<D> getAll();
+  /**
+   * Returns all stored DTOs.
+   *
+   * <p>This method materialises every record. Prefer {@link DbBackedDataService#findAll(
+   * org.springframework.data.domain.Pageable)} for collections that may grow beyond a few hundred
+   * entries.
+   *
+   * @return all stored DTOs, never {@code null}
+   */
+  @NonNull List<D> getAll();
 
-    /**
-     * Convenience overload of {@link #findById(UUID)} that parses the id from its string
-     * representation.
-     *
-     * @param id the id as a string
-     * @return the matching DTO, or an empty {@link Optional} if none exists
-     * @throws IllegalArgumentException if {@code id} is not a valid UUID
-     */
-    default @NonNull Optional<D> findById(@NonNull final String id) {
-        Objects.requireNonNull(id, "id must not be null");
-        return findById(UUID.fromString(id));
-    }
+  /**
+   * Convenience overload of {@link #findById(UUID)} that parses the id from its string
+   * representation.
+   *
+   * @param id the id as a string
+   * @return the matching DTO, or an empty {@link Optional} if none exists
+   * @throws IllegalArgumentException if {@code id} is not a valid UUID
+   */
+  default @NonNull Optional<D> findById(@NonNull final String id) {
+    Objects.requireNonNull(id, "id must not be null");
+    return findById(UUID.fromString(id));
+  }
 
-    /**
-     * Looks up a DTO by its id.
-     *
-     * @param id the id to look up
-     * @return the matching DTO, or an empty {@link Optional} if none exists
-     */
-    @NonNull Optional<D> findById(@NonNull final UUID id);
+  /**
+   * Looks up a DTO by its id.
+   *
+   * @param id the id to look up
+   * @return the matching DTO, or an empty {@link Optional} if none exists
+   */
+  @NonNull Optional<D> findById(@NonNull final UUID id);
 
-    default @NonNull D findByIdOrThrow(@NonNull final UUID id) {
-        Objects.requireNonNull(id, "id must not be null");
-        return findById(id).orElseThrow(() -> new IllegalArgumentException("No such id " + id));
-    }
+  default @NonNull D findByIdOrThrow(@NonNull final UUID id) {
+    Objects.requireNonNull(id, "id must not be null");
+    return findById(id).orElseThrow(() -> new IllegalArgumentException("No such id " + id));
+  }
 
-    /**
-     * Convenience overload of {@link #delete(UUID)} that parses the id from its string
-     * representation.
-     *
-     * @param id the id as a string
-     * @throws IllegalArgumentException if {@code id} is not a valid UUID, or if no entity with that
-     *                                  id exists
-     */
-    default void delete(@NonNull final String id) {
-        Objects.requireNonNull(id, "id must not be null");
-        delete(UUID.fromString(id));
-    }
+  /**
+   * Convenience overload of {@link #delete(UUID)} that parses the id from its string
+   * representation.
+   *
+   * @param id the id as a string
+   * @throws IllegalArgumentException if {@code id} is not a valid UUID, or if no entity with that
+   *     id exists
+   */
+  default void delete(@NonNull final String id) {
+    Objects.requireNonNull(id, "id must not be null");
+    delete(UUID.fromString(id));
+  }
 
-    /**
-     * Deletes the entity identified by the given id.
-     *
-     * @param id the id of the entity to delete
-     * @throws IllegalArgumentException if no entity with that id exists
-     */
-    default void delete(@NonNull final UUID id) {
-        Objects.requireNonNull(id, "id must not be null");
-        final D data =
-                findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("Entity with id " + id + " not found"));
-        delete(data);
-    }
+  /**
+   * Deletes the entity identified by the given id.
+   *
+   * @param id the id of the entity to delete
+   * @throws IllegalArgumentException if no entity with that id exists
+   */
+  default void delete(@NonNull final UUID id) {
+    Objects.requireNonNull(id, "id must not be null");
+    final D data =
+        findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Entity with id " + id + " not found"));
+    delete(data);
+  }
 
-    /**
-     * Deletes the entity matching the given DTO.
-     *
-     * @param data the DTO whose id identifies the entity to delete; must have a non-null id
-     * @throws IllegalArgumentException if no entity with that id exists
-     */
-    void delete(@NonNull final D data);
+  /**
+   * Deletes the entity matching the given DTO.
+   *
+   * @param data the DTO whose id identifies the entity to delete; must have a non-null id
+   * @throws IllegalArgumentException if no entity with that id exists
+   */
+  void delete(@NonNull final D data);
 }
