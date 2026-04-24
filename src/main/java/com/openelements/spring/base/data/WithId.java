@@ -1,8 +1,5 @@
 package com.openelements.spring.base.data;
 
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -10,6 +7,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Marker contract for any object — typically a DTO or an entity — that is identified by a {@link
@@ -30,29 +29,27 @@ import java.util.stream.StreamSupport;
  */
 public interface WithId {
 
-    @NonNull
-    static <T extends WithId> Set<UUID> toIdSet(@NonNull final Iterable<T> data) {
-        return toIdStream(data).collect(Collectors.toUnmodifiableSet());
-    }
+  @NonNull
+  static <T extends WithId> Set<UUID> toIdSet(@NonNull final Iterable<T> data) {
+    return toIdStream(data).collect(Collectors.toUnmodifiableSet());
+  }
 
+  @NonNull
+  static <T extends WithId> List<UUID> toIdList(@NonNull final Iterable<T> data) {
+    return toIdStream(data).toList();
+  }
 
-    @NonNull
-    static <T extends WithId> List<UUID> toIdList(@NonNull final Iterable<T> data) {
-        return toIdStream(data).toList();
-    }
+  @NonNull
+  static <T extends WithId> Stream<UUID> toIdStream(@NonNull final Iterable<T> data) {
+    Objects.requireNonNull(data, "data must not be null");
+    return StreamSupport.stream(data.spliterator(), false).map(d -> d.id());
+  }
 
-    @NonNull
-    static <T extends WithId> Stream<UUID> toIdStream(@NonNull final Iterable<T> data) {
-        Objects.requireNonNull(data, "data must not be null");
-        return StreamSupport.stream(data.spliterator(), false)
-                .map(d -> d.id());
-    }
-
-    /**
-     * Returns the unique identifier of this object, or {@code null} when the object has not been
-     * persisted yet.
-     *
-     * @return the id, or {@code null} if not yet assigned
-     */
-    @Nullable UUID id();
+  /**
+   * Returns the unique identifier of this object, or {@code null} when the object has not been
+   * persisted yet.
+   *
+   * @return the id, or {@code null} if not yet assigned
+   */
+  @Nullable UUID id();
 }
