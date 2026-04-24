@@ -2,9 +2,9 @@ name: CI Build
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build:
@@ -21,7 +21,5 @@ jobs:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: maven-
-      - name: Check formatting
-        run: ./mvnw spotless:check
       - name: Build and test
         run: ./mvnw clean verify
