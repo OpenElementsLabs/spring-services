@@ -5,14 +5,15 @@ import com.openelements.spring.base.data.EntityRepository;
 import com.openelements.spring.base.data.image.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
-import java.util.Objects;
-import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Application service that bridges the JWT-authenticated subject and the local user-profile mirror.
@@ -37,122 +38,123 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto> {
 
-  private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-  private final AuthService authService;
+    private final AuthService authService;
 
-  public UserService(
-      final UserRepository userRepository,
-      final ApplicationEventPublisher eventPublisher,
-      final AuthService authService) {
-    super(eventPublisher);
-    this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
-    this.authService = Objects.requireNonNull(authService, "authService must not be null");
-  }
+    public UserService(
+            final UserRepository userRepository,
+            final ApplicationEventPublisher eventPublisher,
+            final AuthService authService) {
+        super(eventPublisher);
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.authService = Objects.requireNonNull(authService, "authService must not be null");
+    }
 
-  private UserEntity getCurrentUserEntity() {
-    final UserInformation userInformation = authService.getUserInformation();
-    return userRepository
-        .findBySub(userInformation.id())
-        .map(
-            existing -> {
-              boolean changed = false;
-              if (!Objects.equals(userInformation.name(), existing.getName())) {
-                existing.setName(userInformation.name());
-                changed = true;
-              }
-              if (!Objects.equals(userInformation.email(), existing.getEmail())) {
-                existing.setEmail(userInformation.email());
-                changed = true;
-              }
-              return changed ? userRepository.saveAndFlush(existing) : existing;
-            })
-        .orElseGet(
-            () -> {
-              try {
-                final UserEntity entity = new UserEntity();
-                entity.setSub(userInformation.id());
-                entity.setName(userInformation.name());
-                entity.setEmail(userInformation.email());
-                return userRepository.saveAndFlush(entity);
-              } catch (final DataIntegrityViolationException e) {
-                return userRepository.findBySub(userInformation.id()).orElseThrow(() -> e);
-              }
-            });
-  }
+    private synchronized UserEntity getCurrentUserEntity() {
+        final UserInformation userInformation = authService.getUserInformation();
+        return userRepository
+                .findBySub(userInformation.id())
+                .map(
+                        existing -> {
+                            boolean changed = false;
+                            if (!Objects.equals(userInformation.name(), existing.getName())) {
+                                existing.setName(userInformation.name());
+                                changed = true;
+                            }
+                            if (!Objects.equals(userInformation.email(), existing.getEmail())) {
+                                existing.setEmail(userInformation.email());
+                                changed = true;
+                            }
+                            return changed ? userRepository.saveAndFlush(existing) : existing;
+                        })
+                .orElseGet(
+                        () -> {
+                            try {
+                                final UserEntity entity = new UserEntity();
+                                entity.setSub(userInformation.id());
+                                entity.setName(userInformation.name());
+                                entity.setEmail(userInformation.email());
+                                return userRepository.saveAndFlush(entity);
+                            } catch (final DataIntegrityViolationException e) {
+                                return userRepository.findBySub(userInformation.id()).orElseThrow(() -> e);
+                            }
+                        });
+    }
 
-  /**
-   * Returns the profile of the user that owns the current request.
-   *
-   * <p>Provisions the local mirror on first access and refreshes the cached {@code name} / {@code
-   * email} fields from the JWT claims if they have drifted.
-   *
-   * @return the current user's profile
-   * @throws IllegalStateException if no JWT is bound to the current request
-   */
-  public UserDto getCurrentUser() {
-    return UserDto.fromEntity(getCurrentUserEntity());
-  }
+    /**
+     * Returns the profile of the user that owns the current request.
+     *
+     * <p>Provisions the local mirror on first access and refreshes the cached {@code name} / {@code
+     * email} fields from the JWT claims if they have drifted.
+     *
+     * @return the current user's profile
+     * @throws IllegalStateException if no JWT is bound to the current request
+     */
+    public UserDto getCurrentUser() {
+        return UserDto.fromEntity(getCurrentUserEntity());
+    }
 
-  public UserDto updateAvatarForCurrentUser(final ImageData imageData) {
-    final UserEntity user = getCurrentUserEntity();
-    user.setImageData(imageData);
-    return UserDto.fromEntity(userRepository.saveAndFlush(user));
-  }
+    public UserDto updateAvatarForCurrentUser(final ImageData imageData) {
+        final UserEntity user = getCurrentUserEntity();
+        user.setImageData(imageData);
+        return UserDto.fromEntity(userRepository.saveAndFlush(user));
+    }
 
-  /**
-   * Returns the current user's avatar.
-   *
-   * @return the avatar image bytes together with their MIME content type
-   * @throws ResponseStatusException {@code 404 Not Found} if no avatar has been uploaded
-   */
-  public Optional<ImageData> getAvatarOfCurrentUser() {
-    return getCurrentUserEntity().imageData();
-  }
+    /**
+     * Returns the current user's avatar.
+     *
+     * @return the avatar image bytes together with their MIME content type
+     * @throws ResponseStatusException {@code 404 Not Found} if no avatar has been uploaded
+     */
+    public Optional<ImageData> getAvatarOfCurrentUser() {
+        return getCurrentUserEntity().imageData();
+    }
 
-  /**
-   * Removes the avatar of the current user. No-op (but persists a flushed write) if no avatar was
-   * set.
-   */
-  public void deleteAvatarOfCurrentUser() {
-    final UserEntity user = getCurrentUserEntity();
-    user.setImageData(null);
-    userRepository.saveAndFlush(user);
-  }
+    /**
+     * Removes the avatar of the current user. No-op (but persists a flushed write) if no avatar was
+     * set.
+     */
+    public void deleteAvatarOfCurrentUser() {
+        final UserEntity user = getCurrentUserEntity();
+        user.setImageData(null);
+        userRepository.saveAndFlush(user);
+    }
 
-  @Override
-  protected @NonNull UserEntity createDetachedEntity() {
-    return new UserEntity();
-  }
+    @Override
+    protected @NonNull UserEntity createDetachedEntity() {
+        return new UserEntity();
+    }
 
-  @Override
-  protected void preSave(@NonNull UserDto data) {
-    throw new IllegalStateException(
-        "User data should never be changed since it is based on external system");
-  }
+    @Override
+    protected void preSave(@NonNull UserDto data) {
+        throw new IllegalStateException(
+                "User data should never be changed since it is based on external system");
+    }
 
-  @Override
-  protected void preDelete(@NonNull UserDto data) {
-    throw new IllegalStateException(
-        "User data should never be changed since it is based on external system");
-  }
+    @Override
+    protected void preDelete(@NonNull UserDto data) {
+        throw new IllegalStateException(
+                "User data should never be changed since it is based on external system");
+    }
 
-  @Override
-  protected void updateEntity(@NonNull UserEntity entity, @NonNull UserDto data) {}
+    @Override
+    protected void updateEntity(@NonNull UserEntity entity, @NonNull UserDto data) {
+    }
 
-  @Override
-  protected @NonNull UserDto toData(@NonNull UserEntity entity) {
-    return new UserDto(
-        entity.id(),
-        entity.getName(),
-        entity.getEmail(),
-        entity.getAvatar() != null,
-        entity.getCreatedAt(),
-        entity.getUpdatedAt());
-  }
+    @Override
+    protected @NonNull UserDto toData(@NonNull UserEntity entity) {
+        return new UserDto(
+                entity.id(),
+                entity.getName(),
+                entity.getEmail(),
+                entity.getAvatar() != null,
+                entity.getCreatedAt(),
+                entity.getUpdatedAt());
+    }
 
-  @Override
-  protected @NonNull EntityRepository<UserEntity> getRepository() {
-    return userRepository;
-  }
+    @Override
+    protected @NonNull EntityRepository<UserEntity> getRepository() {
+        return userRepository;
+    }
 }
