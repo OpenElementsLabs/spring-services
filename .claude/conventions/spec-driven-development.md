@@ -225,6 +225,7 @@ The spec-driven workflow uses three skills:
 | `/spec-create` | Create `design.md` and `behaviors.md` through interactive discussion |
 | `/spec-implement` | Generate `steps.md` from a completed spec |
 | `/spec-review` | Verify implementation completeness against design and behaviors |
+| `/spec-flow` | End-to-end GitHub flow: issue → branch → implement → review → PR |
 | `/roadmap-execute` | Autonomously process all unchecked steps in `ROADMAP.md` end-to-end using sub-agents |
 
 A typical flow:
@@ -233,6 +234,11 @@ A typical flow:
 3. `/spec-implement` — Break it down into steps (optional)
 4. Implement (manually, guided, or automated)
 5. `/spec-review` — Verify completeness
+
+Alternative flow with spec-flow (recommended for a complete GitHub workflow):
+1. Start with a GitHub issue (or create one first)
+2. `/spec-create` — Plan the change collaboratively
+3. `/spec-flow` — Implements, reviews iteratively, and opens a PR
 
 Alternative flow with roadmap:
 1. Write a `ROADMAP.md` with high-level steps

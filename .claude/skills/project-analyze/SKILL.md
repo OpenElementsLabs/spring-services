@@ -22,16 +22,25 @@ All files live in `conventions/project-specific/` relative to this skill (at `..
 
 ## Instructions
 
-### 1. Scan the project
+### 1. Understand the codebase
 
-Explore the project systematically to gather information:
+Build a thorough understanding of the entire codebase before generating any documentation. Shallow scanning of config files alone is not sufficient — the goal is to understand what the project does, how it is structured, and how its parts relate to each other.
+
+Explore and understand:
 
 - **Root files** — Read `README.md`, `package.json`, `pom.xml`, `build.gradle`, `docker-compose.yml`, `Dockerfile`s, `.sdkmanrc`, `.nvmrc`, and similar configuration files
-- **Directory structure** — List top-level directories and key sub-directories to understand the layout
-- **Source code** — Scan key entry points (main classes, app routers, index files) to understand what the application does
-- **Dependencies** — Read dependency files (pom.xml, package.json, requirements.txt) to identify the tech stack
+- **Project structure** — Modules, packages, and how the codebase is organized. List top-level directories and key sub-directories to understand the layout
+- **Existing functionality** — What the application does, which features exist, and how they work. Read key entry points (main classes, app routers, index files) and follow the code paths to understand behavior
+- **Dependencies between components** — How modules, services, and layers interact with each other. Trace the relationships between packages, classes, and modules to understand the dependency graph
+- **Patterns and conventions** — Architectural patterns in use (e.g., layered architecture, event-driven, plugin-based), naming conventions, and coding style
+- **External dependencies** — Read dependency files (pom.xml, package.json, requirements.txt) to identify frameworks, libraries, and third-party services the project relies on
+- **Data model** — Existing database schemas, entities, and data flows
+- **Configuration and infrastructure** — Build system, deployment setup, and environment configuration
 - **Existing documentation** — Read any existing docs, ADRs, or architecture notes
+- **Specifications** — Check if `specs/INDEX.md` exists. If it does, read the index and then read the `design.md` and `behaviors.md` files of all specs with status `done` or `implemented`. These specs capture the *reasoning* behind design decisions — why the code is structured the way it is, what alternatives were considered, and what constraints drove the design. This context is essential for producing architecture documentation that explains not just *what* the code does but *why* it was built that way.
 - **CI/CD** — Check `.github/workflows/` to understand the build and deployment pipeline
+
+Use the Explore agent or read key files directly. Invest the time to read actual source code, not just configuration — understanding the real functionality and modularization is essential for producing accurate project documentation.
 
 ### 2. Read existing project-specific files
 
@@ -63,11 +72,22 @@ Write each file with concrete, factual content based on what was found. Follow t
 - Explain how components communicate (REST, gRPC, message queues, JDBC, etc.)
 - Include a Mermaid diagram showing the high-level architecture
 - Note any important architectural decisions or patterns (e.g., event sourcing, CQRS, microservices)
+- Where finished specs exist, include the **rationale** behind key design decisions — explain *why* the architecture is the way it is, not just *what* it looks like. Reference the spec ID (e.g., "see spec 003") so readers can find the full context
 
-### 4. Present changes to the user
+### 4. Check if README.md needs updating
 
-Show a summary of what was found and what will be written. If the files already had content, highlight what changed. Ask the user to review before writing the files.
+Compare the project's `README.md` against what was learned about the project. Check whether the README accurately reflects:
+- The project's purpose and features
+- Setup and installation instructions
+- Tech stack and prerequisites
+- Architecture overview (if present)
 
-### 5. Write the files
+If the README is outdated, incomplete, or missing important information, note the specific discrepancies and include them in the summary presented to the user. Do not silently skip README issues.
 
-After user confirmation, write all four files. Do not include HTML comments or placeholder text — only real content.
+### 5. Present changes to the user
+
+Show a summary of what was found and what will be written. If the files already had content, highlight what changed. If the README needs updating, list the specific issues found and propose changes. Ask the user to review before writing any files.
+
+### 6. Write the files
+
+After user confirmation, write the four project-specific files. If the user approved README changes, update the README as well. Do not include HTML comments or placeholder text — only real content.
