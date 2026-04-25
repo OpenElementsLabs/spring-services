@@ -50,6 +50,7 @@
         <jreleaser-maven-plugin.version>1.23.0</jreleaser-maven-plugin.version>
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <spotless-maven-plugin.version>3.3.0</spotless-maven-plugin.version>
+        <slack-api-client.version>1.45.3</slack-api-client.version>
     </properties>
 
     <distributionManagement>
@@ -119,6 +120,11 @@
             <artifactId>jspecify</artifactId>
             <version>1.0.0</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.slack.api</groupId>
+            <artifactId>slack-api-client</artifactId>
+            <version>${slack-api-client.version}</version>
         </dependency>
 
         <!-- Test dependencies -->
