@@ -13,9 +13,9 @@ public @interface NeedsAdminRole {
 - services/system repo implementation to enable the config of external services
 - Logging should be added at several places
 - data crud for basic update data based on "onObjectCreated"... events (only store Type, ID and user)
-- Service to send messages to slack
 - Basics for Hibernate search (full text search)
 - Support for Avatar pictures coming from authentik
 - Migrate ApiKeyDataService to our data pattern
 - Migrate SettingsDataService to our data pattern
 - Metrics
+- Send mails
