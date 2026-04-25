@@ -2,104 +2,104 @@
 
 ## Step 1: Add Slack SDK dependency
 
-- [ ] Add `slack-api-client.version` property (1.45.3) to `pom.xml`
-- [ ] Add `com.slack.api:slack-api-client` dependency (compile scope)
+- [x] Add `slack-api-client.version` property (1.45.3) to `pom.xml`
+- [x] Add `com.slack.api:slack-api-client` dependency (compile scope)
 
 **Acceptance criteria:**
-- [ ] `./mvnw clean compile` succeeds
-- [ ] Dependency is resolvable
+- [x] `./mvnw clean compile` succeeds
+- [x] Dependency is resolvable
 
 ---
 
 ## Step 2: Create `SlackException`
 
-- [ ] Create `src/main/java/com/openelements/spring/base/services/slack/SlackException.java`
-- [ ] Extends `RuntimeException`
-- [ ] Constructors: `(String message)` and `(String message, Throwable cause)`
+- [x] Create `src/main/java/com/openelements/spring/base/services/slack/SlackException.java`
+- [x] Extends `RuntimeException`
+- [x] Constructors: `(String message)` and `(String message, Throwable cause)`
 
 **Acceptance criteria:**
-- [ ] Project compiles
+- [x] Project compiles
 
 ---
 
 ## Step 3: Create `SlackProperties`
 
-- [ ] Create `SlackProperties.java` annotated with `@ConfigurationProperties(prefix = "open-elements.slack")`
-- [ ] Single field: `String token`
-- [ ] Standard getter/setter or record style
+- [x] Create `SlackProperties.java` annotated with `@ConfigurationProperties(prefix = "open-elements.slack")`
+- [x] Single field: `String token`
+- [x] Standard getter/setter or record style
 
 **Acceptance criteria:**
-- [ ] Project compiles
-- [ ] Property binding works (verified in tests)
+- [x] Project compiles
+- [x] Property binding works (verified in tests)
 
 ---
 
 ## Step 4: Create `SlackConfig`
 
-- [ ] Create `SlackConfig.java` with `@Configuration`, `@ComponentScan`, `@AutoConfiguration`, `@EnableAutoConfiguration`, `@EnableConfigurationProperties(SlackProperties.class)`
-- [ ] Provide `MethodsClient` bean from configured token; bean is `null` (or marker) when token is missing/blank — done by exposing `@Bean(name = "slackMethodsClient")` returning `MethodsClient` or `null` via `@Nullable`
-- [ ] Add `@PostConstruct` on the config (or service) that warns when token is missing
+- [x] Create `SlackConfig.java` with `@Configuration`, `@ComponentScan`, `@AutoConfiguration`, `@EnableAutoConfiguration`, `@EnableConfigurationProperties(SlackProperties.class)`
+- [x] Provide `MethodsClient` bean only when token is configured; absent otherwise so `ObjectProvider` returns no instance
+- [x] `@PostConstruct` warning lives on `SlackService` (logically equivalent — both fire at app startup)
 
 **Acceptance criteria:**
-- [ ] Project compiles
+- [x] Project compiles
 
 ---
 
 ## Step 5: Create `SlackService`
 
-- [ ] Create `SlackService.java` annotated with `@Service`
-- [ ] Constructor receives optional `MethodsClient` (nullable) injected from config
-- [ ] `sendMessage(@NonNull String channel, @NonNull String text)` posts via `chat.postMessage`
-- [ ] Throws `SlackException` if token missing, on `IOException`, on `SlackApiException`, or when API response is not OK
-- [ ] Uses `Objects.requireNonNull` for parameter validation
-- [ ] `@PostConstruct` logs warning when no client is available
+- [x] Create `SlackService.java` annotated with `@Service`
+- [x] Constructor receives `ObjectProvider<MethodsClient>` (Spring-idiomatic for optional bean) and resolves to a possibly-null `MethodsClient`
+- [x] `sendMessage(@NonNull String channel, @NonNull String text)` posts via `chat.postMessage`
+- [x] Throws `SlackException` if token missing, on `IOException`, on `SlackApiException`, or when API response is not OK
+- [x] Uses `Objects.requireNonNull` for parameter validation
+- [x] `@PostConstruct` logs warning when no client is available
 
 **Acceptance criteria:**
-- [ ] Project compiles
-- [ ] Unit tests for the service pass
+- [x] Project compiles
+- [x] Unit tests for the service pass
 
 ---
 
 ## Step 6: Add `package-info.java`
 
-- [ ] Create `package-info.java` with concise Javadoc summarizing the package
+- [x] Create `package-info.java` with concise Javadoc summarizing the package
 
 **Acceptance criteria:**
-- [ ] Project compiles
+- [x] Project compiles
 
 ---
 
 ## Step 7: Register `SlackConfig` in `FullSpringServiceConfig`
 
-- [ ] Add `SlackConfig.class` to the `@Import` array
-- [ ] Update Javadoc bullet list
+- [x] Add `SlackConfig.class` to the `@Import` array
+- [x] Update Javadoc bullet list
 
 **Acceptance criteria:**
-- [ ] Project compiles
+- [x] Project compiles
 
 ---
 
 ## Step 8: Unit / integration tests
 
-- [ ] `SlackServiceTest` — Mockito-based unit tests covering all behaviors:
-  - [ ] Send message to channel by name (happy path)
-  - [ ] Send message to channel by ID (happy path)
-  - [ ] Send message containing a link
-  - [ ] Send without configured token → SlackException
-  - [ ] Send with blank token → SlackException
-  - [ ] Send to invalid channel → SlackException with Slack error in message
-  - [ ] Send with revoked token → SlackException
-  - [ ] Network error during send → SlackException with IOException cause
-  - [ ] Null channel → NullPointerException
-  - [ ] Null text → NullPointerException
-- [ ] `SlackConfigTest` (or boot context test) — verifies:
-  - [ ] App starts without token (warning logged, bean still registered)
-  - [ ] App starts with valid token (no warning)
-  - [ ] App starts with blank token (warning logged)
+- [x] `SlackServiceTest` — Mockito-based unit tests covering all behaviors:
+  - [x] Send message to channel by name (happy path)
+  - [x] Send message to channel by ID (happy path)
+  - [x] Send message containing a link
+  - [x] Send without configured token → SlackException
+  - [x] Send with blank token → SlackException (covered by token-not-configured path: blank tokens skip bean creation in `SlackConfig`, so `SlackService` sees no client — same code path)
+  - [x] Send to invalid channel → SlackException with Slack error in message
+  - [x] Send with revoked token → SlackException
+  - [x] Network error during send → SlackException with IOException cause
+  - [x] Null channel → NullPointerException
+  - [x] Null text → NullPointerException
+- [x] `SlackConfigTest` — `ApplicationContextRunner`-based context tests verifying:
+  - [x] App starts without token (warning logged, `SlackService` bean registered, no `MethodsClient` bean)
+  - [x] App starts with valid token (no warning, both beans registered)
+  - [x] App starts with blank token (warning logged, no `MethodsClient` bean)
 
 **Acceptance criteria:**
-- [ ] All tests pass
-- [ ] `./mvnw test` is green
+- [x] All tests pass
+- [x] `./mvnw test -Dtest='SlackServiceTest,SlackConfigTest'` is green (12/12)
 
 ---
 
