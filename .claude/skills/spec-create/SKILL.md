@@ -30,9 +30,26 @@ Summarize the requirement back to the user in 2–3 sentences to confirm underst
 
 Then ask the user: **"Do you want to get grilled on this before we continue? This will stress-test your understanding of the problem — surfacing hidden assumptions, missing requirements, and blind spots — before we commit to a design."**
 
-If the user says yes, invoke `/grill-me` with the gathered requirement as input. The grill session will systematically challenge the user's thinking. Once the grill session concludes, incorporate the resolved decisions and clarifications into the spec work and continue with step 2.
+If the user says yes, invoke `/grill-me` with the gathered requirement as input. The grill session will systematically challenge the user's thinking. Once the grill session concludes, incorporate the resolved decisions and clarifications into the spec work and continue with step 2 (understanding the codebase).
 
-### 2. Evaluate scope
+### 2. Understand the codebase
+
+Before asking detailed design questions or proposing any technical approach, build a thorough understanding of the existing codebase. This is essential — a design that ignores existing structure, patterns, and constraints will not be useful.
+
+Explore and understand:
+- **Project structure** — Modules, packages, and how the codebase is organized
+- **Existing functionality** — What the application already does, which features exist, and how they work
+- **Dependencies between components** — How modules, services, and layers interact with each other
+- **Patterns and conventions** — Architectural patterns in use (e.g., layered architecture, event-driven, plugin-based), naming conventions, and coding style
+- **External dependencies** — Frameworks, libraries, and third-party services the project relies on
+- **Data model** — Existing database schemas, entities, and data flows
+- **Configuration and infrastructure** — Build system, deployment setup, and environment configuration
+
+Use the Explore agent or read key files directly. Focus on the areas most relevant to the requirement gathered in step 1, but maintain enough breadth to understand how the new work fits into the whole.
+
+Summarize your understanding of the relevant parts of the codebase to the user before proceeding. This ensures alignment on the starting point and prevents designs that conflict with existing architecture.
+
+### 3. Evaluate scope
 
 Assess whether the task is realistically completable in a few hours of focused work. Consider:
 - Number of components/files affected
@@ -55,7 +72,7 @@ Determine the next sequential ID by reading `specs/INDEX.md`. If the file does n
 
 Create the spec folder under `specs/` using the ID as prefix followed by a descriptive kebab-case name (e.g., `001-user-auth-flow`, `002-csv-export-api`). The ID prefix must match the sequential ID in `INDEX.md`.
 
-### 4. Write `design.md` — Interactive planning
+### 5. Write `design.md` — Interactive planning
 
 Enter plan mode to discuss the technical design with the user. The goal is to produce a `design.md` following the structure defined in the spec-driven development doc.
 
@@ -82,7 +99,7 @@ Where it helps clarity, use **Mermaid diagrams** — e.g., sequence diagrams for
 
 Iterate with the user until both sides are confident the design is solid. Then write the file.
 
-### 5. Write `behaviors.md` — Behavioral scenarios
+### 6. Write `behaviors.md` — Behavioral scenarios
 
 Based on the finalized design, create `behaviors.md` with given-when-then scenarios following the format from the spec-driven development doc.
 
@@ -96,7 +113,7 @@ Each scenario should be specific enough that a developer can directly translate 
 
 Review the scenarios with the user. Ask explicitly: "Are there edge cases or error scenarios we are missing?"
 
-### 6. Summary
+### 7. Summary
 
 After both files are written:
 
