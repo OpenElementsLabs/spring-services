@@ -3,14 +3,13 @@ package com.openelements.spring.base.services.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.openelements.spring.base.data.AbstractEntity;
 import com.openelements.spring.base.security.AuthService;
-import com.openelements.spring.base.services.webhook.data.WebhookDataService;
-import com.openelements.spring.base.services.webhook.data.WebhookDto;
-import com.openelements.spring.base.services.webhook.data.WebhookRepository;
+import com.openelements.spring.base.services.tag.TagDataService;
+import com.openelements.spring.base.services.tag.TagDto;
+import com.openelements.spring.base.services.tag.TagRepository;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import com.openelements.spring.base.testcontainers.TestApplication;
-import java.lang.reflect.Field;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -23,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -40,16 +40,18 @@ class AuditLogIntegrationTest {
 
   @Autowired private AuditCleanupJob auditCleanupJob;
 
-  @Autowired private WebhookDataService webhookDataService;
+  @Autowired private TagDataService tagDataService;
 
-  @Autowired private WebhookRepository webhookRepository;
+  @Autowired private TagRepository tagRepository;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @MockBean private AuthService authService;
 
   @BeforeEach
   void setUp() {
     auditLogRepository.deleteAll();
-    webhookRepository.deleteAll();
+    tagRepository.deleteAll();
   }
 
   @Nested
@@ -62,11 +64,10 @@ class AuditLogIntegrationTest {
       when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
 
       // WHEN
-      final WebhookDto saved =
-          webhookDataService.save(new WebhookDto(null, "https://example.com", true, null, null));
+      final TagDto saved = tagDataService.save(new TagDto(null, "tag-create", "desc", "#aabbcc"));
 
       // THEN
-      final List<AuditLogDto> entries = auditLogDataService.findByEntityType("WebhookDto");
+      final List<AuditLogDto> entries = auditLogDataService.findByEntityType("TagDto");
       assertThat(entries).hasSize(1);
       assertThat(entries.getFirst().entityId()).isEqualTo(saved.id());
       assertThat(entries.getFirst().action()).isEqualTo(AuditAction.INSERT);
@@ -76,11 +77,9 @@ class AuditLogIntegrationTest {
     @Test
     void shouldRecordUpdateEvent() {
       when(authService.getPrincipal()).thenReturn(principalNamed("bob"));
-      final WebhookDto saved =
-          webhookDataService.save(new WebhookDto(null, "https://example.com", true, null, null));
+      final TagDto saved = tagDataService.save(new TagDto(null, "tag-update", "desc", "#aabbcc"));
 
-      webhookDataService.save(
-          new WebhookDto(saved.id(), "https://example.com/updated", true, null, null));
+      tagDataService.save(new TagDto(saved.id(), "tag-update", "new-desc", "#aabbcc"));
 
       final List<AuditLogDto> entries = auditLogDataService.findByUser("bob");
       assertThat(entries).extracting(AuditLogDto::action).contains(AuditAction.UPDATE);
@@ -89,13 +88,12 @@ class AuditLogIntegrationTest {
     @Test
     void shouldRecordDeleteEvent() {
       when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
-      final WebhookDto saved =
-          webhookDataService.save(new WebhookDto(null, "https://example.com", true, null, null));
+      final TagDto saved = tagDataService.save(new TagDto(null, "tag-delete", "desc", "#aabbcc"));
 
-      webhookDataService.delete(saved);
+      tagDataService.delete(saved);
 
       final List<AuditLogDto> entries =
-          auditLogDataService.findByEntityTypeAndUser("WebhookDto", "alice");
+          auditLogDataService.findByEntityTypeAndUser("TagDto", "alice");
       assertThat(entries).extracting(AuditLogDto::action).contains(AuditAction.DELETE);
     }
 
@@ -103,7 +101,7 @@ class AuditLogIntegrationTest {
     void shouldUseSystemUserWhenNoAuthentication() {
       when(authService.getPrincipal()).thenThrow(new IllegalStateException("no auth"));
 
-      webhookDataService.save(new WebhookDto(null, "https://example.com", true, null, null));
+      tagDataService.save(new TagDto(null, "tag-system", "desc", "#aabbcc"));
 
       final List<AuditLogDto> entries = auditLogDataService.findByUser("System");
       assertThat(entries).hasSize(1);
@@ -168,7 +166,7 @@ class AuditLogIntegrationTest {
   class RetentionCleanup {
 
     @Test
-    void shouldDeleteEntriesOlderThanRetention() throws Exception {
+    void shouldDeleteEntriesOlderThanRetention() {
       // GIVEN — one stale (91 days old) and one fresh (89 days old) entry, retention 90 days
       final AuditLogDto stale = seed("alice", "BookDto", AuditAction.INSERT);
       final AuditLogDto fresh = seed("alice", "BookDto", AuditAction.INSERT);
@@ -195,12 +193,17 @@ class AuditLogIntegrationTest {
       assertThat(auditLogRepository.count()).isEqualTo(2);
     }
 
-    private void backdate(final UUID id, final Instant when) throws Exception {
-      final AuditLogEntity entity = auditLogRepository.findById(id).orElseThrow();
-      final Field field = AbstractEntity.class.getDeclaredField("createdAt");
-      field.setAccessible(true);
-      field.set(entity, when);
-      auditLogRepository.saveAndFlush(entity);
+    /**
+     * Updates {@code created_at} via raw SQL because the column is mapped {@code updatable=false}
+     * on {@code AbstractEntity}, so JPA silently ignores changes to it on update.
+     */
+    private void backdate(final UUID id, final Instant when) {
+      final int updated =
+          jdbcTemplate.update(
+              "UPDATE audit_log SET created_at = ? WHERE id = ?", Timestamp.from(when), id);
+      if (updated != 1) {
+        throw new IllegalStateException("backdate failed for id " + id);
+      }
     }
   }
 

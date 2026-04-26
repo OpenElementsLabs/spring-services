@@ -78,6 +78,31 @@ class AuditLogEventListenerTest {
   }
 
   @Test
+  void shouldUseSystemUserWhenPrincipalIsNull() {
+    // GIVEN — a Mockito-created AuthService stub returns null by default
+    final TestData data = new TestData(UUID.randomUUID(), "x");
+    when(authService.getPrincipal()).thenReturn(null);
+
+    // WHEN
+    listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+    // THEN
+    verify(auditLogDataService)
+        .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq("System"));
+  }
+
+  @Test
+  void shouldUseSystemUserWhenPrincipalNameIsBlank() {
+    final TestData data = new TestData(UUID.randomUUID(), "x");
+    when(authService.getPrincipal()).thenReturn(principalNamed("   "));
+
+    listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+    verify(auditLogDataService)
+        .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq("System"));
+  }
+
+  @Test
   void shouldSwallowAuditWriteFailure() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "x");

@@ -10,6 +10,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.stereotype.Component;
 
 /**
@@ -95,7 +96,17 @@ public class AuditLogEventListener {
 
   private String resolveUser() {
     try {
-      return authService.getPrincipal().getName();
+      final AuthenticatedPrincipal principal = authService.getPrincipal();
+      if (principal == null) {
+        LOG.debug("AuthService returned no principal — recording audit entry as '{}'", SYSTEM_USER);
+        return SYSTEM_USER;
+      }
+      final String name = principal.getName();
+      if (name == null || name.isBlank()) {
+        LOG.debug("Principal has no name — recording audit entry as '{}'", SYSTEM_USER);
+        return SYSTEM_USER;
+      }
+      return name;
     } catch (final IllegalStateException ex) {
       LOG.debug("No security context — recording audit entry as '{}'", SYSTEM_USER);
       return SYSTEM_USER;
