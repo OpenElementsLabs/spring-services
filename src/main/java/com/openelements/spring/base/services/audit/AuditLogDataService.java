@@ -2,11 +2,12 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,43 +55,55 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
   }
 
   /**
-   * Returns all audit entries for the given simple class name.
+   * Returns audit entries for the given simple class name, ordered by creation time (newest first).
    *
    * @param entityType the simple class name to filter on
-   * @return matching entries as DTOs, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page of DTOs
    */
-  public List<AuditLogDto> findByEntityType(@NonNull final String entityType) {
+  public Page<AuditLogDto> findByEntityType(
+      @NonNull final String entityType, @NonNull final Pageable pageable) {
     Objects.requireNonNull(entityType, "entityType must not be null");
-    return auditLogRepository.findByEntityType(entityType).stream()
-        .map(AuditLogDto::fromEntity)
-        .toList();
+    Objects.requireNonNull(pageable, "pageable must not be null");
+    return auditLogRepository
+        .findByEntityTypeOrderByCreatedAtDesc(entityType, pageable)
+        .map(AuditLogDto::fromEntity);
   }
 
   /**
-   * Returns all audit entries written for the given user.
+   * Returns audit entries written for the given user, ordered by creation time (newest first).
    *
    * @param user the user name (or {@code "System"})
-   * @return matching entries as DTOs, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page of DTOs
    */
-  public List<AuditLogDto> findByUser(@NonNull final String user) {
+  public Page<AuditLogDto> findByUser(
+      @NonNull final String user, @NonNull final Pageable pageable) {
     Objects.requireNonNull(user, "user must not be null");
-    return auditLogRepository.findByUserName(user).stream().map(AuditLogDto::fromEntity).toList();
+    Objects.requireNonNull(pageable, "pageable must not be null");
+    return auditLogRepository
+        .findByUserNameOrderByCreatedAtDesc(user, pageable)
+        .map(AuditLogDto::fromEntity);
   }
 
   /**
-   * Returns all audit entries matching both type and user.
+   * Returns audit entries matching both type and user, ordered by creation time (newest first).
    *
    * @param entityType the simple class name to filter on
    * @param user the user name to filter on
-   * @return matching entries as DTOs, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page of DTOs
    */
-  public List<AuditLogDto> findByEntityTypeAndUser(
-      @NonNull final String entityType, @NonNull final String user) {
+  public Page<AuditLogDto> findByEntityTypeAndUser(
+      @NonNull final String entityType,
+      @NonNull final String user,
+      @NonNull final Pageable pageable) {
     Objects.requireNonNull(entityType, "entityType must not be null");
     Objects.requireNonNull(user, "user must not be null");
-    return auditLogRepository.findByEntityTypeAndUserName(entityType, user).stream()
-        .map(AuditLogDto::fromEntity)
-        .toList();
+    Objects.requireNonNull(pageable, "pageable must not be null");
+    return auditLogRepository
+        .findByEntityTypeAndUserNameOrderByCreatedAtDesc(entityType, user, pageable)
+        .map(AuditLogDto::fromEntity);
   }
 
   /**

@@ -2,7 +2,8 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.EntityRepository;
 import java.time.Instant;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,29 +13,34 @@ import org.springframework.transaction.annotation.Transactional;
 public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
 
   /**
-   * Returns every audit entry whose entity type matches {@code entityType}.
+   * Returns audit entries whose entity type matches {@code entityType}, ordered by creation time
+   * (newest first).
    *
    * @param entityType the simple class name to filter on
-   * @return matching entries, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page
    */
-  List<AuditLogEntity> findByEntityType(String entityType);
+  Page<AuditLogEntity> findByEntityTypeOrderByCreatedAtDesc(String entityType, Pageable pageable);
 
   /**
-   * Returns every audit entry written for the given user.
+   * Returns audit entries written for the given user, ordered by creation time (newest first).
    *
    * @param userName the user name (or {@code "System"})
-   * @return matching entries, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page
    */
-  List<AuditLogEntity> findByUserName(String userName);
+  Page<AuditLogEntity> findByUserNameOrderByCreatedAtDesc(String userName, Pageable pageable);
 
   /**
-   * Returns every audit entry that matches both type and user.
+   * Returns audit entries that match both type and user, ordered by creation time (newest first).
    *
    * @param entityType the simple class name to filter on
    * @param userName the user name to filter on
-   * @return matching entries, possibly empty
+   * @param pageable pagination information
+   * @return matching entries as a page
    */
-  List<AuditLogEntity> findByEntityTypeAndUserName(String entityType, String userName);
+  Page<AuditLogEntity> findByEntityTypeAndUserNameOrderByCreatedAtDesc(
+      String entityType, String userName, Pageable pageable);
 
   /**
    * Bulk-removes every audit entry whose {@code createdAt} timestamp is strictly older than the

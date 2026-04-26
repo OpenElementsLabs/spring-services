@@ -22,6 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.test.context.ActiveProfiles;
@@ -67,11 +69,12 @@ class AuditLogIntegrationTest {
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-create", "desc", "#aabbcc"));
 
       // THEN
-      final List<AuditLogDto> entries = auditLogDataService.findByEntityType("TagDto");
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByEntityType("TagDto", Pageable.unpaged());
       assertThat(entries).hasSize(1);
-      assertThat(entries.getFirst().entityId()).isEqualTo(saved.id());
-      assertThat(entries.getFirst().action()).isEqualTo(AuditAction.INSERT);
-      assertThat(entries.getFirst().user()).isEqualTo("alice");
+      assertThat(entries.getContent().getFirst().entityId()).isEqualTo(saved.id());
+      assertThat(entries.getContent().getFirst().action()).isEqualTo(AuditAction.INSERT);
+      assertThat(entries.getContent().getFirst().user()).isEqualTo("alice");
     }
 
     @Test
@@ -81,8 +84,8 @@ class AuditLogIntegrationTest {
 
       tagDataService.save(new TagDto(saved.id(), "tag-update", "new-desc", "#aabbcc"));
 
-      final List<AuditLogDto> entries = auditLogDataService.findByUser("bob");
-      assertThat(entries).extracting(AuditLogDto::action).contains(AuditAction.UPDATE);
+      final Page<AuditLogDto> entries = auditLogDataService.findByUser("bob", Pageable.unpaged());
+      assertThat(entries.getContent()).extracting(AuditLogDto::action).contains(AuditAction.UPDATE);
     }
 
     @Test
@@ -92,9 +95,9 @@ class AuditLogIntegrationTest {
 
       tagDataService.delete(saved);
 
-      final List<AuditLogDto> entries =
-          auditLogDataService.findByEntityTypeAndUser("TagDto", "alice");
-      assertThat(entries).extracting(AuditLogDto::action).contains(AuditAction.DELETE);
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByEntityTypeAndUser("TagDto", "alice", Pageable.unpaged());
+      assertThat(entries.getContent()).extracting(AuditLogDto::action).contains(AuditAction.DELETE);
     }
 
     @Test
@@ -103,8 +106,8 @@ class AuditLogIntegrationTest {
 
       tagDataService.save(new TagDto(null, "tag-system", "desc", "#aabbcc"));
 
-      final List<AuditLogDto> entries =
-          auditLogDataService.findByEntityTypeAndUser("TagDto", "System");
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByEntityTypeAndUser("TagDto", "System", Pageable.unpaged());
       assertThat(entries).hasSize(1);
     }
   }
@@ -121,7 +124,7 @@ class AuditLogIntegrationTest {
 
       final List<AuditLogDto> all = auditLogDataService.getAll();
       assertThat(all).hasSize(1);
-      assertThat(auditLogDataService.findByEntityType("AuditLogDto")).isEmpty();
+      assertThat(auditLogDataService.findByEntityType("AuditLogDto", Pageable.unpaged())).isEmpty();
     }
   }
 
@@ -135,7 +138,7 @@ class AuditLogIntegrationTest {
       seed("bob", "BookDto", AuditAction.UPDATE);
       seed("alice", "UserDto", AuditAction.INSERT);
 
-      assertThat(auditLogDataService.findByEntityType("BookDto")).hasSize(2);
+      assertThat(auditLogDataService.findByEntityType("BookDto", Pageable.unpaged())).hasSize(2);
     }
 
     @Test
@@ -144,7 +147,7 @@ class AuditLogIntegrationTest {
       seed("alice", "UserDto", AuditAction.INSERT);
       seed("bob", "BookDto", AuditAction.UPDATE);
 
-      assertThat(auditLogDataService.findByUser("alice")).hasSize(2);
+      assertThat(auditLogDataService.findByUser("alice", Pageable.unpaged())).hasSize(2);
     }
 
     @Test
@@ -153,12 +156,13 @@ class AuditLogIntegrationTest {
       seed("bob", "BookDto", AuditAction.UPDATE);
       seed("alice", "UserDto", AuditAction.INSERT);
 
-      assertThat(auditLogDataService.findByEntityTypeAndUser("BookDto", "alice")).hasSize(1);
+      assertThat(auditLogDataService.findByEntityTypeAndUser("BookDto", "alice", Pageable.unpaged()))
+          .hasSize(1);
     }
 
     @Test
     void shouldReturnEmptyListWhenNoMatch() {
-      assertThat(auditLogDataService.findByEntityType("NoteDto")).isEmpty();
+      assertThat(auditLogDataService.findByEntityType("NoteDto", Pageable.unpaged())).isEmpty();
     }
   }
 
