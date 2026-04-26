@@ -1,22 +1,30 @@
 package com.openelements.spring.base.services.audit;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /**
- * Configuration properties bound to the {@code audit.*} prefix.
+ * Holds the audit-log retention configuration.
+ *
+ * <p>Bound via {@link Value} on a single {@code @Component} so the bean is always discoverable by
+ * the standard Spring component scan — no separate {@code @EnableConfigurationProperties}
+ * registration is required.
  *
  * @param retentionDays number of days an audit entry is kept before {@link AuditCleanupJob} removes
- *     it; defaults to {@code 1460} (≈ 4 years)
+ *     it; configurable via {@code audit.retention-days} and defaults to {@value
+ *     #DEFAULT_RETENTION_DAYS} (≈ 4 years)
  */
-@ConfigurationProperties(prefix = "audit")
-public record AuditProperties(@DefaultValue("1460") int retentionDays) {
+@Component
+public record AuditProperties(int retentionDays) {
 
   /** Default retention window in days (≈ 4 years). */
   public static final int DEFAULT_RETENTION_DAYS = 1460;
 
-  /** Validates the configured value. */
-  public AuditProperties {
+  /**
+   * @param retentionDays bound from the {@code audit.retention-days} property
+   */
+  public AuditProperties(@Value("${audit.retention-days:1460}") final int retentionDays) {
+    this.retentionDays = retentionDays;
     if (retentionDays < 0) {
       throw new IllegalArgumentException(
           "audit.retention-days must not be negative: " + retentionDays);
