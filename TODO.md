@@ -14,7 +14,6 @@ public @interface NeedsAdminRole {
 - Logging should be added at several places
 - data crud for basic update data based on "onObjectCreated"... events (only store Type, ID and user)
 - Basics for Hibernate search (full text search)
-- Support for Avatar pictures coming from authentik
 - Migrate ApiKeyDataService to our data pattern
 - Migrate SettingsDataService to our data pattern
 - Metrics
