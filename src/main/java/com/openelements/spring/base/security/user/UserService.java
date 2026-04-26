@@ -56,17 +56,17 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
         return userRepository
                 .findBySub(userInformation.id())
                 .map(
-                        existing -> {
+                        user -> {
                             boolean changed = false;
-                            if (!Objects.equals(userInformation.name(), existing.getName())) {
-                                existing.setName(userInformation.name());
+                            if (!Objects.equals(userInformation.name(), user.getName())) {
+                                user.setName(userInformation.name());
                                 changed = true;
                             }
-                            if (!Objects.equals(userInformation.email(), existing.getEmail())) {
-                                existing.setEmail(userInformation.email());
+                            if (!Objects.equals(userInformation.email(), user.getEmail())) {
+                                user.setEmail(userInformation.email());
                                 changed = true;
                             }
-                            return changed ? userRepository.saveAndFlush(existing) : existing;
+                            return changed ? userRepository.save(user) : user;
                         })
                 .orElseGet(
                         () -> {
@@ -75,9 +75,9 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
                                 entity.setSub(userInformation.id());
                                 entity.setName(userInformation.name());
                                 entity.setEmail(userInformation.email());
-                                return userRepository.saveAndFlush(entity);
+                                return userRepository.save(entity);
                             } catch (final DataIntegrityViolationException e) {
-                                return userRepository.findBySub(userInformation.id()).orElseThrow(() -> e);
+                                return userRepository.findBySub(userInformation.id()).orElseThrow(() -> new IllegalStateException("Error in storing user entity", e));
                             }
                         });
     }
@@ -98,7 +98,7 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
     public UserDto updateAvatarForCurrentUser(final ImageData imageData) {
         final UserEntity user = getCurrentUserEntity();
         user.setImageData(imageData);
-        return UserDto.fromEntity(userRepository.saveAndFlush(user));
+        return UserDto.fromEntity(userRepository.save(user));
     }
 
     /**
@@ -118,7 +118,7 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
     public void deleteAvatarOfCurrentUser() {
         final UserEntity user = getCurrentUserEntity();
         user.setImageData(null);
-        userRepository.saveAndFlush(user);
+        userRepository.save(user);
     }
 
     @Override
