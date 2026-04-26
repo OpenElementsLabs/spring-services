@@ -6,3 +6,4 @@
 | 002 | 002-slack-messaging           | Slack messaging service   | backend, api                   | Reusable Spring service for sending plain-text messages to Slack channels via bot user            | #2           | done   |
 | 003 | 003-email-service             | Email sending service     | backend, api                   | Reusable Spring service for sending plain-text emails via SMTP                                    | #5           | done   |
 | 004 | 004-avatar-url-from-authentik | Avatar URL from authentik | backend, security, database    | Replace manual avatar upload with avatar URL sync from authentik JWT claim                        | #7           | done   |
+| 005 | 005-audit-log                 | Audit log                 | backend, database              | Persist data lifecycle events (create/update/delete) as audit log entries with user tracking      | #8           | open   |
