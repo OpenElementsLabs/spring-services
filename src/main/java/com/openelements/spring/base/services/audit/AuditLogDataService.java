@@ -2,6 +2,7 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
@@ -104,6 +105,15 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
     return auditLogRepository
         .findByEntityTypeAndUserNameOrderByCreatedAtDesc(entityType, user, pageable)
         .map(AuditLogDto::fromEntity);
+  }
+
+  /**
+   * Returns all distinct entity types that have at least one audit entry.
+   *
+   * @return distinct entity type names, possibly empty
+   */
+  public List<String> findAllEntityTypes() {
+    return auditLogRepository.findDistinctEntityTypes();
   }
 
   /**

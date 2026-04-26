@@ -2,6 +2,7 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.EntityRepository;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
@@ -41,6 +42,14 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
    */
   Page<AuditLogEntity> findByEntityTypeAndUserNameOrderByCreatedAtDesc(
       String entityType, String userName, Pageable pageable);
+
+  /**
+   * Returns all distinct entity types that have at least one audit entry.
+   *
+   * @return distinct entity type names, possibly empty
+   */
+  @Query("select distinct a.entityType from AuditLogEntity a")
+  List<String> findDistinctEntityTypes();
 
   /**
    * Bulk-removes every audit entry whose {@code createdAt} timestamp is strictly older than the
