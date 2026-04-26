@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Spring Data repository for {@link AuditLogEntity} instances. */
 public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
@@ -44,6 +45,7 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
    * @return the number of rows deleted
    */
   @Modifying
+  @Transactional
   @Query("delete from AuditLogEntity a where a.createdAt < :cutoff")
   int deleteByCreatedAtBefore(@Param("cutoff") Instant cutoff);
 }
