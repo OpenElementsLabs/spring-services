@@ -16,3 +16,6 @@ public @interface NeedsAdminRole {
 - Migrate ApiKeyDataService to our data pattern
 - Migrate SettingsDataService to our data pattern
 - Metrics
+- Eigenes DB Schema mit Flyway für jedes Modul.
+  Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
+- 
