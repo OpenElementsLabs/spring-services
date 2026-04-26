@@ -18,4 +18,3 @@ public @interface NeedsAdminRole {
 - Migrate ApiKeyDataService to our data pattern
 - Migrate SettingsDataService to our data pattern
 - Metrics
-- Send mails
