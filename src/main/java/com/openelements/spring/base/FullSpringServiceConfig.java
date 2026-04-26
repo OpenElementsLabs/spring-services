@@ -2,6 +2,7 @@ package com.openelements.spring.base;
 
 import com.openelements.spring.base.security.SecurityConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
+import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.email.EmailConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.slack.SlackConfig;
@@ -36,6 +37,7 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link WebhookConfig} — outbound webhook subscriptions and dispatching.
  *   <li>{@link SlackConfig} — Slack messaging service for posting plain-text messages to channels.
  *   <li>{@link EmailConfig} — Email sending service for delivering plain-text emails via SMTP.
+ *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
  * </ul>
  */
 @Import({
@@ -46,6 +48,7 @@ import org.springframework.context.annotation.Import;
   TagConfig.class,
   WebhookConfig.class,
   SlackConfig.class,
-  EmailConfig.class
+  EmailConfig.class,
+  AuditConfig.class
 })
 public class FullSpringServiceConfig {}
