@@ -2,9 +2,9 @@ package com.openelements.spring.base.security.user;
 
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
-import com.openelements.spring.base.data.image.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
+import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,10 +12,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Application service that bridges the JWT-authenticated subject and the local user-profile mirror.
@@ -28,13 +24,9 @@ import java.util.Optional;
  * <h2>Lazy provisioning</h2>
  *
  * <p>The first call for a previously unknown subject creates the {@link UserEntity}. Subsequent
- * calls detect drift in the {@code name} / {@code email} JWT claims and update the local row, so
- * the mirror always reflects the most recent assertions of the identity provider.
- *
- * <h2>Avatar handling</h2>
- *
- * <p>Avatar uploads accept {@code image/jpeg} and {@code image/png} up to 2 MB. The image bytes are
- * stored on the user row itself and served back through {@link #getAvatarOfCurrentUser()}.
+ * calls detect drift in the {@code name}, {@code email} and {@code avatarUrl} JWT claims and update
+ * the local row, so the mirror always reflects the most recent assertions of the identity
+ * provider.
  */
 @Service
 @Transactional
@@ -69,6 +61,10 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
                         user.setEmail(userInformation.email());
                         changed = true;
                     }
+                    if (!Objects.equals(userInformation.avatarUrl(), user.getAvatarUrl())) {
+                        user.setAvatarUrl(userInformation.avatarUrl());
+                        changed = true;
+                    }
                     if (changed) {
                         LOG.debug("Updating user {}: {}", user.id(), user);
                         return userRepository.save(user);
@@ -83,6 +79,7 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
                         entity.setSub(userInformation.id());
                         entity.setName(userInformation.name());
                         entity.setEmail(userInformation.email());
+                        entity.setAvatarUrl(userInformation.avatarUrl());
                         return userRepository.save(entity);
                     } catch (final DataIntegrityViolationException e) {
                         LOG.warn("Error in storing user entity. Will try to find it instead.");
@@ -94,40 +91,14 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
     /**
      * Returns the profile of the user that owns the current request.
      *
-     * <p>Provisions the local mirror on first access and refreshes the cached {@code name} / {@code
-     * email} fields from the JWT claims if they have drifted.
+     * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
+     * email} and {@code avatarUrl} fields from the JWT claims if they have drifted.
      *
      * @return the current user's profile
      * @throws IllegalStateException if no JWT is bound to the current request
      */
     public UserDto getCurrentUser() {
         return UserDto.fromEntity(getCurrentUserEntity());
-    }
-
-    public UserDto updateAvatarForCurrentUser(final ImageData imageData) {
-        final UserEntity user = getCurrentUserEntity();
-        user.setImageData(imageData);
-        return UserDto.fromEntity(userRepository.save(user));
-    }
-
-    /**
-     * Returns the current user's avatar.
-     *
-     * @return the avatar image bytes together with their MIME content type
-     * @throws ResponseStatusException {@code 404 Not Found} if no avatar has been uploaded
-     */
-    public Optional<ImageData> getAvatarOfCurrentUser() {
-        return getCurrentUserEntity().imageData();
-    }
-
-    /**
-     * Removes the avatar of the current user. No-op (but persists a flushed write) if no avatar was
-     * set.
-     */
-    public void deleteAvatarOfCurrentUser() {
-        final UserEntity user = getCurrentUserEntity();
-        user.setImageData(null);
-        userRepository.save(user);
     }
 
     @Override
@@ -153,7 +124,7 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
                 entity.id(),
                 entity.getName(),
                 entity.getEmail(),
-                entity.getAvatar() != null,
+                entity.getAvatarUrl(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }

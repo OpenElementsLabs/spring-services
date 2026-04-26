@@ -11,8 +11,9 @@ feature at once; individual feature configurations can be imported separately.
 ## Core Features
 
 - **User Management** — JWT-driven user resolution that lazily provisions a local mirror of the
-  authenticated subject, keeps `name` / `email` in sync with the JWT claims and stores an avatar
-  image (max 2 MB, `image/jpeg` or `image/png`) on the user row.
+  authenticated subject and keeps `name`, `email` and `avatarUrl` in sync with the matching JWT
+  claims. The avatar URL is exposed on `UserDto` and rendered directly by clients — no binary
+  upload, storage or proxying happens in the library.
 - **API Key Authentication** — Random API keys (`crm_` prefix + 48 random alphanumeric chars from
   `SecureRandom`); only their SHA-256 hash and a short display prefix are persisted. A custom
   Spring Security filter validates the `X-API-Key` header and grants **read-only** access

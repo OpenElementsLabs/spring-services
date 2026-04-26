@@ -14,6 +14,8 @@ package com.openelements.spring.base.security;
  *       null} if the identity provider does not include it.
  *   <li>{@code email} — the {@code email} claim. May be {@code null} if not asserted by the
  *       identity provider or if the {@code email} scope was not granted.
+ *   <li>{@code avatarUrl} — the {@code avatar} claim, an absolute URL pointing at the identity
+ *       provider's avatar image for the user. May be {@code null} if the claim is absent or blank.
  * </ul>
  */
-public record UserInformation(String id, String name, String email) {}
+public record UserInformation(String id, String name, String email, String avatarUrl) {}

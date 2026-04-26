@@ -1,8 +1,9 @@
 package com.openelements.spring.base.security.user;
 
 import com.openelements.spring.base.data.AbstractEntity;
-import com.openelements.spring.base.data.image.EntityWithImage;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -15,12 +16,13 @@ import org.hibernate.annotations.UpdateTimestamp;
  * external identity. The remaining columns cache profile information so that domain rows can refer
  * to a local primary key instead of an opaque external identifier.
  *
- * <p>The avatar bytes are loaded lazily ({@link FetchType#LAZY}) to avoid the cost of streaming an
- * image with every {@code SELECT}.
+ * <p>The {@code name}, {@code email} and {@code avatarUrl} columns are kept in sync with the
+ * matching JWT claims by {@link UserService} on every request — the local row therefore always
+ * reflects the most recent assertions of the identity provider.
  */
 @Entity
 @Table(name = "users")
-public class UserEntity extends AbstractEntity implements EntityWithImage {
+public class UserEntity extends AbstractEntity {
 
   @Column(name = "sub", nullable = false, unique = true, length = 255)
   private String sub;
@@ -31,12 +33,8 @@ public class UserEntity extends AbstractEntity implements EntityWithImage {
   @Column(name = "email", length = 255)
   private String email;
 
-  @Basic(fetch = FetchType.LAZY)
-  @Column(name = "avatar")
-  private byte[] avatar;
-
-  @Column(name = "avatar_content_type", length = 100)
-  private String avatarContentType;
+  @Column(name = "avatar_url", length = 2048)
+  private String avatarUrl;
 
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
@@ -84,29 +82,15 @@ public class UserEntity extends AbstractEntity implements EntityWithImage {
   }
 
   /**
-   * Returns the avatar image bytes, or {@code null} if no avatar has been uploaded.
-   *
-   * <p>Loaded lazily — accessing this getter outside of an active persistence context throws a
-   * {@code LazyInitializationException}.
+   * Returns the avatar URL of the user, kept in sync with the JWT {@code avatar} claim by {@link
+   * UserService}. May be {@code null} if the identity provider does not assert it.
    */
-  public byte[] getAvatar() {
-    return avatar;
+  public String getAvatarUrl() {
+    return avatarUrl;
   }
 
-  public void setAvatar(final byte[] avatar) {
-    this.avatar = avatar;
-  }
-
-  /**
-   * Returns the MIME content type of the stored avatar (e.g. {@code image/png}), or {@code null} if
-   * no avatar is set.
-   */
-  public String getAvatarContentType() {
-    return avatarContentType;
-  }
-
-  public void setAvatarContentType(final String avatarContentType) {
-    this.avatarContentType = avatarContentType;
+  public void setAvatarUrl(final String avatarUrl) {
+    this.avatarUrl = avatarUrl;
   }
 
   public Instant getUpdatedAt() {
@@ -116,25 +100,5 @@ public class UserEntity extends AbstractEntity implements EntityWithImage {
   @Override
   public String toString() {
     return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
-  }
-
-  @Override
-  public byte[] getRawImageData() {
-    return avatar;
-  }
-
-  @Override
-  public void setRawImageData(byte[] rawImageData) {
-    this.avatar = rawImageData;
-  }
-
-  @Override
-  public String getContentType() {
-    return avatarContentType;
-  }
-
-  @Override
-  public void setContentType(String contentType) {
-    setAvatarContentType(contentType);
   }
 }

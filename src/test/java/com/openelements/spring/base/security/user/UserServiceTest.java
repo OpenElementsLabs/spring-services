@@ -3,9 +3,11 @@ package com.openelements.spring.base.security.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.openelements.spring.base.data.image.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import java.util.Optional;
@@ -24,16 +26,20 @@ class UserServiceTest {
   private final UserService userService =
       new UserService(userRepository, eventPublisher, authService);
 
-  private void setupAuth(final String sub, final String name, final String email) {
-    when(authService.getUserInformation()).thenReturn(new UserInformation(sub, name, email));
+  private void setupAuth(
+      final String sub, final String name, final String email, final String avatarUrl) {
+    when(authService.getUserInformation())
+        .thenReturn(new UserInformation(sub, name, email, avatarUrl));
   }
 
-  private UserEntity createExistingUser(final String sub, final String name, final String email) {
+  private UserEntity createExistingUser(
+      final String sub, final String name, final String email, final String avatarUrl) {
     final UserEntity entity = new UserEntity();
     entity.setId(UUID.randomUUID());
     entity.setSub(sub);
     entity.setName(name);
     entity.setEmail(email);
+    entity.setAvatarUrl(avatarUrl);
     return entity;
   }
 
@@ -54,9 +60,9 @@ class UserServiceTest {
     @Test
     void shouldCreateNewUserWhenNotExists() {
       // GIVEN
-      setupAuth("auth0|new", "New User", "new@example.com");
+      setupAuth("auth0|new", "New User", "new@example.com", null);
       when(userRepository.findBySub("auth0|new")).thenReturn(Optional.empty());
-      when(userRepository.saveAndFlush(any(UserEntity.class)))
+      when(userRepository.save(any(UserEntity.class)))
           .thenAnswer(
               invocation -> {
                 final UserEntity saved = invocation.getArgument(0);
@@ -70,15 +76,16 @@ class UserServiceTest {
       // THEN
       assertThat(dto.name()).isEqualTo("New User");
       assertThat(dto.email()).isEqualTo("new@example.com");
-      verify(userRepository).saveAndFlush(any(UserEntity.class));
+      assertThat(dto.avatarUrl()).isNull();
+      verify(userRepository).save(any(UserEntity.class));
     }
 
     @Test
     void shouldReturnExistingUserWithoutSaving() {
       // GIVEN
-      setupAuth("auth0|existing", "Same Name", "same@example.com");
+      setupAuth("auth0|existing", "Same Name", "same@example.com", null);
       final UserEntity existing =
-          createExistingUser("auth0|existing", "Same Name", "same@example.com");
+          createExistingUser("auth0|existing", "Same Name", "same@example.com", null);
       when(userRepository.findBySub("auth0|existing")).thenReturn(Optional.of(existing));
 
       // WHEN
@@ -86,158 +93,159 @@ class UserServiceTest {
 
       // THEN
       assertThat(dto.name()).isEqualTo("Same Name");
-      verify(userRepository, never()).saveAndFlush(any());
+      verify(userRepository, never()).save(any());
     }
 
     @Test
     void shouldUpdateExistingUserWhenNameChanged() {
       // GIVEN
-      setupAuth("auth0|updated", "Updated Name", "same@example.com");
+      setupAuth("auth0|updated", "Updated Name", "same@example.com", null);
       final UserEntity existing =
-          createExistingUser("auth0|updated", "Old Name", "same@example.com");
+          createExistingUser("auth0|updated", "Old Name", "same@example.com", null);
       when(userRepository.findBySub("auth0|updated")).thenReturn(Optional.of(existing));
-      when(userRepository.saveAndFlush(existing)).thenReturn(existing);
+      when(userRepository.save(existing)).thenReturn(existing);
 
       // WHEN
       final UserDto dto = userService.getCurrentUser();
 
       // THEN
       assertThat(dto.name()).isEqualTo("Updated Name");
-      verify(userRepository).saveAndFlush(existing);
+      verify(userRepository).save(existing);
     }
 
     @Test
     void shouldUpdateExistingUserWhenEmailChanged() {
       // GIVEN
-      setupAuth("auth0|email", "Name", "new@example.com");
-      final UserEntity existing = createExistingUser("auth0|email", "Name", "old@example.com");
+      setupAuth("auth0|email", "Name", "new@example.com", null);
+      final UserEntity existing =
+          createExistingUser("auth0|email", "Name", "old@example.com", null);
       when(userRepository.findBySub("auth0|email")).thenReturn(Optional.of(existing));
-      when(userRepository.saveAndFlush(existing)).thenReturn(existing);
+      when(userRepository.save(existing)).thenReturn(existing);
 
       // WHEN
       final UserDto dto = userService.getCurrentUser();
 
       // THEN
       assertThat(dto.email()).isEqualTo("new@example.com");
-      verify(userRepository).saveAndFlush(existing);
+      verify(userRepository).save(existing);
     }
-  }
-
-  @Nested
-  @DisplayName("uploadAvatarForCurrentUser")
-  class UploadAvatarTest {
 
     @Test
-    void shouldUploadValidJpegAvatar() {
+    void shouldStoreAvatarUrlOnFirstLogin() {
       // GIVEN
-      setupAuth("auth0|avatar", "User", "user@example.com");
-      final UserEntity existing = createExistingUser("auth0|avatar", "User", "user@example.com");
-      when(userRepository.findBySub("auth0|avatar")).thenReturn(Optional.of(existing));
-      when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(i -> i.getArgument(0));
-      final byte[] imageData = new byte[] {1, 2, 3, 4};
+      setupAuth(
+          "auth0|first-avatar",
+          "Alice",
+          "alice@example.com",
+          "https://auth.example.com/media/avatars/user1.jpg");
+      when(userRepository.findBySub("auth0|first-avatar")).thenReturn(Optional.empty());
+      when(userRepository.save(any(UserEntity.class)))
+          .thenAnswer(
+              invocation -> {
+                final UserEntity saved = invocation.getArgument(0);
+                saved.setId(UUID.randomUUID());
+                return saved;
+              });
 
       // WHEN
-      final ImageData data = ImageData.of(imageData, "image/jpeg");
-      final UserDto dto = userService.updateAvatarForCurrentUser(data);
+      final UserDto dto = userService.getCurrentUser();
 
       // THEN
-      assertThat(dto.hasAvatar()).isTrue();
+      assertThat(dto.avatarUrl()).isEqualTo("https://auth.example.com/media/avatars/user1.jpg");
+      verify(userRepository).save(any(UserEntity.class));
     }
 
     @Test
-    void shouldUploadValidPngAvatar() {
+    void shouldUpdateAvatarUrlWhenChanged() {
       // GIVEN
-      setupAuth("auth0|avatar", "User", "user@example.com");
-      final UserEntity existing = createExistingUser("auth0|avatar", "User", "user@example.com");
-      when(userRepository.findBySub("auth0|avatar")).thenReturn(Optional.of(existing));
-      when(userRepository.saveAndFlush(any(UserEntity.class))).thenAnswer(i -> i.getArgument(0));
+      setupAuth(
+          "auth0|avatar-changed",
+          "User",
+          "user@example.com",
+          "https://auth.example.com/media/avatars/new.jpg");
+      final UserEntity existing =
+          createExistingUser(
+              "auth0|avatar-changed",
+              "User",
+              "user@example.com",
+              "https://auth.example.com/media/avatars/old.jpg");
+      when(userRepository.findBySub("auth0|avatar-changed")).thenReturn(Optional.of(existing));
+      when(userRepository.save(existing)).thenReturn(existing);
 
       // WHEN
-      final UserDto dto =
-          userService.updateAvatarForCurrentUser(ImageData.of(new byte[] {1}, "image/png"));
+      final UserDto dto = userService.getCurrentUser();
 
       // THEN
-      assertThat(dto.hasAvatar()).isTrue();
+      assertThat(existing.getAvatarUrl())
+          .isEqualTo("https://auth.example.com/media/avatars/new.jpg");
+      assertThat(dto.avatarUrl()).isEqualTo("https://auth.example.com/media/avatars/new.jpg");
+      verify(userRepository).save(existing);
     }
 
     @Test
-    void shouldRejectNullData() {
-      assertThatThrownBy(
-              () -> userService.updateAvatarForCurrentUser(ImageData.of(null, "image/jpeg")))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("data must not be null");
-    }
-
-    @Test
-    void shouldRejectEmptyData() {
-      assertThatThrownBy(
-              () -> userService.updateAvatarForCurrentUser(ImageData.of(new byte[0], "image/jpeg")))
-          .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void shouldRejectFileTooLarge() {
+    void shouldNotSaveWhenAvatarUrlUnchanged() {
       // GIVEN
-      final byte[] largeData = new byte[2 * 1024 * 1024 + 1]; // >2MB
-
-      // WHEN & THEN
-      assertThatThrownBy(
-              () -> userService.updateAvatarForCurrentUser(ImageData.of(largeData, "image/jpeg")))
-          .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void shouldRejectInvalidContentType() {
-      assertThatThrownBy(
-              () ->
-                  userService.updateAvatarForCurrentUser(ImageData.of(new byte[] {1}, "image/gif")))
-          .isInstanceOf(IllegalArgumentException.class);
-    }
-  }
-
-  @Nested
-  @DisplayName("getAvatarOfCurrentUser")
-  class GetAvatarTest {
-
-    @Test
-    void shouldReturnAvatarData() {
-      // GIVEN
-      setupAuth("auth0|avatar", "User", "user@example.com");
-      final UserEntity existing = createExistingUser("auth0|avatar", "User", "user@example.com");
-      existing.setAvatar(new byte[] {10, 20, 30});
-      existing.setAvatarContentType("image/png");
-      when(userRepository.findBySub("auth0|avatar")).thenReturn(Optional.of(existing));
+      setupAuth(
+          "auth0|avatar-same",
+          "User",
+          "user@example.com",
+          "https://auth.example.com/media/avatars/same.jpg");
+      final UserEntity existing =
+          createExistingUser(
+              "auth0|avatar-same",
+              "User",
+              "user@example.com",
+              "https://auth.example.com/media/avatars/same.jpg");
+      when(userRepository.findBySub("auth0|avatar-same")).thenReturn(Optional.of(existing));
 
       // WHEN
-      final ImageData imageData = userService.getAvatarOfCurrentUser().orElse(null);
+      userService.getCurrentUser();
 
       // THEN
-      assertThat(imageData.data()).isEqualTo(new byte[] {10, 20, 30});
-      assertThat(imageData.imageType().getContentType()).isEqualTo("image/png");
+      verify(userRepository, never()).save(any());
     }
-  }
-
-  @Nested
-  @DisplayName("deleteAvatarOfCurrentUser")
-  class DeleteAvatarTest {
 
     @Test
-    void shouldClearAvatarFields() {
-      // GIVEN
-      setupAuth("auth0|del", "User", "user@example.com");
-      final UserEntity existing = createExistingUser("auth0|del", "User", "user@example.com");
-      existing.setAvatar(new byte[] {1, 2});
-      existing.setAvatarContentType("image/jpeg");
-      when(userRepository.findBySub("auth0|del")).thenReturn(Optional.of(existing));
-      when(userRepository.saveAndFlush(existing)).thenReturn(existing);
+    void shouldClearAvatarUrlWhenJwtClaimMissing() {
+      // GIVEN — JWT carries no avatar claim, AuthService normalises to null
+      setupAuth("auth0|avatar-cleared", "User", "user@example.com", null);
+      final UserEntity existing =
+          createExistingUser(
+              "auth0|avatar-cleared",
+              "User",
+              "user@example.com",
+              "https://auth.example.com/media/avatars/old.jpg");
+      when(userRepository.findBySub("auth0|avatar-cleared")).thenReturn(Optional.of(existing));
+      when(userRepository.save(existing)).thenReturn(existing);
 
       // WHEN
-      userService.deleteAvatarOfCurrentUser();
+      final UserDto dto = userService.getCurrentUser();
 
       // THEN
-      assertThat(existing.getAvatar()).isNull();
-      assertThat(existing.getAvatarContentType()).isNull();
-      verify(userRepository).saveAndFlush(existing);
+      assertThat(existing.getAvatarUrl()).isNull();
+      assertThat(dto.avatarUrl()).isNull();
+      verify(userRepository).save(existing);
+    }
+
+    @Test
+    void shouldCreateUserWithoutAvatarUrlWhenClaimMissing() {
+      // GIVEN
+      setupAuth("auth0|no-avatar-first", "User", "user@example.com", null);
+      when(userRepository.findBySub("auth0|no-avatar-first")).thenReturn(Optional.empty());
+      when(userRepository.save(any(UserEntity.class)))
+          .thenAnswer(
+              invocation -> {
+                final UserEntity saved = invocation.getArgument(0);
+                saved.setId(UUID.randomUUID());
+                return saved;
+              });
+
+      // WHEN
+      final UserDto dto = userService.getCurrentUser();
+
+      // THEN
+      assertThat(dto.avatarUrl()).isNull();
+      verify(userRepository).save(any(UserEntity.class));
     }
   }
 }
