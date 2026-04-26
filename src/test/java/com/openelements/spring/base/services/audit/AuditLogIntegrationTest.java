@@ -50,8 +50,8 @@ class AuditLogIntegrationTest {
 
   @BeforeEach
   void setUp() {
+      tagRepository.deleteAll();
     auditLogRepository.deleteAll();
-    tagRepository.deleteAll();
   }
 
   @Nested
@@ -103,7 +103,8 @@ class AuditLogIntegrationTest {
 
       tagDataService.save(new TagDto(null, "tag-system", "desc", "#aabbcc"));
 
-      final List<AuditLogDto> entries = auditLogDataService.findByUser("System");
+      final List<AuditLogDto> entries =
+          auditLogDataService.findByEntityTypeAndUser("TagDto", "System");
       assertThat(entries).hasSize(1);
     }
   }
