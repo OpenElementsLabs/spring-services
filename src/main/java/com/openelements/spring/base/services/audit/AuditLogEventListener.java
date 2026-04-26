@@ -97,6 +97,7 @@ public class AuditLogEventListener {
     try {
       return authService.getPrincipal().getName();
     } catch (final IllegalStateException ex) {
+      LOG.debug("No security context — recording audit entry as '{}'", SYSTEM_USER);
       return SYSTEM_USER;
     }
   }

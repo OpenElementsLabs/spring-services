@@ -34,11 +34,11 @@ public class AuditCleanupJob {
    * <p>Runs every day at 02:00 server time by default; the schedule can be overridden by replacing
    * the bean.
    */
-  @Scheduled(cron = "0 0 2 * * *")
+  @Scheduled(cron = "0 0 2 * * *", zone = "UTC")
   @Transactional
   public void cleanupExpiredEntries() {
     final Instant cutoff = Instant.now().minus(auditProperties.retentionDays(), ChronoUnit.DAYS);
-    LOG.info("Removing audit entries older than {}", cutoff);
-    auditLogRepository.deleteByCreatedAtBefore(cutoff);
+    final int deleted = auditLogRepository.deleteByCreatedAtBefore(cutoff);
+    LOG.info("Removed {} audit entries older than {}", deleted, cutoff);
   }
 }

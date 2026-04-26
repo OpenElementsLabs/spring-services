@@ -3,6 +3,7 @@ package com.openelements.spring.base.services.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.openelements.spring.base.data.AbstractEntity;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.services.webhook.data.WebhookDataService;
 import com.openelements.spring.base.services.webhook.data.WebhookDto;
@@ -13,6 +14,7 @@ import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -116,8 +118,7 @@ class AuditLogIntegrationTest {
     void shouldNotCreateAuditEntryForAuditEntry() {
       when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
 
-      auditLogDataService.createEntry(
-          "BookDto", java.util.UUID.randomUUID(), AuditAction.INSERT, "alice");
+      auditLogDataService.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, "alice");
 
       final List<AuditLogDto> all = auditLogDataService.getAll();
       assertThat(all).hasSize(1);
@@ -194,10 +195,9 @@ class AuditLogIntegrationTest {
       assertThat(auditLogRepository.count()).isEqualTo(2);
     }
 
-    private void backdate(final java.util.UUID id, final Instant when) throws Exception {
+    private void backdate(final UUID id, final Instant when) throws Exception {
       final AuditLogEntity entity = auditLogRepository.findById(id).orElseThrow();
-      final Field field =
-          com.openelements.spring.base.data.AbstractEntity.class.getDeclaredField("createdAt");
+      final Field field = AbstractEntity.class.getDeclaredField("createdAt");
       field.setAccessible(true);
       field.set(entity, when);
       auditLogRepository.saveAndFlush(entity);
@@ -206,7 +206,7 @@ class AuditLogIntegrationTest {
 
   private AuditLogDto seed(final String user, final String entityType, final AuditAction action) {
     when(authService.getPrincipal()).thenReturn(principalNamed(user));
-    return auditLogDataService.createEntry(entityType, java.util.UUID.randomUUID(), action, user);
+    return auditLogDataService.createEntry(entityType, UUID.randomUUID(), action, user);
   }
 
   private static AuthenticatedPrincipal principalNamed(final String name) {

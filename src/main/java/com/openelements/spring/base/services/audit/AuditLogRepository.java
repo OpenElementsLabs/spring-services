@@ -4,7 +4,8 @@ import com.openelements.spring.base.data.EntityRepository;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /** Spring Data repository for {@link AuditLogEntity} instances. */
 public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
@@ -35,12 +36,14 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
   List<AuditLogEntity> findByEntityTypeAndUserName(String entityType, String userName);
 
   /**
-   * Removes every audit entry whose {@code createdAt} timestamp is strictly older than the supplied
-   * cutoff.
+   * Bulk-removes every audit entry whose {@code createdAt} timestamp is strictly older than the
+   * supplied cutoff. Issued as a single SQL {@code DELETE} so the cleanup is efficient even when
+   * the table has accumulated millions of rows.
    *
    * @param cutoff the retention boundary
+   * @return the number of rows deleted
    */
   @Modifying
-  @Transactional
-  void deleteByCreatedAtBefore(Instant cutoff);
+  @Query("delete from AuditLogEntity a where a.createdAt < :cutoff")
+  int deleteByCreatedAtBefore(@Param("cutoff") Instant cutoff);
 }
