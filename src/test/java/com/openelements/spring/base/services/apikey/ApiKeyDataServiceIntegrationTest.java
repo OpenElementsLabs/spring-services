@@ -51,7 +51,7 @@ class ApiKeyDataServiceIntegrationTest {
                 UUID.randomUUID(),
                 "Test Admin",
                 "admin@test.com",
-                false,
+                null,
                 Instant.now(),
                 Instant.now()));
   }

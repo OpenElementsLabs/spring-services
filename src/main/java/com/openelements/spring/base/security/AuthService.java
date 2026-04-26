@@ -93,8 +93,9 @@ public class AuthService {
   /**
    * Returns a typed view of the user information carried by the JWT of the current request.
    *
-   * <p>The {@code sub} claim is required and validated; {@code name} and {@code email} may be
-   * {@code null} depending on the identity provider's configuration.
+   * <p>The {@code sub} claim is required and validated; {@code name}, {@code email}, and {@code
+   * avatar} may be {@code null} depending on the identity provider's configuration. The {@code
+   * avatar} claim is normalised: an absent or blank value is exposed as {@code null}.
    *
    * @return the user information, never {@code null}
    * @throws IllegalStateException if the request was not authenticated via JWT, or if the JWT does
@@ -107,8 +108,10 @@ public class AuthService {
     if (sub == null || sub.isBlank()) {
       throw new IllegalStateException("No sub found");
     }
+    final String avatarClaim = jwt.getClaimAsString("avatar");
+    final String avatarUrl = (avatarClaim == null || avatarClaim.isBlank()) ? null : avatarClaim;
     return new UserInformation(
-        jwt.getSubject(), jwt.getClaimAsString("name"), jwt.getClaimAsString("email"));
+        jwt.getSubject(), jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
   }
 
   /**

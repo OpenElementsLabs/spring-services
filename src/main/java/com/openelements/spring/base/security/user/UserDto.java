@@ -9,16 +9,16 @@ import java.util.UUID;
  * Public projection of a {@link UserEntity}.
  *
  * <p>Returned by {@link UserService#getCurrentUser()} and the user-related REST endpoints. The
- * avatar bytes are intentionally <em>not</em> embedded — clients must fetch the image separately
- * via the avatar endpoint. The {@link #hasAvatar()} flag lets the UI decide whether to issue that
- * extra request.
+ * {@link #avatarUrl()} points directly at the identity provider's avatar image — clients render it
+ * in an {@code <img>} tag without any proxying or caching by this library. {@code avatarUrl} is
+ * {@code null} when the identity provider does not assert an avatar for the user.
  */
 @Schema(description = "User")
 public record UserDto(
     @Schema(description = "User ID") UUID id,
     @Schema(description = "Display name") String name,
     @Schema(description = "Email address") String email,
-    @Schema(description = "Whether the user has an avatar") boolean hasAvatar,
+    @Schema(description = "Avatar URL synchronized from the identity provider") String avatarUrl,
     @Schema(description = "Creation timestamp") Instant createdAt,
     @Schema(description = "Last update timestamp") Instant updatedAt)
     implements WithId {
@@ -34,7 +34,7 @@ public record UserDto(
         entity.getId(),
         entity.getName(),
         entity.getEmail(),
-        entity.getAvatar() != null,
+        entity.getAvatarUrl(),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
   }

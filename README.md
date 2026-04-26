@@ -53,8 +53,8 @@ meta-annotation.
   raw key is returned exactly once at creation. API keys grant **read-only** access
   (`GET` / `HEAD` / `OPTIONS`) — mutating operations require a JWT.
 - **User Service** — Lazily provisions a local user row from the JWT subject (`sub`) and keeps
-  `name` / `email` in sync with the JWT claims. Avatar upload/download with size (max 2 MB) and
-  content-type (`image/jpeg`, `image/png`) validation.
+  `name`, `email` and `avatarUrl` in sync with the matching JWT claims. The avatar URL points
+  directly at the identity provider; clients render it without any proxying by this library.
 - **Tags** — CRUD service for color-coded labels. A `PreTagDeleteEvent` is published before
   deletion so other features can detach references — or veto the deletion by throwing.
 - **Settings** — Plain string-key / string-value store via `SettingsDataService`, useful for

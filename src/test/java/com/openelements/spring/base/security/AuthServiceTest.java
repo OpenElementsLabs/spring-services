@@ -120,6 +120,7 @@ class AuthServiceTest {
               .subject("auth0|456")
               .claim("name", "Hendrik Ebbers")
               .claim("email", "hendrik@example.com")
+              .claim("avatar", "https://auth.example.com/avatar.jpg")
               .issuedAt(Instant.now())
               .expiresAt(Instant.now().plusSeconds(3600))
               .build();
@@ -133,6 +134,49 @@ class AuthServiceTest {
       assertThat(info.id()).isEqualTo("auth0|456");
       assertThat(info.name()).isEqualTo("Hendrik Ebbers");
       assertThat(info.email()).isEqualTo("hendrik@example.com");
+      assertThat(info.avatarUrl()).isEqualTo("https://auth.example.com/avatar.jpg");
+    }
+
+    @Test
+    void shouldReturnNullAvatarUrlWhenAvatarClaimMissing() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|789")
+              .claim("name", "No Avatar User")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
+
+      // THEN
+      assertThat(info.avatarUrl()).isNull();
+    }
+
+    @Test
+    void shouldReturnNullAvatarUrlWhenAvatarClaimIsBlank() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|blank")
+              .claim("avatar", "   ")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
+
+      // THEN
+      assertThat(info.avatarUrl()).isNull();
     }
 
     @Test
