@@ -6,6 +6,8 @@ import com.openelements.spring.base.data.image.ImageData;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,8 @@ import java.util.Optional;
 @Transactional
 public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto> {
 
+    private final Logger LOG = LoggerFactory.getLogger(UserService.class);
+
     private final UserRepository userRepository;
 
     private final AuthService authService;
@@ -55,31 +59,36 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
         final UserInformation userInformation = authService.getUserInformation();
         return userRepository
                 .findBySub(userInformation.id())
-                .map(
-                        user -> {
-                            boolean changed = false;
-                            if (!Objects.equals(userInformation.name(), user.getName())) {
-                                user.setName(userInformation.name());
-                                changed = true;
-                            }
-                            if (!Objects.equals(userInformation.email(), user.getEmail())) {
-                                user.setEmail(userInformation.email());
-                                changed = true;
-                            }
-                            return changed ? userRepository.save(user) : user;
-                        })
-                .orElseGet(
-                        () -> {
-                            try {
-                                final UserEntity entity = new UserEntity();
-                                entity.setSub(userInformation.id());
-                                entity.setName(userInformation.name());
-                                entity.setEmail(userInformation.email());
-                                return userRepository.save(entity);
-                            } catch (final DataIntegrityViolationException e) {
-                                return userRepository.findBySub(userInformation.id()).orElseThrow(() -> new IllegalStateException("Error in storing user entity", e));
-                            }
-                        });
+                .map(user -> {
+                    boolean changed = false;
+                    if (!Objects.equals(userInformation.name(), user.getName())) {
+                        user.setName(userInformation.name());
+                        changed = true;
+                    }
+                    if (!Objects.equals(userInformation.email(), user.getEmail())) {
+                        user.setEmail(userInformation.email());
+                        changed = true;
+                    }
+                    if (changed) {
+                        LOG.debug("Updating user {}: {}", user.id(), user);
+                        return userRepository.save(user);
+                    } else {
+                        return user;
+                    }
+                })
+                .orElseGet(() -> {
+                    try {
+                        LOG.debug("First login for user {}", userInformation.id());
+                        final UserEntity entity = new UserEntity();
+                        entity.setSub(userInformation.id());
+                        entity.setName(userInformation.name());
+                        entity.setEmail(userInformation.email());
+                        return userRepository.save(entity);
+                    } catch (final DataIntegrityViolationException e) {
+                        LOG.warn("Error in storing user entity. Will try to find it instead.");
+                        return userRepository.findBySub(userInformation.id()).orElseThrow(() -> new IllegalStateException("Error in storing user entity", e));
+                    }
+                });
     }
 
     /**
@@ -133,13 +142,9 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
     }
 
     @Override
-    protected void preDelete(@NonNull UserDto data) {
-        throw new IllegalStateException(
-                "User data should never be changed since it is based on external system");
-    }
-
-    @Override
     protected void updateEntity(@NonNull UserEntity entity, @NonNull UserDto data) {
+        entity.setName(data.name());
+        entity.setEmail(data.email());
     }
 
     @Override
