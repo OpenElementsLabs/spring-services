@@ -18,4 +18,4 @@ public @interface NeedsAdminRole {
 - Metrics
 - Eigenes DB Schema mit Flyway für jedes Modul.
   Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
-- 
+- ApiKeyDataService.KEY_PREFIX soll konfigurierbar sein (je app)
