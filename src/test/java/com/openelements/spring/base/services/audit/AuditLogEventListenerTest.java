@@ -14,10 +14,10 @@ import com.openelements.spring.base.events.OnObjectCreate;
 import com.openelements.spring.base.events.OnObjectDelete;
 import com.openelements.spring.base.events.OnObjectUpdate;
 import com.openelements.spring.base.security.AuthService;
+import com.openelements.spring.base.security.UserInformation;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.AuthenticatedPrincipal;
 
 @DisplayName("AuditLogEventListener")
 class AuditLogEventListenerTest {
@@ -34,7 +34,7 @@ class AuditLogEventListenerTest {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "x");
     final OnObjectCreate<TestData> event = new OnObjectCreate<>(data);
-    when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+    when(authService.getUserInformation()).thenReturn(userNamed("alice"));
 
     // WHEN
     listener.handleOnObjectCreate(event);
@@ -46,7 +46,7 @@ class AuditLogEventListenerTest {
   @Test
   void shouldRecordUpdateEntry() {
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenReturn(principalNamed("bob"));
+    when(authService.getUserInformation()).thenReturn(userNamed("bob"));
 
     listener.handleOnObjectUpdate(new OnObjectUpdate<>(data));
 
@@ -56,7 +56,7 @@ class AuditLogEventListenerTest {
   @Test
   void shouldRecordDeleteEntry() {
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+    when(authService.getUserInformation()).thenReturn(userNamed("alice"));
 
     listener.handleOnObjectDelete(new OnObjectDelete<>(data));
 
@@ -67,7 +67,7 @@ class AuditLogEventListenerTest {
   void shouldUseSystemUserWhenNoAuthentication() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenThrow(new IllegalStateException("No authentication"));
+    when(authService.getUserInformation()).thenThrow(new IllegalStateException("No authentication"));
 
     // WHEN
     listener.handleOnObjectCreate(new OnObjectCreate<>(data));
@@ -78,10 +78,10 @@ class AuditLogEventListenerTest {
   }
 
   @Test
-  void shouldUseSystemUserWhenPrincipalIsNull() {
+  void shouldUseSystemUserWhenUserInformationIsNull() {
     // GIVEN — a Mockito-created AuthService stub returns null by default
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenReturn(null);
+    when(authService.getUserInformation()).thenReturn(null);
 
     // WHEN
     listener.handleOnObjectCreate(new OnObjectCreate<>(data));
@@ -92,9 +92,20 @@ class AuditLogEventListenerTest {
   }
 
   @Test
-  void shouldUseSystemUserWhenPrincipalNameIsBlank() {
+  void shouldUseSystemUserWhenUserNameIsBlank() {
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenReturn(principalNamed("   "));
+    when(authService.getUserInformation()).thenReturn(userNamed("   "));
+
+    listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+    verify(auditLogDataService)
+        .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq("System"));
+  }
+
+  @Test
+  void shouldUseSystemUserWhenUserNameIsNull() {
+    final TestData data = new TestData(UUID.randomUUID(), "x");
+    when(authService.getUserInformation()).thenReturn(userNamed(null));
 
     listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
@@ -106,7 +117,7 @@ class AuditLogEventListenerTest {
   void shouldSwallowAuditWriteFailure() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+    when(authService.getUserInformation()).thenReturn(userNamed("alice"));
     doThrow(new RuntimeException("db down"))
         .when(auditLogDataService)
         .createEntry(any(), any(), any(), any());
@@ -152,7 +163,7 @@ class AuditLogEventListenerTest {
         .isInstanceOf(NullPointerException.class);
   }
 
-  private static AuthenticatedPrincipal principalNamed(final String name) {
-    return () -> name;
+  private static UserInformation userNamed(final String name) {
+    return new UserInformation("sub-id", name, "test@example.com", null);
   }
 }

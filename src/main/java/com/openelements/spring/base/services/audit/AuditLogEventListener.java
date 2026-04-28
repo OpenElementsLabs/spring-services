@@ -96,7 +96,17 @@ public class AuditLogEventListener {
 
     private String resolveUser() {
         try {
-            return authService.getUserInformation().name();
+            final var userInformation = authService.getUserInformation();
+            if (userInformation == null) {
+                LOG.warn("User information is null, falling back to '{}'", SYSTEM_USER);
+                return SYSTEM_USER;
+            }
+            final String name = userInformation.name();
+            if (name == null || name.isBlank()) {
+                LOG.warn("User name is null or blank, falling back to '{}'", SYSTEM_USER);
+                return SYSTEM_USER;
+            }
+            return name;
         } catch (final IllegalStateException ex) {
             LOG.warn("Failed to resolve user information from security context, falling back to '{}'", SYSTEM_USER, ex);
             return SYSTEM_USER;

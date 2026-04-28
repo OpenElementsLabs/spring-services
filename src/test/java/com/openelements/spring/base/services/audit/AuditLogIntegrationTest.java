@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.openelements.spring.base.security.AuthService;
+import com.openelements.spring.base.security.UserInformation;
 import com.openelements.spring.base.services.tag.TagDataService;
 import com.openelements.spring.base.services.tag.TagDto;
 import com.openelements.spring.base.services.tag.TagRepository;
@@ -25,7 +26,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -63,7 +63,7 @@ class AuditLogIntegrationTest {
     @Test
     void shouldRecordCreateEventForAuthenticatedUser() {
       // GIVEN
-      when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
 
       // WHEN
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-create", "desc", "#aabbcc"));
@@ -79,7 +79,7 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldRecordUpdateEvent() {
-      when(authService.getPrincipal()).thenReturn(principalNamed("bob"));
+      when(authService.getUserInformation()).thenReturn(userNamed("bob"));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-update", "desc", "#aabbcc"));
 
       tagDataService.save(new TagDto(saved.id(), "tag-update", "new-desc", "#aabbcc"));
@@ -90,7 +90,7 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldRecordDeleteEvent() {
-      when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-delete", "desc", "#aabbcc"));
 
       tagDataService.delete(saved);
@@ -102,7 +102,7 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldUseSystemUserWhenNoAuthentication() {
-      when(authService.getPrincipal()).thenThrow(new IllegalStateException("no auth"));
+      when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
 
       tagDataService.save(new TagDto(null, "tag-system", "desc", "#aabbcc"));
 
@@ -118,7 +118,7 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldNotCreateAuditEntryForAuditEntry() {
-      when(authService.getPrincipal()).thenReturn(principalNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
 
       auditLogDataService.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, "alice");
 
@@ -213,11 +213,11 @@ class AuditLogIntegrationTest {
   }
 
   private AuditLogDto seed(final String user, final String entityType, final AuditAction action) {
-    when(authService.getPrincipal()).thenReturn(principalNamed(user));
+    when(authService.getUserInformation()).thenReturn(userNamed(user));
     return auditLogDataService.createEntry(entityType, UUID.randomUUID(), action, user);
   }
 
-  private static AuthenticatedPrincipal principalNamed(final String name) {
-    return () -> name;
+  private static UserInformation userNamed(final String name) {
+    return new UserInformation("sub-id", name, "test@example.com", null);
   }
 }
