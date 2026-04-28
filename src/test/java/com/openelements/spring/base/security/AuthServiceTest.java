@@ -1,5 +1,6 @@
 package com.openelements.spring.base.security;
 
+import com.openelements.spring.base.services.apikey.ApiKeyEntity;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -197,6 +199,48 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.getUserInformation())
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("No sub found");
+        }
+
+        @Test
+        @DisplayName("returns UNKNOWN user when principal is an ApiKeyEntity")
+        void shouldReturnUnknownUserForApiKeyPrincipal() {
+            // GIVEN
+            final ApiKeyEntity entity = new ApiKeyEntity();
+            entity.setId(UUID.randomUUID());
+            entity.setName("CRM key");
+            entity.setKeyHash("hash");
+            entity.setKeyPrefix("crm_test...1234");
+            entity.setCreatedBy("admin");
+            final TestingAuthenticationToken auth = new TestingAuthenticationToken(entity, null);
+            auth.setAuthenticated(true);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // WHEN
+            final UserInformation info = authService.getUserInformation();
+
+            // THEN
+            assertThat(info.id()).isEqualTo("UNKNOWN");
+            assertThat(info.name()).isEqualTo("UNKNOWN");
+            assertThat(info.email()).isNull();
+            assertThat(info.avatarUrl()).isNull();
+        }
+
+        @Test
+        @DisplayName("returns UNKNOWN user when principal is a String")
+        void shouldReturnUnknownUserForStringPrincipal() {
+            // GIVEN
+            final TestingAuthenticationToken auth =
+                    new TestingAuthenticationToken("string-principal", "pass");
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // WHEN
+            final UserInformation info = authService.getUserInformation();
+
+            // THEN
+            assertThat(info.id()).isEqualTo("UNKNOWN");
+            assertThat(info.name()).isEqualTo("UNKNOWN");
+            assertThat(info.email()).isNull();
+            assertThat(info.avatarUrl()).isNull();
         }
     }
 

@@ -9,49 +9,46 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Servlet filter that authenticates requests carrying an {@code X-API-Key} header.
  *
- * <p>Registered ahead of Spring Security's standard {@link
+ * <p>Registered exclusively on the external API filter chain by {@link
+ * com.openelements.spring.base.security.SecurityConfig}, ahead of Spring Security's standard {@link
  * org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter}
- * by {@link com.openelements.spring.base.security.SecurityConfig}, so API-key authentication is
- * attempted first and JWT authentication only runs as a fallback.
+ * anchor. This filter is <b>not</b> annotated with {@code @Component} — it must not be auto-registered
+ * as a servlet-level filter, because that would cause it to run on the JWT chain too and break the
+ * strict isolation between the two chains.
  *
  * <h2>Behaviour</h2>
  *
  * <ol>
  *   <li>If the {@code X-API-Key} header is <b>absent</b>, the filter does nothing and forwards the
- *       request — JWT authentication takes over.
+ *       request — chain-level authorization rules will reject the request if no other authentication
+ *       is supplied.
  *   <li>If the header is <b>present</b>, the raw key is hashed (SHA-256) and looked up via {@link
  *       ApiKeyDataService#authenticate(String)}.
  *       <ul>
  *         <li>Unknown key → respond {@code 401 Unauthorized} with a JSON error body and abort.
- *         <li>Known key but the HTTP method is not one of {@code GET}, {@code HEAD}, {@code
- *             OPTIONS} → respond {@code 403 Forbidden}. <b>API keys grant read-only access
- *             only.</b>
- *         <li>Known key on a read-only method → place an {@link ApiKeyAuthentication} token (with
- *             the {@code ROLE_API_KEY} authority) into the security context and continue.
+ *         <li>Known key → place an {@link ApiKeyAuthentication} token (with the {@code ROLE_API_KEY}
+ *             authority) into the security context and continue.
  *       </ul>
  * </ol>
+ *
+ * <p>HTTP method enforcement (read-only access for API keys) is the responsibility of the chain's
+ * {@code authorizeHttpRequests} configuration, not this filter.
  *
  * <p>This filter never reads or persists the raw key beyond the lifetime of the request — only the
  * hash is compared against the database.
  */
-@Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
   private static final String API_KEY_HEADER = "X-API-Key";
-  private static final Set<String> READ_ONLY_METHODS =
-      Set.of(HttpMethod.GET.name(), HttpMethod.HEAD.name(), HttpMethod.OPTIONS.name());
 
   private final ApiKeyDataService apiKeyService;
 
@@ -71,12 +68,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     final String apiKey = request.getHeader(API_KEY_HEADER);
 
     if (apiKey == null) {
-      // No API key header — pass through to JWT auth
       filterChain.doFilter(request, response);
       return;
     }
 
-    // API key header present — attempt authentication
     final var entity = apiKeyService.authenticate(apiKey);
 
     if (entity.isEmpty()) {
@@ -86,15 +81,6 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
       return;
     }
 
-    // Key is valid — check if method is read-only
-    if (!READ_ONLY_METHODS.contains(request.getMethod())) {
-      response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      response.getWriter().write("{\"error\":\"API keys only grant read-only access\"}");
-      return;
-    }
-
-    // Authenticate the request
     final ApiKeyAuthentication authentication = new ApiKeyAuthentication(entity.get());
     SecurityContextHolder.getContext().setAuthentication(authentication);
     filterChain.doFilter(request, response);

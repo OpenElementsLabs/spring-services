@@ -2,6 +2,7 @@ package com.openelements.spring.base.security;
 
 import com.openelements.spring.base.security.apikey.ApiKeyAuthenticationFilter;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
+import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -10,6 +11,8 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,24 +26,25 @@ import org.springframework.security.web.SecurityFilterChain;
  * Auto-configuration that wires Spring Security for the {@code spring-services} platform.
  *
  * <p>For a high-level description of the security model see the {@linkplain
- * com.openelements.spring.base.security package documentation}. The two key beans contributed by
- * this configuration are:
+ * com.openelements.spring.base.security package documentation}. This configuration contributes two
+ * strictly isolated {@link SecurityFilterChain} beans plus a {@link JwtAuthenticationConverter}:
  *
  * <ul>
- *   <li>{@link #filterChain(HttpSecurity)} — defines which endpoints are public, enables OAuth2
- *       resource-server JWT validation, and inserts the {@link ApiKeyAuthenticationFilter}
- *       <em>before</em> the standard {@link BearerTokenAuthenticationFilter} so that an {@code
- *       X-API-Key} header is evaluated first.
+ *   <li>{@link #externalApiFilterChain(HttpSecurity)} ({@code @Order(1)}) — matches {@code
+ *       /api/external/**} and uses API-key authentication only. Read-only access (GET/HEAD/OPTIONS)
+ *       is enforced declaratively at the chain level; all other HTTP methods are denied.
+ *   <li>{@link #defaultFilterChain(HttpSecurity)} ({@code @Order(2)}) — matches everything else and
+ *       uses OAuth2/JWT authentication only. The {@code X-API-Key} header is silently ignored on
+ *       this chain.
  *   <li>{@link #jwtAuthenticationConverter()} — extends the default scope-to-authority mapping so
  *       that values from the JWT's {@code roles} claim are exposed as {@code ROLE_<x>} authorities,
  *       in addition to the {@code SCOPE_<x>} authorities derived from the standard {@code
  *       scope}/{@code scp} claim.
  * </ul>
  *
- * <p>Anonymous access is granted only to health-check endpoints ({@code /api/health/**}) and to the
- * Swagger UI / OpenAPI documentation ({@code /swagger-ui.html}, {@code /swagger-ui/**}, {@code
- * /v3/api-docs/**}). All other requests must be authenticated. CSRF protection is disabled because
- * the platform is a stateless REST API.
+ * <p>Health-check ({@code /api/health/**}) and OpenAPI/Swagger endpoints remain anonymously
+ * accessible on the default chain. CSRF protection is disabled on both chains because the platform
+ * is a stateless REST API.
  */
 @EnableWebSecurity
 @AutoConfiguration
@@ -49,14 +53,28 @@ import org.springframework.security.web.SecurityFilterChain;
 @ComponentScan
 public class SecurityConfig {
 
-  private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+  private final ApiKeyDataService apiKeyDataService;
 
   /**
-   * @param apiKeyAuthenticationFilter the filter that handles {@code X-API-Key} authentication and
-   *     is registered ahead of the JWT bearer token filter
+   * @param apiKeyDataService the data service used to validate API keys; injected into the {@link
+   *     ApiKeyAuthenticationFilter} that is registered on the external API chain
    */
-  public SecurityConfig(final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
-    this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
+  public SecurityConfig(final ApiKeyDataService apiKeyDataService) {
+    this.apiKeyDataService = apiKeyDataService;
+  }
+
+  /**
+   * Constructs the {@link ApiKeyAuthenticationFilter}.
+   *
+   * <p>Defined as a bean here (rather than annotating the filter class with {@code @Component}) so
+   * that Spring Boot does not auto-register it as a servlet-level filter on every chain. The filter
+   * must only run on the external API chain.
+   *
+   * @return the filter instance used by {@link #externalApiFilterChain(HttpSecurity)}
+   */
+  @Bean
+  public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter() {
+    return new ApiKeyAuthenticationFilter(apiKeyDataService);
   }
 
   /**
@@ -91,26 +109,53 @@ public class SecurityConfig {
   }
 
   /**
-   * Defines the security filter chain.
+   * Defines the external API filter chain.
    *
-   * <p>Order of relevant filters and rules:
-   *
-   * <ol>
-   *   <li>Authorization rules: {@code /api/health/**} and the Swagger UI endpoints are public; all
-   *       other requests must be authenticated.
-   *   <li>OAuth2 resource server (JWT) is enabled with the converter from {@link
-   *       #jwtAuthenticationConverter()}.
-   *   <li>{@link ApiKeyAuthenticationFilter} is inserted <em>before</em> {@link
-   *       BearerTokenAuthenticationFilter}, so the {@code X-API-Key} header is checked first.
-   *   <li>CSRF protection is disabled (stateless REST API).
-   * </ol>
+   * <p>Scoped to {@code /api/external/**}, this chain accepts only API-key authentication and only
+   * read-only HTTP methods (GET, HEAD, OPTIONS). All other methods are rejected by the chain's
+   * authorization rules with {@code 403 Forbidden}. JWT bearer tokens are not evaluated on this
+   * chain — there is no OAuth2 resource server configured here.
    *
    * @param http the HTTP security builder
-   * @return the configured filter chain
+   * @return the configured external API filter chain
    * @throws Exception if Spring Security fails to build the chain
    */
   @Bean
-  public SecurityFilterChain filterChain(final HttpSecurity http) throws Exception {
+  @Order(1)
+  public SecurityFilterChain externalApiFilterChain(
+      final HttpSecurity http, final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter)
+      throws Exception {
+    http.securityMatcher("/api/external/**")
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(HttpMethod.GET, "/api/external/**")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.HEAD, "/api/external/**")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.OPTIONS, "/api/external/**")
+                    .authenticated()
+                    .anyRequest()
+                    .denyAll())
+        .addFilterBefore(apiKeyAuthenticationFilter, BearerTokenAuthenticationFilter.class)
+        .csrf(csrf -> csrf.disable());
+    return http.build();
+  }
+
+  /**
+   * Defines the default filter chain.
+   *
+   * <p>Matches every request not handled by {@link #externalApiFilterChain(HttpSecurity)}. Uses
+   * OAuth2/JWT authentication exclusively; the {@code X-API-Key} header is not evaluated on this
+   * chain. Health-check and Swagger UI/OpenAPI documentation endpoints remain anonymously
+   * accessible.
+   *
+   * @param http the HTTP security builder
+   * @return the configured default filter chain
+   * @throws Exception if Spring Security fails to build the chain
+   */
+  @Bean
+  @Order(2)
+  public SecurityFilterChain defaultFilterChain(final HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(
             auth ->
                 auth.requestMatchers("/api/health/**")
@@ -122,7 +167,6 @@ public class SecurityConfig {
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-        .addFilterBefore(apiKeyAuthenticationFilter, BearerTokenAuthenticationFilter.class)
         .csrf(csrf -> csrf.disable());
     return http.build();
   }
