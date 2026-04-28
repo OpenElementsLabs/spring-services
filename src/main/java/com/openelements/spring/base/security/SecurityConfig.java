@@ -30,7 +30,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * strictly isolated {@link SecurityFilterChain} beans plus a {@link JwtAuthenticationConverter}:
  *
  * <ul>
- *   <li>{@link #externalApiFilterChain(HttpSecurity)} ({@code @Order(1)}) — matches {@code
+ *   <li>{@link #externalApiFilterChain(HttpSecurity, ApiKeyAuthenticationFilter)} ({@code @Order(1)}) — matches {@code
  *       /api/external/**} and uses API-key authentication only. Read-only access (GET/HEAD/OPTIONS)
  *       is enforced declaratively at the chain level; all other HTTP methods are denied.
  *   <li>{@link #defaultFilterChain(HttpSecurity)} ({@code @Order(2)}) — matches everything else and
@@ -70,7 +70,8 @@ public class SecurityConfig {
    * that Spring Boot does not auto-register it as a servlet-level filter on every chain. The filter
    * must only run on the external API chain.
    *
-   * @return the filter instance used by {@link #externalApiFilterChain(HttpSecurity)}
+   * @return the filter instance used by {@link #externalApiFilterChain(HttpSecurity,
+   *     ApiKeyAuthenticationFilter)}
    */
   @Bean
   public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter() {
@@ -117,6 +118,8 @@ public class SecurityConfig {
    * chain — there is no OAuth2 resource server configured here.
    *
    * @param http the HTTP security builder
+   * @param apiKeyAuthenticationFilter the filter that extracts and validates the {@code X-API-Key}
+   *     header
    * @return the configured external API filter chain
    * @throws Exception if Spring Security fails to build the chain
    */
@@ -144,7 +147,8 @@ public class SecurityConfig {
   /**
    * Defines the default filter chain.
    *
-   * <p>Matches every request not handled by {@link #externalApiFilterChain(HttpSecurity)}. Uses
+   * <p>Matches every request not handled by {@link #externalApiFilterChain(HttpSecurity,
+   *     ApiKeyAuthenticationFilter)}. Uses
    * OAuth2/JWT authentication exclusively; the {@code X-API-Key} header is not evaluated on this
    * chain. Health-check and Swagger UI/OpenAPI documentation endpoints remain anonymously
    * accessible.
