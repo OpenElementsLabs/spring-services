@@ -1,10 +1,12 @@
-package com.openelements.spring.base.security.user;
+package com.openelements.spring.base.security;
+
+import com.openelements.spring.base.security.user.Roles;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Shortcut for {@code @PreAuthorize("hasRole('APP-USER')")}.
