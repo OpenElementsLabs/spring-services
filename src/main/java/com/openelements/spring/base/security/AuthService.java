@@ -108,8 +108,8 @@ public class AuthService {
         if (sub == null || sub.isBlank()) {
             throw new IllegalStateException("No sub found");
         }
-        final String pcitureClaim = jwt.getClaimAsString("picture");
-        final String avatarUrl = (pcitureClaim == null || pcitureClaim.isBlank()) ? null : pcitureClaim;
+        final String picture = jwt.getClaimAsString("picture");
+        final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
         return new UserInformation(
                 jwt.getSubject(), jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
     }
