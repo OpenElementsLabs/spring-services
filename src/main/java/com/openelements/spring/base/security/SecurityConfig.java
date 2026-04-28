@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
@@ -49,6 +50,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 @AutoConfiguration
 @EnableAutoConfiguration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @Import(ApiKeyConfig.class)
 @ComponentScan
 public class SecurityConfig {
