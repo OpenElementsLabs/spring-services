@@ -8,3 +8,4 @@
 | 004 | 004-avatar-url-from-authentik | Avatar URL from authentik | backend, security, database    | Replace manual avatar upload with avatar URL sync from authentik JWT claim                        | #7           | done   |
 | 005 | 005-audit-log                 | Audit log                 | backend, database              | Persist data lifecycle events (create/update/delete) as audit log entries with user tracking      | #8           | done   |
 | 006 | 006-split-security-filter-chains | Split security filter chains | backend, security, architecture | Split single SecurityFilterChain into two isolated chains: API-key for /api/external/**, JWT for everything else | #11          | done   |
+| 007 | 007-spring-boot-3.5-upgrade   | Spring Boot 3.5 upgrade   | build, testing, infrastructure | Upgrade Spring Boot 3.3.2 → 3.5.14 and pin Testcontainers 2.0.5 to fix integration tests on Docker Engine 29+ | #13          | open   |
