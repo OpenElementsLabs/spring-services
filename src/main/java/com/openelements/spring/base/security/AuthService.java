@@ -91,27 +91,34 @@ public class AuthService {
     }
 
     /**
-     * Returns a typed view of the user information carried by the JWT of the current request.
+     * Returns a typed view of the user information for the current request.
      *
-     * <p>The {@code sub} claim is required and validated; {@code name}, {@code email}, and {@code
-     * avatar} may be {@code null} depending on the identity provider's configuration. The {@code
-     * avatar} claim is normalised: an absent or blank value is exposed as {@code null}.
+     * <p>For JWT-authenticated requests, claims are extracted from the bearer token: the {@code sub}
+     * claim is required and validated; {@code name}, {@code email}, and {@code picture} may be
+     * {@code null} depending on the identity provider's configuration. The {@code picture} claim is
+     * normalised: an absent or blank value is exposed as {@code null}.
+     *
+     * <p>For non-JWT principals — typically API-key authenticated requests, where the principal is
+     * an {@code ApiKeyEntity} — a static {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)}
+     * is returned. API keys are not currently associated with a specific user.
      *
      * @return the user information, never {@code null}
-     * @throws IllegalStateException if the request was not authenticated via JWT, or if the JWT does
-     *                               not contain a {@code sub} claim
+     * @throws IllegalStateException if the principal is a JWT without a {@code sub} claim
      */
     @NonNull
     public UserInformation getUserInformation() {
-        final Jwt jwt = getPrincipalJwt();
-        final String sub = jwt.getSubject();
-        if (sub == null || sub.isBlank()) {
-            throw new IllegalStateException("No sub found");
+        final Object principal = getPrincipalObject();
+        if (principal instanceof Jwt jwt) {
+            final String sub = jwt.getSubject();
+            if (sub == null || sub.isBlank()) {
+                throw new IllegalStateException("No sub found");
+            }
+            final String picture = jwt.getClaimAsString("picture");
+            final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
+            return new UserInformation(
+                    sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
         }
-        final String picture = jwt.getClaimAsString("picture");
-        final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
-        return new UserInformation(
-                jwt.getSubject(), jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
+        return new UserInformation("UNKNOWN", "UNKNOWN", null, null);
     }
 
     /**

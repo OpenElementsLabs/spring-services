@@ -3,7 +3,7 @@ package com.openelements.spring.base.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.openelements.spring.base.security.apikey.ApiKeyAuthenticationFilter;
+import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -18,7 +18,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 class SecurityConfigRoleTest {
 
   private final SecurityConfig securityConfig =
-      new SecurityConfig(mock(ApiKeyAuthenticationFilter.class));
+      new SecurityConfig(mock(ApiKeyDataService.class));
   private final JwtAuthenticationConverter jwtAuthenticationConverter =
       securityConfig.jwtAuthenticationConverter();
 

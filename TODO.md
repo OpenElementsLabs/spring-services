@@ -19,3 +19,6 @@ public @interface NeedsAdminRole {
 - Eigenes DB Schema mit Flyway für jedes Modul.
   Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
 - ApiKeyDataService.KEY_PREFIX soll konfigurierbar sein (je app)
+- Associate user information with API keys to replace the `UNKNOWN` user returned by
+  `AuthService.getUserInformation()` in API-key contexts (audit log entries currently record
+  `"UNKNOWN"` for actions performed via API key)

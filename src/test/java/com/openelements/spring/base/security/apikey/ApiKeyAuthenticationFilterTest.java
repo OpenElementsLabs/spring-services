@@ -2,7 +2,12 @@ package com.openelements.spring.base.security.apikey;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
@@ -31,6 +36,16 @@ class ApiKeyAuthenticationFilterTest {
     SecurityContextHolder.clearContext();
   }
 
+  private static ApiKeyEntity createValidEntity() {
+    final ApiKeyEntity entity = new ApiKeyEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setName("Test Key");
+    entity.setKeyHash("hash");
+    entity.setKeyPrefix("crm_test...1234");
+    entity.setCreatedBy("admin");
+    return entity;
+  }
+
   @Nested
   @DisplayName("when no API key header is present")
   class NoApiKeyHeaderTest {
@@ -38,7 +53,7 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void shouldPassThroughToNextFilter() throws ServletException, IOException {
       // GIVEN
-      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/external/data");
       final MockHttpServletResponse response = new MockHttpServletResponse();
 
       // WHEN
@@ -47,6 +62,7 @@ class ApiKeyAuthenticationFilterTest {
       // THEN
       verify(filterChain).doFilter(request, response);
       verifyNoInteractions(apiKeyService);
+      assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
   }
 
@@ -57,7 +73,7 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void shouldReturn401() throws ServletException, IOException {
       // GIVEN
-      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/external/data");
       request.addHeader("X-API-Key", "invalid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("invalid_key")).thenReturn(Optional.empty());
@@ -76,21 +92,11 @@ class ApiKeyAuthenticationFilterTest {
   @DisplayName("when API key is valid")
   class ValidApiKeyTest {
 
-    private ApiKeyEntity createValidEntity() {
-      final ApiKeyEntity entity = new ApiKeyEntity();
-      entity.setId(UUID.randomUUID());
-      entity.setName("Test Key");
-      entity.setKeyHash("hash");
-      entity.setKeyPrefix("crm_test...1234");
-      entity.setCreatedBy("admin");
-      return entity;
-    }
-
     @Test
     void shouldAuthenticateForGetRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/external/data");
       request.addHeader("X-API-Key", "crm_valid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
@@ -111,7 +117,7 @@ class ApiKeyAuthenticationFilterTest {
     void shouldAuthenticateForHeadRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("HEAD", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("HEAD", "/api/external/data");
       request.addHeader("X-API-Key", "crm_valid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
@@ -128,7 +134,7 @@ class ApiKeyAuthenticationFilterTest {
     void shouldAuthenticateForOptionsRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/external/data");
       request.addHeader("X-API-Key", "crm_valid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
@@ -142,10 +148,11 @@ class ApiKeyAuthenticationFilterTest {
     }
 
     @Test
-    void shouldReturn403ForPostRequest() throws ServletException, IOException {
+    @DisplayName("authenticates POST request without enforcing method (chain handles 403)")
+    void shouldAuthenticatePostRequestWithoutEnforcingMethod() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/external/data");
       request.addHeader("X-API-Key", "crm_valid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
@@ -154,50 +161,19 @@ class ApiKeyAuthenticationFilterTest {
       filter.doFilterInternal(request, response, filterChain);
 
       // THEN
-      assertThat(response.getStatus()).isEqualTo(403);
-      assertThat(response.getContentAsString()).contains("read-only");
-      verify(filterChain, never()).doFilter(any(), any());
-    }
-
-    @Test
-    void shouldReturn403ForPutRequest() throws ServletException, IOException {
-      // GIVEN
-      final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("PUT", "/api/data");
-      request.addHeader("X-API-Key", "crm_valid_key");
-      final MockHttpServletResponse response = new MockHttpServletResponse();
-      when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
-
-      // WHEN
-      filter.doFilterInternal(request, response, filterChain);
-
-      // THEN
-      assertThat(response.getStatus()).isEqualTo(403);
-      verify(filterChain, never()).doFilter(any(), any());
-    }
-
-    @Test
-    void shouldReturn403ForDeleteRequest() throws ServletException, IOException {
-      // GIVEN
-      final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/data/1");
-      request.addHeader("X-API-Key", "crm_valid_key");
-      final MockHttpServletResponse response = new MockHttpServletResponse();
-      when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
-
-      // WHEN
-      filter.doFilterInternal(request, response, filterChain);
-
-      // THEN
-      assertThat(response.getStatus()).isEqualTo(403);
-      verify(filterChain, never()).doFilter(any(), any());
+      assertThat(response.getStatus()).isEqualTo(200);
+      verify(filterChain).doFilter(request, response);
+      assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+      assertThat(SecurityContextHolder.getContext().getAuthentication().isAuthenticated()).isTrue();
+      assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+          .isSameAs(entity);
     }
 
     @Test
     void shouldHaveApiKeyRole() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
-      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/data");
+      final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/external/data");
       request.addHeader("X-API-Key", "crm_valid_key");
       final MockHttpServletResponse response = new MockHttpServletResponse();
       when(apiKeyService.authenticate("crm_valid_key")).thenReturn(Optional.of(entity));
