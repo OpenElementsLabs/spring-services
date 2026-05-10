@@ -45,15 +45,23 @@ In `CommentEntity`:
 @ManyToOne(fetch = FetchType.LAZY, optional = false)
 @JoinColumn(name = "author_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_comments_author"))
-@BatchSize(size = 50)
 private UserEntity author;
+```
+
+In `UserEntity` (to enable batched fetching for any `@ManyToOne UserEntity` reference, including the new one above):
+
+```java
+@Entity
+@Table(name = "users")
+@BatchSize(size = 50)
+public class UserEntity extends AbstractEntity { ... }
 ```
 
 Rationale for each choice:
 
 - **`fetch = LAZY`** — avoids loading every author on each `findById`/`findAll`. Callers that need the author (e.g., `toData()`) trigger the load explicitly via `getAuthor()`.
 - **`optional = false`** + **`nullable = false`** — every comment must have an author. Mirrors the existing `nullable = false` on the String column.
-- **`@BatchSize(size = 50)`** — when a list of comments is loaded and `getAuthor()` is touched (which `toData()` does), Hibernate fetches up to 50 authors in a single `IN` query instead of one query per comment. Removes the N+1 without requiring custom `JOIN FETCH` queries.
+- **`@BatchSize(size = 50)` on `UserEntity`** — when references to `UserEntity` are dereferenced lazily (e.g., `comment.getAuthor()` inside `toData()`), Hibernate batches up to 50 proxy initializations into a single `SELECT ... WHERE id IN (?, ?, …)` query instead of one query per comment. Removes the N+1 without requiring custom `JOIN FETCH` queries. Hibernate 6 only supports `@BatchSize` on the target entity class or on collection-valued associations — it is rejected on `@ManyToOne` fields. Putting it on `UserEntity` is also forward-friendly: any future `@ManyToOne UserEntity` association in the codebase inherits the same batching behavior automatically.
 - **Named `@ForeignKey`** — gives Hibernate's auto-DDL a stable constraint name (`fk_comments_author`) rather than a hash-based default, which makes the constraint diffable and referenceable in migrations.
 
 ### Service change

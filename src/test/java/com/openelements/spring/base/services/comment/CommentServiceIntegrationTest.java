@@ -1,0 +1,373 @@
+package com.openelements.spring.base.services.comment;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.openelements.spring.base.security.AuthService;
+import com.openelements.spring.base.security.UserInformation;
+import com.openelements.spring.base.security.user.UserDto;
+import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.security.user.UserRepository;
+import com.openelements.spring.base.security.user.UserService;
+import com.openelements.spring.base.services.audit.AuditAction;
+import com.openelements.spring.base.services.audit.AuditLogEntity;
+import com.openelements.spring.base.services.audit.AuditLogRepository;
+import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
+import com.openelements.spring.base.testcontainers.TestApplication;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.lang.reflect.RecordComponent;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import org.hibernate.Hibernate;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+@SpringBootTest(classes = TestApplication.class)
+@Import(PostgresTestConfiguration.class)
+@Testcontainers
+@ActiveProfiles("testcontainers")
+@DisplayName("CommentService integration")
+class CommentServiceIntegrationTest {
+
+    @Autowired private CommentService commentService;
+    @Autowired private CommentRepository commentRepository;
+    @SpyBean  private UserService userService;
+    @Autowired private UserRepository userRepository;
+    @Autowired private AuditLogRepository auditLogRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    @PersistenceContext private EntityManager entityManager;
+
+    @MockBean private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        commentRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
+    private void setAuthenticatedUser(final String sub, final String name, final String email) {
+        when(authService.getUserInformation()).thenReturn(new UserInformation(sub, name, email, null));
+    }
+
+    private UserEntity seedUser(final String sub, final String name) {
+        final UserEntity user = new UserEntity();
+        user.setSub(sub);
+        user.setName(name);
+        user.setEmail(name + "@example.com");
+        return userRepository.saveAndFlush(user);
+    }
+
+    @Transactional
+    private CommentEntity seedComment(final UserEntity author, final String text) {
+        final CommentEntity comment = new CommentEntity();
+        comment.setText(text);
+        comment.setAuthor(author);
+        return commentRepository.saveAndFlush(comment);
+    }
+
+    @Nested
+    @DisplayName("entity mapping")
+    class EntityMapping {
+
+        @Test
+        void shouldHaveAuthorIdColumnAndForeignKeyConstraint() {
+            final List<String> columns =
+                jdbcTemplate.queryForList(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'comments'",
+                    String.class);
+            assertThat(columns).contains("author_id").doesNotContain("author");
+
+            final String dataType =
+                jdbcTemplate.queryForObject(
+                    "SELECT data_type FROM information_schema.columns "
+                        + "WHERE table_name = 'comments' AND column_name = 'author_id'",
+                    String.class);
+            assertThat(dataType).isEqualTo("uuid");
+
+            final String isNullable =
+                jdbcTemplate.queryForObject(
+                    "SELECT is_nullable FROM information_schema.columns "
+                        + "WHERE table_name = 'comments' AND column_name = 'author_id'",
+                    String.class);
+            assertThat(isNullable).isEqualTo("NO");
+
+            final List<String> fks =
+                jdbcTemplate.queryForList(
+                    "SELECT constraint_name FROM information_schema.table_constraints "
+                        + "WHERE table_name = 'comments' AND constraint_type = 'FOREIGN KEY'",
+                    String.class);
+            assertThat(fks).contains("fk_comments_author");
+        }
+
+        @Test
+        @Transactional
+        void shouldNotInitializeAuthorProxyOnFindById() {
+            final UserEntity author = seedUser("sub-lazy", "Lazy");
+            final CommentEntity persisted = seedComment(author, "lazy text");
+            entityManager.clear();
+
+            final CommentEntity loaded = commentRepository.findById(persisted.getId()).orElseThrow();
+
+            assertThat(Hibernate.isInitialized(loaded.getAuthor()))
+                .as("author proxy should not be initialized before getAuthor() is dereferenced")
+                .isFalse();
+        }
+
+        @Test
+        @Transactional
+        void shouldLoadAuthorOnDereferenceInsideTransaction() {
+            final UserEntity author = seedUser("sub-fetch", "Fetcher");
+            final CommentEntity persisted = seedComment(author, "fetch text");
+            entityManager.clear();
+
+            final CommentEntity loaded = commentRepository.findById(persisted.getId()).orElseThrow();
+            final String name = loaded.getAuthor().getName();
+
+            assertThat(name).isEqualTo("Fetcher");
+            assertThat(Hibernate.isInitialized(loaded.getAuthor())).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("comment creation")
+    class CommentCreation {
+
+        @Test
+        void shouldAssociateNewCommentWithCurrentUser() {
+            seedUser("sub-existing", "Existing");
+            setAuthenticatedUser("sub-existing", "Existing", "existing");
+
+            final CommentDto saved = commentService.save(blankComment("first comment"));
+
+            assertThat(saved.id()).isNotNull();
+            assertThat(saved.text()).isEqualTo("first comment");
+            assertThat(saved.author().name()).isEqualTo("Existing");
+
+            final UUID storedAuthorId =
+                jdbcTemplate.queryForObject(
+                    "SELECT author_id FROM comments WHERE id = ?", UUID.class, saved.id());
+            assertThat(storedAuthorId).isEqualTo(saved.author().id());
+        }
+
+        @Test
+        void shouldProvisionUserOnFirstLoginAndLinkComment() {
+            setAuthenticatedUser("sub-brand-new", "Newcomer", "new");
+
+            final CommentDto saved = commentService.save(blankComment("hi from a new user"));
+
+            final UserEntity provisioned =
+                userRepository.findBySub("sub-brand-new").orElseThrow();
+            assertThat(saved.author().id()).isEqualTo(provisioned.getId());
+
+            final Long fkCount =
+                jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM comments WHERE author_id = ?",
+                    Long.class,
+                    provisioned.getId());
+            assertThat(fkCount).isEqualTo(1L);
+        }
+
+        @Test
+        void shouldFailWhenNoAuthentication() {
+            when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
+
+            assertThatThrownBy(() -> commentService.save(blankComment("nope")))
+                .isInstanceOf(IllegalStateException.class);
+
+            assertThat(commentRepository.count()).isZero();
+            assertThat(userRepository.count()).isZero();
+        }
+    }
+
+    @Nested
+    @DisplayName("comment retrieval")
+    class CommentRetrieval {
+
+        @Test
+        void shouldReturnAuthorDtoWithoutSeparateLookup() {
+            final UserEntity author = seedUser("sub-reader", "Reader");
+            final CommentEntity persisted = seedComment(author, "readable");
+
+            final CommentDto found = commentService.findById(persisted.getId()).orElseThrow();
+
+            assertThat(found.author().id()).isEqualTo(author.getId());
+            assertThat(found.author().name()).isEqualTo("Reader");
+            verify(userService, never()).findById(any(UUID.class));
+        }
+
+        @Test
+        @Transactional
+        void shouldBatchFetchAuthorsForLargeLists() {
+            final List<UserEntity> users = List.of(
+                seedUser("sub-a", "A"),
+                seedUser("sub-b", "B"),
+                seedUser("sub-c", "C"),
+                seedUser("sub-d", "D"),
+                seedUser("sub-e", "E"));
+            for (int i = 0; i < 100; i++) {
+                seedComment(users.get(i % users.size()), "comment-" + i);
+            }
+            entityManager.clear();
+
+            final Statistics stats =
+                entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+            stats.clear();
+
+            final List<CommentDto> all = commentService.getAll();
+            all.forEach(c -> {
+                assertThat(c.author()).isNotNull();
+                assertThat(c.author().name()).isNotBlank();
+            });
+
+            assertThat(all).hasSize(100);
+            // With @BatchSize(50) on UserEntity, the 5 distinct author proxies referenced by the
+            // 100 comments are initialised through batched SELECTs (rather than one query per
+            // comment). The bound at 10 leaves room for Hibernate-internal bookkeeping while
+            // still proving the N+1 is gone — without batching this would be 1 + 100 = 101.
+            final long statements = stats.getPrepareStatementCount();
+            assertThat(statements)
+                .as("expected ≤10 SQL statements; without batching this would be 101")
+                .isLessThanOrEqualTo(10L);
+
+            // Sanity: exactly 5 distinct UserEntity instances were materialised.
+            final long usersLoaded =
+                stats.getEntityStatistics(UserEntity.class.getName()).getFetchCount();
+            assertThat(usersLoaded).isEqualTo(5L);
+        }
+
+        @Test
+        void shouldReturnDtoWithUnchangedShape() {
+            final RecordComponent[] components = CommentDto.class.getRecordComponents();
+
+            assertThat(components).extracting(RecordComponent::getName)
+                .containsExactly("id", "text", "author", "createdAt", "updatedAt");
+            assertThat(components[0].getType()).isEqualTo(UUID.class);
+            assertThat(components[1].getType()).isEqualTo(String.class);
+            assertThat(components[2].getType()).isEqualTo(UserDto.class);
+            assertThat(components[3].getType()).isEqualTo(Instant.class);
+            assertThat(components[4].getType()).isEqualTo(Instant.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("referential integrity")
+    class ReferentialIntegrity {
+
+        @Test
+        @Transactional
+        void shouldRejectInsertWithUnknownAuthor() {
+            final UUID phantomUserId = UUID.randomUUID();
+            final UserEntity phantom = entityManager.getReference(UserEntity.class, phantomUserId);
+
+            final CommentEntity comment = new CommentEntity();
+            comment.setText("orphan");
+            comment.setAuthor(phantom);
+
+            assertThatThrownBy(() -> commentRepository.saveAndFlush(comment))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        }
+
+        @Test
+        void shouldRejectUserDeleteWhenCommentsExist() {
+            final UserEntity author = seedUser("sub-locked", "Locked");
+            final CommentEntity comment = seedComment(author, "locks the user");
+
+            assertThatThrownBy(() -> {
+                userRepository.delete(author);
+                userRepository.flush();
+            }).isInstanceOf(DataIntegrityViolationException.class);
+
+            assertThat(commentRepository.findById(comment.getId())).isPresent();
+            assertThat(userRepository.findById(author.getId())).isPresent();
+        }
+
+        @Test
+        void shouldAllowUserDeleteWhenNoComments() {
+            final UserEntity author = seedUser("sub-orphan", "OrphanUser");
+
+            userRepository.delete(author);
+            userRepository.flush();
+
+            assertThat(userRepository.findById(author.getId())).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("audit log integration")
+    class AuditIntegration {
+
+        @Test
+        void shouldEmitAuditEventOnCreate() {
+            seedUser("sub-audit-c", "AuditC");
+            setAuthenticatedUser("sub-audit-c", "AuditC", "auditc");
+
+            final CommentDto saved = commentService.save(blankComment("audit me"));
+
+            final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
+                .filter(e -> "CommentDto".equals(e.getEntityType()))
+                .filter(e -> saved.id().equals(e.getEntityId()))
+                .toList();
+            assertThat(matches).hasSize(1);
+            assertThat(matches.get(0).getAction()).isEqualTo(AuditAction.INSERT);
+        }
+
+        @Test
+        void shouldEmitAuditEventOnUpdate() {
+            seedUser("sub-audit-u", "AuditU");
+            setAuthenticatedUser("sub-audit-u", "AuditU", "auditu");
+            final CommentDto saved = commentService.save(blankComment("v1"));
+            auditLogRepository.deleteAll();
+
+            commentService.save(new CommentDto(saved.id(), "v2", null, null, null));
+
+            final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
+                .filter(e -> "CommentDto".equals(e.getEntityType()))
+                .filter(e -> saved.id().equals(e.getEntityId()))
+                .filter(e -> e.getAction() == AuditAction.UPDATE)
+                .toList();
+            assertThat(matches).hasSize(1);
+        }
+
+        @Test
+        void shouldEmitAuditEventOnDelete() {
+            seedUser("sub-audit-d", "AuditD");
+            setAuthenticatedUser("sub-audit-d", "AuditD", "auditd");
+            final CommentDto saved = commentService.save(blankComment("delete me"));
+            auditLogRepository.deleteAll();
+
+            commentService.delete(saved);
+
+            final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
+                .filter(e -> "CommentDto".equals(e.getEntityType()))
+                .filter(e -> saved.id().equals(e.getEntityId()))
+                .filter(e -> e.getAction() == AuditAction.DELETE)
+                .toList();
+            assertThat(matches).hasSize(1);
+        }
+    }
+
+    private static CommentDto blankComment(final String text) {
+        return new CommentDto(null, text, null, null, null);
+    }
+}

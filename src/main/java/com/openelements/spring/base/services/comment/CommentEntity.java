@@ -9,7 +9,6 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.BatchSize;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
@@ -24,7 +23,6 @@ public class CommentEntity extends AbstractEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_comments_author"))
-    @BatchSize(size = 50)
     private UserEntity author;
 
     protected CommentEntity() {
