@@ -68,6 +68,8 @@
 - **Then** the returned `CommentDto` has the record components `id`, `text`, `author` (as `UserDto`), `createdAt`, `updatedAt`
 - **And** the record component order is identical to the pre-refactor DTO
 
+> **Implementation note:** `CommentDto` is unchanged by this spec — the `author` component is still `UserDto`, in the same position. Any change to its record-component shape would be a compile-time break for every test in this suite that destructures or accesses `saved.id()`, `saved.text()`, `saved.author()`, `saved.createdAt()`, `saved.updatedAt()`. A dedicated reflection-based test was deliberately omitted as it would only re-assert what the compiler already enforces.
+
 ## Referential integrity
 
 ### Inserting a comment with a non-existent author UUID fails
