@@ -27,14 +27,14 @@
 ### A new comment is associated with the current user
 
 - **Given** an authenticated request from a known user
-- **When** `commentService.create(new CommentCreateDto("hello"))` is invoked
+- **When** the service is asked to save a new comment (via `commentService.save(...)` with a null id)
 - **Then** a new `CommentEntity` is persisted with `author_id` equal to the current user's `UserEntity.id`
 - **And** the returned `CommentDto.author()` matches the current user's `UserDto`
 
 ### A new comment is associated with a freshly provisioned user on first login
 
 - **Given** an authenticated request from a JWT subject not yet present in the local `users` mirror
-- **When** `commentService.create(new CommentCreateDto("hello"))` is invoked
+- **When** the service is asked to save a new comment
 - **Then** the user is lazily provisioned in the `users` table
 - **And** the new comment's `author_id` references the freshly provisioned user
 - **And** the foreign key constraint is satisfied
@@ -42,7 +42,7 @@
 ### Comment creation rejects unauthenticated requests
 
 - **Given** no authenticated subject is bound to the current request
-- **When** `commentService.create(new CommentCreateDto("hello"))` is invoked
+- **When** the service is asked to save a new comment
 - **Then** the call fails (no comment is persisted, no user is provisioned)
 
 ## Comment retrieval
@@ -52,21 +52,21 @@
 - **Given** a persisted `CommentEntity` whose author is a known `UserEntity`
 - **When** `commentService.findById(commentId)` is invoked
 - **Then** the returned `CommentDto.author()` equals `UserDto.fromEntity(authorEntity)`
-- **And** no call is made to `userService.findById(...)`
+- **And** `CommentService.toData()` does not call `userService.findById(...)`
 
 ### Listing many comments uses a batched author fetch
 
-- **Given** 100 persisted comments authored by 5 distinct users
+- **Given** 100 persisted comments authored by 5 distinct users (Hibernate Statistics enabled and reset for the test)
 - **When** `commentService.getAll()` is invoked and each returned `CommentDto.author()` is read
-- **Then** the total number of SQL queries against the `users` table is at most `ceil(100 / 50) = 2`
+- **Then** Hibernate's recorded entity load count for `UserEntity` is at most `ceil(100 / 50) = 2`
 - **And** every returned `CommentDto` exposes the correct author
 
 ### Comment DTO shape is unchanged
 
 - **Given** a persisted `CommentEntity`
 - **When** `commentService.findById(commentId)` is invoked
-- **Then** the returned `CommentDto` has the fields `id`, `text`, `author` (as `UserDto`), `createdAt`, `updatedAt`
-- **And** the field types and order are identical to the pre-refactor DTO
+- **Then** the returned `CommentDto` has the record components `id`, `text`, `author` (as `UserDto`), `createdAt`, `updatedAt`
+- **And** the record component order is identical to the pre-refactor DTO
 
 ## Referential integrity
 
@@ -118,13 +118,13 @@
 ### Comment create still emits an audit event
 
 - **Given** an authenticated request from a known user
-- **When** a comment is created via `commentService.create(...)`
-- **Then** exactly one `INSERT` audit log entry is recorded for the `CommentEntity` type with the new comment's id
+- **When** a comment is saved with no id via `commentService.save(...)`
+- **Then** exactly one `INSERT` audit log entry is recorded for the `CommentDto` type with the new comment's id
 
 ### Comment update still emits an audit event
 
 - **Given** a persisted comment authored by the current user
-- **When** the comment is updated via `commentService.update(...)`
+- **When** the comment is saved again with its existing id via `commentService.save(...)`
 - **Then** exactly one `UPDATE` audit log entry is recorded for that comment id
 
 ### Comment delete still emits an audit event
