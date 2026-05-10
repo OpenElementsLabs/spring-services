@@ -248,4 +248,71 @@ class UserServiceTest {
       verify(userRepository).save(any(UserEntity.class));
     }
   }
+
+  @Nested
+  @DisplayName("getCurrentUserEntity")
+  class GetCurrentUserEntityTest {
+
+    @Test
+    void shouldReturnEntityForExistingUser() {
+      // GIVEN
+      setupAuth("auth0|entity-existing", "Same Name", "same@example.com", null);
+      final UserEntity existing =
+          createExistingUser("auth0|entity-existing", "Same Name", "same@example.com", null);
+      when(userRepository.findBySub("auth0|entity-existing")).thenReturn(Optional.of(existing));
+
+      // WHEN
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      // THEN
+      assertThat(result).isSameAs(existing);
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldProvisionNewUserOnFirstCall() {
+      // GIVEN
+      setupAuth(
+          "auth0|entity-new",
+          "Brand New",
+          "brandnew@example.com",
+          "https://auth.example.com/avatars/new.jpg");
+      when(userRepository.findBySub("auth0|entity-new")).thenReturn(Optional.empty());
+      when(userRepository.save(any(UserEntity.class)))
+          .thenAnswer(
+              invocation -> {
+                final UserEntity saved = invocation.getArgument(0);
+                saved.setId(UUID.randomUUID());
+                return saved;
+              });
+
+      // WHEN
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      // THEN
+      assertThat(result.getSub()).isEqualTo("auth0|entity-new");
+      assertThat(result.getName()).isEqualTo("Brand New");
+      assertThat(result.getEmail()).isEqualTo("brandnew@example.com");
+      assertThat(result.getAvatarUrl()).isEqualTo("https://auth.example.com/avatars/new.jpg");
+      assertThat(result.getId()).isNotNull();
+      verify(userRepository).save(any(UserEntity.class));
+    }
+
+    @Test
+    void shouldUpdateDriftedJwtClaims() {
+      // GIVEN — JWT now carries a different name than the DB row
+      setupAuth("auth0|entity-drift", "New Name", "same@example.com", null);
+      final UserEntity existing =
+          createExistingUser("auth0|entity-drift", "Old Name", "same@example.com", null);
+      when(userRepository.findBySub("auth0|entity-drift")).thenReturn(Optional.of(existing));
+      when(userRepository.save(existing)).thenReturn(existing);
+
+      // WHEN
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      // THEN
+      assertThat(result.getName()).isEqualTo("New Name");
+      verify(userRepository).save(existing);
+    }
+  }
 }

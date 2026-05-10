@@ -47,7 +47,19 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
         this.authService = Objects.requireNonNull(authService, "authService must not be null");
     }
 
-    private synchronized UserEntity getCurrentUserEntity() {
+    /**
+     * Returns the managed {@link UserEntity} for the user that owns the current request.
+     *
+     * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
+     * email} and {@code avatarUrl} fields from the JWT claims if they have drifted. The returned
+     * entity is attached to the current persistence context, which makes it suitable for callers
+     * that need to populate a JPA association (e.g., a {@code @ManyToOne UserEntity}) rather than
+     * just read the public {@link UserDto} surface.
+     *
+     * @return the managed entity for the current user
+     * @throws IllegalStateException if no JWT is bound to the current request
+     */
+    public synchronized UserEntity getCurrentUserEntity() {
         final UserInformation userInformation = authService.getUserInformation();
         return userRepository
                 .findBySub(userInformation.id())
