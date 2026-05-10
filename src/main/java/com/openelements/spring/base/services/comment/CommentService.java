@@ -3,6 +3,7 @@ package com.openelements.spring.base.services.comment;
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
 import com.openelements.spring.base.security.user.UserDto;
+import com.openelements.spring.base.security.user.UserEntity;
 import com.openelements.spring.base.security.user.UserService;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
@@ -29,9 +30,9 @@ public class CommentService extends AbstractDbBackedDataService<CommentEntity, C
 
     @Override
     protected @NonNull CommentEntity createDetachedEntity() {
-        final UserDto user = userService.getCurrentUser();
+        final UserEntity author = userService.getCurrentUserEntity();
         final CommentEntity entity = new CommentEntity();
-        entity.setAuthorId(user.id().toString());
+        entity.setAuthor(author);
         return entity;
     }
 
@@ -42,7 +43,7 @@ public class CommentService extends AbstractDbBackedDataService<CommentEntity, C
 
     @Override
     protected @NonNull CommentDto toData(@NonNull final CommentEntity entity) {
-        final UserDto author = userService.findById(entity.getAuthorId()).orElseThrow();
+        final UserDto author = UserDto.fromEntity(entity.getAuthor());
         return new CommentDto(entity.getId(), entity.getText(), author,
                 entity.getCreatedAt(), entity.getUpdatedAt());
     }

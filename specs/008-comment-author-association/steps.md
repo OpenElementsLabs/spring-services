@@ -29,17 +29,17 @@ No frontend layer in this project — all scenarios are backend.
 
 ## Step 1: Refactor `CommentEntity` — replace `String authorId` with `@ManyToOne UserEntity author`
 
-- [ ] Remove the `private String authorId` field, its `@Column(name="author")` annotation, and the `getAuthorId()`/`setAuthorId(...)` methods from `CommentEntity`
-- [ ] Add a `private UserEntity author` field, annotated with:
+- [x] Remove the `private String authorId` field, its `@Column(name="author")` annotation, and the `getAuthorId()`/`setAuthorId(...)` methods from `CommentEntity`
+- [x] Add a `private UserEntity author` field, annotated with:
   - `@ManyToOne(fetch = FetchType.LAZY, optional = false)`
   - `@JoinColumn(name = "author_id", nullable = false, foreignKey = @ForeignKey(name = "fk_comments_author"))`
   - `@org.hibernate.annotations.BatchSize(size = 50)`
-- [ ] Add `getAuthor()` and `setAuthor(@NonNull UserEntity author)` (with `Objects.requireNonNull`)
-- [ ] Add necessary imports (`UserEntity`, `FetchType`, `JoinColumn`, `ForeignKey`, `ManyToOne`, `BatchSize`)
+- [x] Add `getAuthor()` and `setAuthor(@NonNull UserEntity author)` (with `Objects.requireNonNull`)
+- [x] Add necessary imports (`UserEntity`, `FetchType`, `JoinColumn`, `ForeignKey`, `ManyToOne`, `BatchSize`)
 
 **Acceptance criteria:**
-- [ ] `mvn compile` succeeds
-- [ ] `CommentService.java` no longer compiles (expected — fixed in Step 3)
+- [x] `mvn compile` succeeds
+- [x] `CommentService.java` no longer compiles (expected — fixed in Step 3)
 
 **Related behaviors:** 1, 2, 3, 10, 11
 
@@ -47,13 +47,13 @@ No frontend layer in this project — all scenarios are backend.
 
 ## Step 2: Expose `UserService.getCurrentUserEntity()` as `public`
 
-- [ ] In `UserService.java`, change the visibility of `getCurrentUserEntity()` from `private synchronized` to `public synchronized`
-- [ ] Add a Javadoc block explaining: returns the managed `UserEntity` for the current authenticated subject; lazy-provisions on first call; refreshes JWT-claim drift; intended for callers that need the entity (e.g., to populate a `@ManyToOne` association)
-- [ ] Update `getCurrentUser()`'s Javadoc if needed to cross-reference the new public method
+- [x] In `UserService.java`, change the visibility of `getCurrentUserEntity()` from `private synchronized` to `public synchronized`
+- [x] Add a Javadoc block explaining: returns the managed `UserEntity` for the current authenticated subject; lazy-provisions on first call; refreshes JWT-claim drift; intended for callers that need the entity (e.g., to populate a `@ManyToOne` association)
+- [ ] Update `getCurrentUser()`'s Javadoc if needed to cross-reference the new public method  *(skipped — existing Javadoc is still accurate)*
 
 **Acceptance criteria:**
-- [ ] `mvn compile` succeeds (modulo `CommentService.java`, fixed in Step 3)
-- [ ] No new behavior change — existing tests still pass
+- [x] `mvn compile` succeeds (modulo `CommentService.java`, fixed in Step 3)
+- [x] No new behavior change — existing tests still pass (UserServiceTest: 10/10 pass)
 
 **Related behaviors:** 13, 14, 15
 
@@ -61,14 +61,14 @@ No frontend layer in this project — all scenarios are backend.
 
 ## Step 3: Refactor `CommentService` to use the new association
 
-- [ ] Update `createDetachedEntity()`: call `userService.getCurrentUserEntity()`, set the result via `entity.setAuthor(user)`
-- [ ] Update `toData()`: replace the `userService.findById(...)` lookup with `UserDto.fromEntity(entity.getAuthor())`
-- [ ] Remove the now-unused `UserDto` import if no longer referenced (or keep for `UserDto.fromEntity`)
-- [ ] Verify `userService` field is still needed (yes — for `getCurrentUserEntity()`)
+- [x] Update `createDetachedEntity()`: call `userService.getCurrentUserEntity()`, set the result via `entity.setAuthor(user)`
+- [x] Update `toData()`: replace the `userService.findById(...)` lookup with `UserDto.fromEntity(entity.getAuthor())`
+- [x] Remove the now-unused `UserDto` import if no longer referenced (or keep for `UserDto.fromEntity`) — `UserDto` import retained for `UserDto.fromEntity`
+- [x] Verify `userService` field is still needed (yes — for `getCurrentUserEntity()`)
 
 **Acceptance criteria:**
-- [ ] `mvn compile` succeeds
-- [ ] `CommentService` no longer calls `userService.findById(...)`
+- [x] `mvn compile` succeeds
+- [x] `CommentService` no longer calls `userService.findById(...)`
 
 **Related behaviors:** 4, 5, 6, 7
 
