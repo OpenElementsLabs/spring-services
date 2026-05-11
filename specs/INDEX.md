@@ -9,4 +9,6 @@
 | 005 | 005-audit-log                 | Audit log                 | backend, database              | Persist data lifecycle events (create/update/delete) as audit log entries with user tracking      | #8           | done   |
 | 006 | 006-split-security-filter-chains | Split security filter chains | backend, security, architecture | Split single SecurityFilterChain into two isolated chains: API-key for /api/external/**, JWT for everything else | #11          | done   |
 | 007 | 007-spring-boot-3.5-upgrade   | Spring Boot 3.5 upgrade   | build, testing, infrastructure | Upgrade Spring Boot 3.3.2 → 3.5.14 and pin Testcontainers 2.0.5 to fix integration tests on Docker Engine 29+ | #13          | open   |
+| 008 | 008-comment-author-association | Comment author association | backend, database, api         | Replace CommentEntity.authorId String with @ManyToOne UserEntity association — adds FK, removes N+1, renames column to author_id (breaking) | #14          | done   |
 | 008 | 008-audit-log-user-fk         | Audit log user FK         | backend, database, security    | Replace AuditLogEntity.userName String with ManyToOne to UserEntity; bootstrap a System User with reserved nil UUID | #16          | open   |
+

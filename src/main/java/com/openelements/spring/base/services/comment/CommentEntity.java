@@ -1,8 +1,13 @@
 package com.openelements.spring.base.services.comment;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.security.user.UserEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.jspecify.annotations.NonNull;
 
@@ -15,8 +20,10 @@ public class CommentEntity extends AbstractEntity {
     @Column(name = "text", nullable = false, columnDefinition = "TEXT")
     private String text;
 
-    @Column(name = "author", nullable = false, length = 255)
-    private String authorId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "author_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_comments_author"))
+    private UserEntity author;
 
     protected CommentEntity() {
     }
@@ -29,11 +36,11 @@ public class CommentEntity extends AbstractEntity {
         this.text = Objects.requireNonNull(text, "text must not be null");
     }
 
-    public String getAuthorId() {
-        return authorId;
+    public UserEntity getAuthor() {
+        return author;
     }
 
-    public void setAuthorId(@NonNull final String authorId) {
-        this.authorId = Objects.requireNonNull(authorId, "authorId must not be null");
+    public void setAuthor(@NonNull final UserEntity author) {
+        this.author = Objects.requireNonNull(author, "author must not be null");
     }
 }

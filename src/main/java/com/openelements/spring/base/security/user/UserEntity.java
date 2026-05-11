@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
@@ -22,6 +23,7 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "users")
+@BatchSize(size = 50)
 public class UserEntity extends AbstractEntity {
 
   @Column(name = "sub", nullable = false, unique = true, length = 255)
