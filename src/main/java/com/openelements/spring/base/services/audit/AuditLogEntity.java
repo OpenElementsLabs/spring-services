@@ -1,10 +1,14 @@
 package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.security.user.UserEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.Objects;
 import java.util.UUID;
@@ -32,12 +36,13 @@ public class AuditLogEntity extends AbstractEntity {
   private AuditAction action;
 
   /**
-   * The authenticated user who performed the action, or {@code "System"} when the action was
-   * triggered without a security context. Stored under the column name {@code user_name} because
-   * {@code user} is a reserved word in several SQL dialects.
+   * The user that performed the action. References the dedicated {@link
+   * com.openelements.spring.base.security.user.SystemUser System User} row for unauthenticated
+   * operations (scheduled tasks, startup data loads, API-key requests).
    */
-  @Column(name = "user_name", nullable = false, length = 255)
-  private String userName;
+  @ManyToOne(optional = false, fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private UserEntity user;
 
   /** Default constructor required by JPA. */
   public AuditLogEntity() {}
@@ -66,12 +71,12 @@ public class AuditLogEntity extends AbstractEntity {
     this.action = Objects.requireNonNull(action, "action must not be null");
   }
 
-  public String getUserName() {
-    return userName;
+  public UserEntity getUser() {
+    return user;
   }
 
-  public void setUserName(final String userName) {
-    this.userName = Objects.requireNonNull(userName, "userName must not be null");
+  public void setUser(final UserEntity user) {
+    this.user = Objects.requireNonNull(user, "user must not be null");
   }
 
   @Override
@@ -84,8 +89,8 @@ public class AuditLogEntity extends AbstractEntity {
         + entityId
         + ", action="
         + action
-        + ", userName="
-        + userName
+        + ", userId="
+        + (user == null ? "null" : user.id())
         + "]";
   }
 }
