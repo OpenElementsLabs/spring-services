@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.security.user.UserRepository;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,30 +22,42 @@ import org.springframework.data.domain.Pageable;
 class AuditLogDataServiceTest {
 
   private final AuditLogRepository repository = mock(AuditLogRepository.class);
+  private final UserRepository userRepository = mock(UserRepository.class);
 
   private final AuditLogDataService service =
-      new AuditLogDataService(repository, mock(ApplicationEventPublisher.class));
+      new AuditLogDataService(repository, userRepository, mock(ApplicationEventPublisher.class));
 
   private static final Pageable DEFAULT_PAGE = PageRequest.of(0, 20);
 
+  private final UserEntity alice = new UserEntity();
+  private final UserEntity bob = new UserEntity();
+
+  @BeforeEach
+  void initUsers() {
+    alice.setId(UUID.randomUUID());
+    alice.setSub("alice-sub");
+    alice.setName("alice");
+    bob.setId(UUID.randomUUID());
+    bob.setSub("bob-sub");
+    bob.setName("bob");
+  }
+
   @Test
   void findByEntityTypeShouldDelegateAndMap() {
-    // GIVEN
     final AuditLogEntity entity = new AuditLogEntity();
     entity.setEntityType("BookDto");
     entity.setEntityId(UUID.randomUUID());
     entity.setAction(AuditAction.INSERT);
-    entity.setUserName("alice");
+    entity.setUser(alice);
     when(repository.findByEntityTypeOrderByCreatedAtDesc("BookDto", DEFAULT_PAGE))
         .thenReturn(new PageImpl<>(List.of(entity)));
 
-    // WHEN
     final Page<AuditLogDto> result = service.findByEntityType("BookDto", DEFAULT_PAGE);
 
-    // THEN
     assertThat(result).hasSize(1);
     assertThat(result.getContent().getFirst().entityType()).isEqualTo("BookDto");
-    assertThat(result.getContent().getFirst().user()).isEqualTo("alice");
+    assertThat(result.getContent().getFirst().user().id()).isEqualTo(alice.id());
+    assertThat(result.getContent().getFirst().user().name()).isEqualTo("alice");
   }
 
   @Test
@@ -51,14 +66,15 @@ class AuditLogDataServiceTest {
     entity.setEntityType("UserDto");
     entity.setEntityId(UUID.randomUUID());
     entity.setAction(AuditAction.UPDATE);
-    entity.setUserName("bob");
-    when(repository.findByUserNameOrderByCreatedAtDesc("bob", DEFAULT_PAGE))
+    entity.setUser(bob);
+    when(repository.findByUserIdOrderByCreatedAtDesc(bob.id(), DEFAULT_PAGE))
         .thenReturn(new PageImpl<>(List.of(entity)));
 
-    final Page<AuditLogDto> result = service.findByUser("bob", DEFAULT_PAGE);
+    final Page<AuditLogDto> result = service.findByUser(bob.id(), DEFAULT_PAGE);
 
     assertThat(result).hasSize(1);
     assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.UPDATE);
+    assertThat(result.getContent().getFirst().user().id()).isEqualTo(bob.id());
   }
 
   @Test
@@ -67,13 +83,13 @@ class AuditLogDataServiceTest {
     entity.setEntityType("BookDto");
     entity.setEntityId(UUID.randomUUID());
     entity.setAction(AuditAction.DELETE);
-    entity.setUserName("alice");
-    when(repository.findByEntityTypeAndUserNameOrderByCreatedAtDesc(
-            "BookDto", "alice", DEFAULT_PAGE))
+    entity.setUser(alice);
+    when(repository.findByEntityTypeAndUserIdOrderByCreatedAtDesc(
+            "BookDto", alice.id(), DEFAULT_PAGE))
         .thenReturn(new PageImpl<>(List.of(entity)));
 
     final Page<AuditLogDto> result =
-        service.findByEntityTypeAndUser("BookDto", "alice", DEFAULT_PAGE);
+        service.findByEntityTypeAndUser("BookDto", alice.id(), DEFAULT_PAGE);
 
     assertThat(result).hasSize(1);
     assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.DELETE);
@@ -93,7 +109,7 @@ class AuditLogDataServiceTest {
         .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> service.findByUser(null, DEFAULT_PAGE))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.findByEntityTypeAndUser(null, "alice", DEFAULT_PAGE))
+    assertThatThrownBy(() -> service.findByEntityTypeAndUser(null, alice.id(), DEFAULT_PAGE))
         .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> service.findByEntityTypeAndUser("BookDto", null, DEFAULT_PAGE))
         .isInstanceOf(NullPointerException.class);
@@ -102,14 +118,16 @@ class AuditLogDataServiceTest {
   @Test
   void createEntryShouldRejectNull() {
     assertThatThrownBy(
-            () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, "alice"))
+            () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, alice))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.createEntry("BookDto", null, AuditAction.INSERT, "alice"))
+    assertThatThrownBy(() -> service.createEntry("BookDto", null, AuditAction.INSERT, alice))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.createEntry("BookDto", UUID.randomUUID(), null, "alice"))
+    assertThatThrownBy(() -> service.createEntry("BookDto", UUID.randomUUID(), null, alice))
         .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(
-            () -> service.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, null))
+            () ->
+                service.createEntry(
+                    "BookDto", UUID.randomUUID(), AuditAction.INSERT, (UserEntity) null))
         .isInstanceOf(NullPointerException.class);
   }
 }

@@ -6,12 +6,15 @@ import com.openelements.spring.base.events.OnObjectCreate;
 import com.openelements.spring.base.events.OnObjectDelete;
 import com.openelements.spring.base.events.OnObjectUpdate;
 import com.openelements.spring.base.security.AuthService;
+import com.openelements.spring.base.security.UserInformation;
+import com.openelements.spring.base.security.user.SystemUser;
+import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.security.user.UserRepository;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-
-import java.util.Objects;
 
 /**
  * Listens to data lifecycle events and writes a corresponding {@link AuditLogEntity} for each one.
@@ -24,92 +27,118 @@ import java.util.Objects;
 @Component
 public class AuditLogEventListener {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AuditLogEventListener.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AuditLogEventListener.class);
 
-    private static final String SYSTEM_USER = "System";
+  private static final String UNKNOWN_PRINCIPAL_ID = "UNKNOWN";
 
-    private final AuditLogDataService auditLogDataService;
+  private final AuditLogDataService auditLogDataService;
 
-    private final AuthService authService;
+  private final AuthService authService;
 
-    public AuditLogEventListener(
-            final AuditLogDataService auditLogDataService, final AuthService authService) {
-        this.auditLogDataService =
-                Objects.requireNonNull(auditLogDataService, "auditLogDataService must not be null");
-        this.authService = Objects.requireNonNull(authService, "authService must not be null");
+  private final UserRepository userRepository;
+
+  public AuditLogEventListener(
+      final AuditLogDataService auditLogDataService,
+      final AuthService authService,
+      final UserRepository userRepository) {
+    this.auditLogDataService =
+        Objects.requireNonNull(auditLogDataService, "auditLogDataService must not be null");
+    this.authService = Objects.requireNonNull(authService, "authService must not be null");
+    this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+  }
+
+  /**
+   * Records a {@link AuditAction#INSERT} entry for every {@link OnObjectCreate} event.
+   *
+   * @param event the event published by the originating data service
+   * @param <T> the audited DTO type
+   */
+  @EventListener
+  public <T extends WithId> void handleOnObjectCreate(final OnObjectCreate<T> event) {
+    Objects.requireNonNull(event, "event must not be null");
+    record(event, AuditAction.INSERT);
+  }
+
+  /**
+   * Records a {@link AuditAction#UPDATE} entry for every {@link OnObjectUpdate} event.
+   *
+   * @param event the event published by the originating data service
+   * @param <T> the audited DTO type
+   */
+  @EventListener
+  public <T extends WithId> void handleOnObjectUpdate(final OnObjectUpdate<T> event) {
+    Objects.requireNonNull(event, "event must not be null");
+    record(event, AuditAction.UPDATE);
+  }
+
+  /**
+   * Records a {@link AuditAction#DELETE} entry for every {@link OnObjectDelete} event.
+   *
+   * @param event the event published by the originating data service
+   * @param <T> the audited DTO type
+   */
+  @EventListener
+  public <T extends WithId> void handleOnObjectDelete(final OnObjectDelete<T> event) {
+    Objects.requireNonNull(event, "event must not be null");
+    record(event, AuditAction.DELETE);
+  }
+
+  private <T extends WithId> void record(
+      final GenericDataEvent<T> event, final AuditAction action) {
+    if (AuditLogDto.class.equals(event.getType())) {
+      return;
     }
-
-    /**
-     * Records a {@link AuditAction#INSERT} entry for every {@link OnObjectCreate} event.
-     *
-     * @param event the event published by the originating data service
-     * @param <T>   the audited DTO type
-     */
-    @EventListener
-    public <T extends WithId> void handleOnObjectCreate(final OnObjectCreate<T> event) {
-        Objects.requireNonNull(event, "event must not be null");
-        record(event, AuditAction.INSERT);
+    final UserEntity user = resolveUser();
+    try {
+      auditLogDataService.createEntry(
+          event.getType().getSimpleName(), event.entityId(), action, user);
+    } catch (final RuntimeException ex) {
+      LOG.warn(
+          "Failed to write audit log entry for {} {} by user id {}",
+          action,
+          event.getType().getSimpleName(),
+          user.id(),
+          ex);
     }
+  }
 
-    /**
-     * Records a {@link AuditAction#UPDATE} entry for every {@link OnObjectUpdate} event.
-     *
-     * @param event the event published by the originating data service
-     * @param <T>   the audited DTO type
-     */
-    @EventListener
-    public <T extends WithId> void handleOnObjectUpdate(final OnObjectUpdate<T> event) {
-        Objects.requireNonNull(event, "event must not be null");
-        record(event, AuditAction.UPDATE);
+  private UserEntity resolveUser() {
+    final UserInformation userInformation;
+    try {
+      userInformation = authService.getUserInformation();
+    } catch (final IllegalStateException ex) {
+      LOG.warn(
+          "Failed to resolve user information from security context, falling back to System User.",
+          ex);
+      return systemUserReference();
     }
+    if (userInformation == null) {
+      LOG.warn("User information is null, falling back to System User.");
+      return systemUserReference();
+    }
+    final String sub = userInformation.id();
+    if (sub == null || sub.isBlank() || UNKNOWN_PRINCIPAL_ID.equals(sub)) {
+      LOG.warn("Non-JWT principal (sub={}), falling back to System User.", sub);
+      return systemUserReference();
+    }
+    final String name = userInformation.name();
+    if (name == null || name.isBlank()) {
+      LOG.warn("User name is null or blank, falling back to System User.");
+      return systemUserReference();
+    }
+    return userRepository
+        .findBySub(sub)
+        .orElseGet(
+            () -> {
+              LOG.warn(
+                  "No local user row found for sub={}, falling back to System User. "
+                      + "UserService should have provisioned the user earlier in the request.",
+                  sub);
+              return systemUserReference();
+            });
+  }
 
-    /**
-     * Records a {@link AuditAction#DELETE} entry for every {@link OnObjectDelete} event.
-     *
-     * @param event the event published by the originating data service
-     * @param <T>   the audited DTO type
-     */
-    @EventListener
-    public <T extends WithId> void handleOnObjectDelete(final OnObjectDelete<T> event) {
-        Objects.requireNonNull(event, "event must not be null");
-        record(event, AuditAction.DELETE);
-    }
-
-    private <T extends WithId> void record(
-            final GenericDataEvent<T> event, final AuditAction action) {
-        if (AuditLogDto.class.equals(event.getType())) {
-            return;
-        }
-        final String user = resolveUser();
-        try {
-            auditLogDataService.createEntry(
-                    event.getType().getSimpleName(), event.entityId(), action, user);
-        } catch (final RuntimeException ex) {
-            LOG.warn(
-                    "Failed to write audit log entry for {} {} by {}",
-                    action,
-                    event.getType().getSimpleName(),
-                    user,
-                    ex);
-        }
-    }
-
-    private String resolveUser() {
-        try {
-            final var userInformation = authService.getUserInformation();
-            if (userInformation == null) {
-                LOG.warn("User information is null, falling back to '{}'", SYSTEM_USER);
-                return SYSTEM_USER;
-            }
-            final String name = userInformation.name();
-            if (name == null || name.isBlank()) {
-                LOG.warn("User name is null or blank, falling back to '{}'", SYSTEM_USER);
-                return SYSTEM_USER;
-            }
-            return name;
-        } catch (final IllegalStateException ex) {
-            LOG.warn("Failed to resolve user information from security context, falling back to '{}'", SYSTEM_USER, ex);
-            return SYSTEM_USER;
-        }
-    }
+  private UserEntity systemUserReference() {
+    return userRepository.getReferenceById(SystemUser.ID);
+  }
 }

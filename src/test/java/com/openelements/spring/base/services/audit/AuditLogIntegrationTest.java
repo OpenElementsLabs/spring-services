@@ -5,6 +5,9 @@ import static org.mockito.Mockito.when;
 
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
+import com.openelements.spring.base.security.user.SystemUser;
+import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.security.user.UserRepository;
 import com.openelements.spring.base.services.tag.TagDataService;
 import com.openelements.spring.base.services.tag.TagDto;
 import com.openelements.spring.base.services.tag.TagRepository;
@@ -46,14 +49,39 @@ class AuditLogIntegrationTest {
 
   @Autowired private TagRepository tagRepository;
 
+  @Autowired private UserRepository userRepository;
+
   @Autowired private JdbcTemplate jdbcTemplate;
 
   @MockBean private AuthService authService;
 
+  private UserEntity alice;
+  private UserEntity bob;
+
   @BeforeEach
   void setUp() {
-      tagRepository.deleteAll();
+    tagRepository.deleteAll();
     auditLogRepository.deleteAll();
+    userRepository.deleteAll();
+    persistSystemUser();
+    alice = saveUser("alice-sub", "alice");
+    bob = saveUser("bob-sub", "bob");
+  }
+
+  private void persistSystemUser() {
+    jdbcTemplate.update(
+        "INSERT INTO users (id, sub, name, updated_at, created_at) "
+            + "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        SystemUser.ID,
+        SystemUser.SUB,
+        SystemUser.NAME);
+  }
+
+  private UserEntity saveUser(final String sub, final String name) {
+    final UserEntity user = new UserEntity();
+    user.setSub(sub);
+    user.setName(name);
+    return userRepository.save(user);
   }
 
   @Nested
@@ -62,41 +90,40 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldRecordCreateEventForAuthenticatedUser() {
-      // GIVEN
-      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userInfo(alice));
 
-      // WHEN
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-create", "desc", "#aabbcc"));
 
-      // THEN
       final Page<AuditLogDto> entries =
           auditLogDataService.findByEntityType("TagDto", Pageable.unpaged());
       assertThat(entries).hasSize(1);
       assertThat(entries.getContent().getFirst().entityId()).isEqualTo(saved.id());
       assertThat(entries.getContent().getFirst().action()).isEqualTo(AuditAction.INSERT);
-      assertThat(entries.getContent().getFirst().user()).isEqualTo("alice");
+      assertThat(entries.getContent().getFirst().user().id()).isEqualTo(alice.id());
+      assertThat(entries.getContent().getFirst().user().name()).isEqualTo("alice");
     }
 
     @Test
     void shouldRecordUpdateEvent() {
-      when(authService.getUserInformation()).thenReturn(userNamed("bob"));
+      when(authService.getUserInformation()).thenReturn(userInfo(bob));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-update", "desc", "#aabbcc"));
 
       tagDataService.save(new TagDto(saved.id(), "tag-update", "new-desc", "#aabbcc"));
 
-      final Page<AuditLogDto> entries = auditLogDataService.findByUser("bob", Pageable.unpaged());
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByUser(bob.id(), Pageable.unpaged());
       assertThat(entries.getContent()).extracting(AuditLogDto::action).contains(AuditAction.UPDATE);
     }
 
     @Test
     void shouldRecordDeleteEvent() {
-      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userInfo(alice));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-delete", "desc", "#aabbcc"));
 
       tagDataService.delete(saved);
 
       final Page<AuditLogDto> entries =
-          auditLogDataService.findByEntityTypeAndUser("TagDto", "alice", Pageable.unpaged());
+          auditLogDataService.findByEntityTypeAndUser("TagDto", alice.id(), Pageable.unpaged());
       assertThat(entries.getContent()).extracting(AuditLogDto::action).contains(AuditAction.DELETE);
     }
 
@@ -107,7 +134,20 @@ class AuditLogIntegrationTest {
       tagDataService.save(new TagDto(null, "tag-system", "desc", "#aabbcc"));
 
       final Page<AuditLogDto> entries =
-          auditLogDataService.findByEntityTypeAndUser("TagDto", "System", Pageable.unpaged());
+          auditLogDataService.findByEntityTypeAndUser("TagDto", SystemUser.ID, Pageable.unpaged());
+      assertThat(entries).hasSize(1);
+      assertThat(entries.getContent().getFirst().user().name()).isEqualTo(SystemUser.NAME);
+    }
+
+    @Test
+    void shouldUseSystemUserForApiKeyPrincipal() {
+      when(authService.getUserInformation())
+          .thenReturn(new UserInformation("UNKNOWN", "UNKNOWN", null, null));
+
+      tagDataService.save(new TagDto(null, "tag-api-key", "desc", "#aabbcc"));
+
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByEntityTypeAndUser("TagDto", SystemUser.ID, Pageable.unpaged());
       assertThat(entries).hasSize(1);
     }
   }
@@ -118,9 +158,9 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldNotCreateAuditEntryForAuditEntry() {
-      when(authService.getUserInformation()).thenReturn(userNamed("alice"));
+      when(authService.getUserInformation()).thenReturn(userInfo(alice));
 
-      auditLogDataService.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, "alice");
+      auditLogDataService.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, alice);
 
       final List<AuditLogDto> all = auditLogDataService.getAll();
       assertThat(all).hasSize(1);
@@ -134,35 +174,51 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldFindByEntityType() {
-      seed("alice", "BookDto", AuditAction.INSERT);
-      seed("bob", "BookDto", AuditAction.UPDATE);
-      seed("alice", "UserDto", AuditAction.INSERT);
+      seed(alice, "BookDto", AuditAction.INSERT);
+      seed(bob, "BookDto", AuditAction.UPDATE);
+      seed(alice, "UserDto", AuditAction.INSERT);
 
       assertThat(auditLogDataService.findByEntityType("BookDto", Pageable.unpaged())).hasSize(2);
     }
 
     @Test
     void shouldFindByUser() {
-      seed("alice", "BookDto", AuditAction.INSERT);
-      seed("alice", "UserDto", AuditAction.INSERT);
-      seed("bob", "BookDto", AuditAction.UPDATE);
+      seed(alice, "BookDto", AuditAction.INSERT);
+      seed(alice, "UserDto", AuditAction.INSERT);
+      seed(bob, "BookDto", AuditAction.UPDATE);
 
-      assertThat(auditLogDataService.findByUser("alice", Pageable.unpaged())).hasSize(2);
+      assertThat(auditLogDataService.findByUser(alice.id(), Pageable.unpaged())).hasSize(2);
     }
 
     @Test
     void shouldFindByEntityTypeAndUser() {
-      seed("alice", "BookDto", AuditAction.INSERT);
-      seed("bob", "BookDto", AuditAction.UPDATE);
-      seed("alice", "UserDto", AuditAction.INSERT);
+      seed(alice, "BookDto", AuditAction.INSERT);
+      seed(bob, "BookDto", AuditAction.UPDATE);
+      seed(alice, "UserDto", AuditAction.INSERT);
 
-      assertThat(auditLogDataService.findByEntityTypeAndUser("BookDto", "alice", Pageable.unpaged()))
+      assertThat(
+              auditLogDataService.findByEntityTypeAndUser(
+                  "BookDto", alice.id(), Pageable.unpaged()))
           .hasSize(1);
     }
 
     @Test
     void shouldReturnEmptyListWhenNoMatch() {
       assertThat(auditLogDataService.findByEntityType("NoteDto", Pageable.unpaged())).isEmpty();
+    }
+
+    @Test
+    void shouldFindSystemAttributedEntries() {
+      when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
+      final TagDto saved = tagDataService.save(new TagDto(null, "tag-system-find", "desc", "#aabbcc"));
+
+      // findByUser may also include WebhookDto UPDATE entries written by WebhookEventListener
+      // (which fires AFTER_COMMIT on OnObjectCreate and updates its tracking row). Filter to the
+      // entry we care about by entity id rather than asserting an exact count.
+      final Page<AuditLogDto> entries =
+          auditLogDataService.findByUser(SystemUser.ID, Pageable.unpaged());
+      assertThat(entries.getContent())
+          .anyMatch(e -> saved.id().equals(e.entityId()) && "TagDto".equals(e.entityType()));
     }
   }
 
@@ -172,26 +228,23 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldDeleteEntriesOlderThanRetention() {
-      // GIVEN — one stale (91 days old) and one fresh (89 days old) entry, retention 90 days
-      final AuditLogDto stale = seed("alice", "BookDto", AuditAction.INSERT);
-      final AuditLogDto fresh = seed("alice", "BookDto", AuditAction.INSERT);
+      final AuditLogDto stale = seed(alice, "BookDto", AuditAction.INSERT);
+      final AuditLogDto fresh = seed(alice, "BookDto", AuditAction.INSERT);
       backdate(stale.id(), Instant.now().minus(91, ChronoUnit.DAYS));
       backdate(fresh.id(), Instant.now().minus(89, ChronoUnit.DAYS));
 
       final AuditCleanupJob job = new AuditCleanupJob(auditLogRepository, new AuditProperties(90));
 
-      // WHEN
       job.cleanupExpiredEntries();
 
-      // THEN
       assertThat(auditLogRepository.findById(stale.id())).isEmpty();
       assertThat(auditLogRepository.findById(fresh.id())).isPresent();
     }
 
     @Test
     void shouldDoNothingWhenAllEntriesAreFresh() {
-      seed("alice", "BookDto", AuditAction.INSERT);
-      seed("bob", "BookDto", AuditAction.INSERT);
+      seed(alice, "BookDto", AuditAction.INSERT);
+      seed(bob, "BookDto", AuditAction.INSERT);
 
       auditCleanupJob.cleanupExpiredEntries();
 
@@ -212,12 +265,13 @@ class AuditLogIntegrationTest {
     }
   }
 
-  private AuditLogDto seed(final String user, final String entityType, final AuditAction action) {
-    when(authService.getUserInformation()).thenReturn(userNamed(user));
+  private AuditLogDto seed(
+      final UserEntity user, final String entityType, final AuditAction action) {
+    when(authService.getUserInformation()).thenReturn(userInfo(user));
     return auditLogDataService.createEntry(entityType, UUID.randomUUID(), action, user);
   }
 
-  private static UserInformation userNamed(final String name) {
-    return new UserInformation("sub-id", name, "test@example.com", null);
+  private static UserInformation userInfo(final UserEntity user) {
+    return new UserInformation(user.getSub(), user.getName(), "test@example.com", null);
   }
 }

@@ -3,6 +3,7 @@ package com.openelements.spring.base.services.audit;
 import com.openelements.spring.base.data.EntityRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
@@ -24,24 +25,27 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
   Page<AuditLogEntity> findByEntityTypeOrderByCreatedAtDesc(String entityType, Pageable pageable);
 
   /**
-   * Returns audit entries written for the given user, ordered by creation time (newest first).
+   * Returns audit entries written by the user with the given id, ordered by creation time (newest
+   * first).
    *
-   * @param userName the user name (or {@code "System"})
+   * @param userId the id of the user (use {@link
+   *     com.openelements.spring.base.security.user.SystemUser#ID} for unauthenticated actors)
    * @param pageable pagination information
    * @return matching entries as a page
    */
-  Page<AuditLogEntity> findByUserNameOrderByCreatedAtDesc(String userName, Pageable pageable);
+  Page<AuditLogEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
   /**
-   * Returns audit entries that match both type and user, ordered by creation time (newest first).
+   * Returns audit entries that match both type and user id, ordered by creation time (newest
+   * first).
    *
    * @param entityType the simple class name to filter on
-   * @param userName the user name to filter on
+   * @param userId the id of the user to filter on
    * @param pageable pagination information
    * @return matching entries as a page
    */
-  Page<AuditLogEntity> findByEntityTypeAndUserNameOrderByCreatedAtDesc(
-      String entityType, String userName, Pageable pageable);
+  Page<AuditLogEntity> findByEntityTypeAndUserIdOrderByCreatedAtDesc(
+      String entityType, UUID userId, Pageable pageable);
 
   /**
    * Returns all distinct entity types that have at least one audit entry.

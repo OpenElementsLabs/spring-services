@@ -2,6 +2,8 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
+import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.security.user.UserRepository;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -24,12 +26,17 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
 
   private final AuditLogRepository auditLogRepository;
 
+  private final UserRepository userRepository;
+
   public AuditLogDataService(
       @NonNull final AuditLogRepository auditLogRepository,
+      @NonNull final UserRepository userRepository,
       @NonNull final ApplicationEventPublisher eventPublisher) {
     super(eventPublisher, false);
     this.auditLogRepository =
         Objects.requireNonNull(auditLogRepository, "auditLogRepository must not be null");
+    this.userRepository =
+        Objects.requireNonNull(userRepository, "userRepository must not be null");
   }
 
   @Override
@@ -42,7 +49,7 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
     entity.setEntityType(data.entityType());
     entity.setEntityId(data.entityId());
     entity.setAction(data.action());
-    entity.setUserName(data.user());
+    entity.setUser(userRepository.getReferenceById(data.user().id()));
   }
 
   @Override
@@ -72,38 +79,41 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
   }
 
   /**
-   * Returns audit entries written for the given user, ordered by creation time (newest first).
+   * Returns audit entries written by the user with the given id, ordered by creation time (newest
+   * first).
    *
-   * @param user the user name (or {@code "System"})
+   * @param userId the id of the user (use {@link
+   *     com.openelements.spring.base.security.user.SystemUser#ID} for unauthenticated actors)
    * @param pageable pagination information
    * @return matching entries as a page of DTOs
    */
   public Page<AuditLogDto> findByUser(
-      @NonNull final String user, @NonNull final Pageable pageable) {
-    Objects.requireNonNull(user, "user must not be null");
+      @NonNull final UUID userId, @NonNull final Pageable pageable) {
+    Objects.requireNonNull(userId, "userId must not be null");
     Objects.requireNonNull(pageable, "pageable must not be null");
     return auditLogRepository
-        .findByUserNameOrderByCreatedAtDesc(user, pageable)
+        .findByUserIdOrderByCreatedAtDesc(userId, pageable)
         .map(AuditLogDto::fromEntity);
   }
 
   /**
-   * Returns audit entries matching both type and user, ordered by creation time (newest first).
+   * Returns audit entries matching both entity type and user id, ordered by creation time (newest
+   * first).
    *
    * @param entityType the simple class name to filter on
-   * @param user the user name to filter on
+   * @param userId the id of the user to filter on
    * @param pageable pagination information
    * @return matching entries as a page of DTOs
    */
   public Page<AuditLogDto> findByEntityTypeAndUser(
       @NonNull final String entityType,
-      @NonNull final String user,
+      @NonNull final UUID userId,
       @NonNull final Pageable pageable) {
     Objects.requireNonNull(entityType, "entityType must not be null");
-    Objects.requireNonNull(user, "user must not be null");
+    Objects.requireNonNull(userId, "userId must not be null");
     Objects.requireNonNull(pageable, "pageable must not be null");
     return auditLogRepository
-        .findByEntityTypeAndUserNameOrderByCreatedAtDesc(entityType, user, pageable)
+        .findByEntityTypeAndUserIdOrderByCreatedAtDesc(entityType, userId, pageable)
         .map(AuditLogDto::fromEntity);
   }
 
@@ -126,7 +136,7 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
    * @param entityType the simple class name of the audited DTO
    * @param entityId the id of the audited entity
    * @param action the kind of lifecycle event
-   * @param user the user name to record
+   * @param user the user that performed the action
    * @return the persisted DTO
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -134,7 +144,7 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
       @NonNull final String entityType,
       @NonNull final UUID entityId,
       @NonNull final AuditAction action,
-      @NonNull final String user) {
+      @NonNull final UserEntity user) {
     Objects.requireNonNull(entityType, "entityType must not be null");
     Objects.requireNonNull(entityId, "entityId must not be null");
     Objects.requireNonNull(action, "action must not be null");
@@ -143,7 +153,7 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
     entity.setEntityType(entityType);
     entity.setEntityId(entityId);
     entity.setAction(action);
-    entity.setUserName(user);
+    entity.setUser(user);
     return AuditLogDto.fromEntity(auditLogRepository.save(entity));
   }
 }
