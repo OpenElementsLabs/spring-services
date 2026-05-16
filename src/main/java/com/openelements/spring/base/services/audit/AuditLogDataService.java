@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -117,6 +119,27 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
         return auditLogRepository
                 .findByEntityTypeAndUserIdOrderByCreatedAtDesc(entityType, userId, pageable)
                 .map(AuditLogDto::fromEntity);
+    }
+
+    /**
+     * Returns all audit entries created on the given calendar day, ordered by creation time
+     * (oldest first).
+     *
+     * <p>The day boundaries are computed in the system default time zone.
+     *
+     * @param day the calendar day to query
+     * @return matching entries as DTOs, possibly empty
+     */
+    public List<AuditLogDto> findByDay(@NonNull final LocalDate day) {
+        Objects.requireNonNull(day, "day must not be null");
+        final ZoneId zone = ZoneId.systemDefault();
+        return auditLogRepository
+                .findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
+                        day.atStartOfDay(zone).toInstant(),
+                        day.plusDays(1).atStartOfDay(zone).toInstant())
+                .stream()
+                .map(AuditLogDto::fromEntity)
+                .toList();
     }
 
     /**

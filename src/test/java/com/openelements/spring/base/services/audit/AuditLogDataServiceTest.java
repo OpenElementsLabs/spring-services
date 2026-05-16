@@ -11,6 +11,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -110,6 +112,52 @@ class AuditLogDataServiceTest {
         assertThatThrownBy(() -> service.findByEntityTypeAndUser(null, alice.id(), DEFAULT_PAGE))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> service.findByEntityTypeAndUser("BookDto", null, DEFAULT_PAGE))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void findByDayShouldDelegateWithDayBoundariesAndMap() {
+        final LocalDate day = LocalDate.of(2026, 5, 16);
+        final ZoneId zone = ZoneId.systemDefault();
+        final AuditLogEntity first = new AuditLogEntity();
+        first.setEntityType("BookDto");
+        first.setEntityId(UUID.randomUUID());
+        first.setAction(AuditAction.INSERT);
+        first.setUser(alice);
+        final AuditLogEntity second = new AuditLogEntity();
+        second.setEntityType("BookDto");
+        second.setEntityId(UUID.randomUUID());
+        second.setAction(AuditAction.UPDATE);
+        second.setUser(bob);
+        when(repository.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
+                day.atStartOfDay(zone).toInstant(),
+                day.plusDays(1).atStartOfDay(zone).toInstant()))
+                .thenReturn(List.of(first, second));
+
+        final List<AuditLogDto> result = service.findByDay(day);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).action()).isEqualTo(AuditAction.INSERT);
+        assertThat(result.get(0).user().id()).isEqualTo(alice.id());
+        assertThat(result.get(1).action()).isEqualTo(AuditAction.UPDATE);
+        assertThat(result.get(1).user().id()).isEqualTo(bob.id());
+    }
+
+    @Test
+    void findByDayShouldReturnEmptyWhenNoMatches() {
+        final LocalDate day = LocalDate.of(2026, 5, 16);
+        final ZoneId zone = ZoneId.systemDefault();
+        when(repository.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
+                day.atStartOfDay(zone).toInstant(),
+                day.plusDays(1).atStartOfDay(zone).toInstant()))
+                .thenReturn(List.of());
+
+        assertThat(service.findByDay(day)).isEmpty();
+    }
+
+    @Test
+    void findByDayShouldRejectNull() {
+        assertThatThrownBy(() -> service.findByDay(null))
                 .isInstanceOf(NullPointerException.class);
     }
 

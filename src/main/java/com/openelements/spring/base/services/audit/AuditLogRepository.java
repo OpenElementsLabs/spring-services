@@ -52,6 +52,17 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
             String entityType, UUID userId, Pageable pageable);
 
     /**
+     * Returns all audit entries whose {@code createdAt} timestamp lies in the half-open interval
+     * {@code [from, to)}, ordered by creation time (oldest first).
+     *
+     * @param from inclusive lower bound
+     * @param to   exclusive upper bound
+     * @return matching entries, possibly empty
+     */
+    List<AuditLogEntity> findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
+            Instant from, Instant to);
+
+    /**
      * Returns all distinct entity types that have at least one audit entry.
      *
      * @return distinct entity type names, possibly empty
