@@ -1,6 +1,5 @@
 package com.openelements.spring.base.services.audit;
 
-import com.openelements.spring.base.data.AbstractEntity;
 import com.openelements.spring.base.services.user.UserEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

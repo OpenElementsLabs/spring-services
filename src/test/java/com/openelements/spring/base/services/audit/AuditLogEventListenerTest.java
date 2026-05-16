@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.audit;
 
+import com.openelements.spring.base.data.NameSupplier;
 import com.openelements.spring.base.data.WithId;
 import com.openelements.spring.base.events.OnObjectCreate;
 import com.openelements.spring.base.events.OnObjectDelete;
@@ -62,7 +63,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(alice));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(alice));
     }
 
     @Test
@@ -74,7 +75,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectUpdate(new OnObjectUpdate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.UPDATE), eq(bob));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.UPDATE), eq(bob));
     }
 
     @Test
@@ -86,7 +87,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectDelete(new OnObjectDelete<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.DELETE), eq(alice));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.DELETE), eq(alice));
     }
 
     @Test
@@ -98,7 +99,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -109,7 +110,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -120,7 +121,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -131,7 +132,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -143,7 +144,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -155,7 +156,7 @@ class AuditLogEventListenerTest {
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), eq(systemUserRef));
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), eq(systemUserRef));
     }
 
     @Test
@@ -165,13 +166,13 @@ class AuditLogEventListenerTest {
         when(userRepository.findBySub("alice-sub")).thenReturn(Optional.of(alice));
         doThrow(new RuntimeException("db down"))
                 .when(auditLogDataService)
-                .createEntry(any(), any(), any(), any(UserEntity.class));
+                .createEntry(any(), any(), any(), any(), any(UserEntity.class));
 
         listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
         final ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
         verify(auditLogDataService)
-                .createEntry(eq("TestData"), eq(data.id()), eq(AuditAction.INSERT), captor.capture());
+                .createEntry(eq("TestData"), eq(data.id()), eq("UNKNOWN"), eq(AuditAction.INSERT), captor.capture());
     }
 
     @Test
@@ -189,13 +190,66 @@ class AuditLogEventListenerTest {
                         UUID.randomUUID(),
                         "BookDto",
                         UUID.randomUUID(),
+                        "some-book",
                         AuditAction.INSERT,
                         userDto,
                         java.time.Instant.now());
 
         listener.handleOnObjectCreate(new OnObjectCreate<>(dto));
 
-        verify(auditLogDataService, never()).createEntry(any(), any(), any(), any(UserEntity.class));
+        verify(auditLogDataService, never())
+                .createEntry(any(), any(), any(), any(), any(UserEntity.class));
+    }
+
+    @Test
+    void shouldUseNameFromNameSupplierWhenAnnotatedCorrectly() {
+        final NamedData data = new NamedData(UUID.randomUUID(), "Hitchhiker's Guide");
+        when(authService.getUserInformation()).thenReturn(userNamed("alice-sub", "alice"));
+        when(userRepository.findBySub("alice-sub")).thenReturn(Optional.of(alice));
+
+        listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+        verify(auditLogDataService)
+                .createEntry(
+                        eq("NamedData"),
+                        eq(data.id()),
+                        eq("Hitchhiker's Guide"),
+                        eq(AuditAction.INSERT),
+                        eq(alice));
+    }
+
+    @Test
+    void shouldFallBackToUnknownWhenNameSupplierUsedIncorrectly() {
+        final BadlyNamedData data = new BadlyNamedData(UUID.randomUUID(), "ignored");
+        when(authService.getUserInformation()).thenReturn(userNamed("alice-sub", "alice"));
+        when(userRepository.findBySub("alice-sub")).thenReturn(Optional.of(alice));
+
+        listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+        verify(auditLogDataService)
+                .createEntry(
+                        eq("BadlyNamedData"),
+                        eq(data.id()),
+                        eq("UNKNOWN"),
+                        eq(AuditAction.INSERT),
+                        eq(alice));
+    }
+
+    @Test
+    void shouldFallBackToUnknownWhenNoNameSupplierPresent() {
+        final TestData data = new TestData(UUID.randomUUID(), "x");
+        when(authService.getUserInformation()).thenReturn(userNamed("alice-sub", "alice"));
+        when(userRepository.findBySub("alice-sub")).thenReturn(Optional.of(alice));
+
+        listener.handleOnObjectCreate(new OnObjectCreate<>(data));
+
+        verify(auditLogDataService)
+                .createEntry(
+                        eq("TestData"),
+                        eq(data.id()),
+                        eq("UNKNOWN"),
+                        eq(AuditAction.INSERT),
+                        eq(alice));
     }
 
     @Test
@@ -219,5 +273,26 @@ class AuditLogEventListenerTest {
     }
 
     private record TestData(UUID id, String value) implements WithId {
+    }
+
+    private record NamedData(UUID id, String title) implements WithId {
+
+        @NameSupplier
+        public String displayName() {
+            return title;
+        }
+    }
+
+    private record BadlyNamedData(UUID id, String title) implements WithId {
+
+        @NameSupplier
+        public String displayName(final String prefix) {
+            return prefix + title;
+        }
+
+        @NameSupplier
+        public int badReturnType() {
+            return 42;
+        }
     }
 }

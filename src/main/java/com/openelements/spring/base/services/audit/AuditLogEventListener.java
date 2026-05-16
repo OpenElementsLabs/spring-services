@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.audit;
 
+import com.openelements.spring.base.data.NameSupplier;
 import com.openelements.spring.base.data.WithId;
 import com.openelements.spring.base.events.GenericDataEvent;
 import com.openelements.spring.base.events.OnObjectCreate;
@@ -15,7 +16,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Listens to data lifecycle events and writes a corresponding {@link AuditLogEntity} for each one.
@@ -89,10 +92,13 @@ public class AuditLogEventListener {
         if (AuditLogDto.class.equals(event.getType())) {
             return;
         }
+
+        final String name = getNameOfData(event.getData()).orElse("UNKNOWN");
+
         final UserEntity user = resolveUser();
         try {
             auditLogDataService.createEntry(
-                    event.getType().getSimpleName(), event.entityId(), action, user);
+                    event.getType().getSimpleName(), event.entityId(), name, action, user);
         } catch (final RuntimeException ex) {
             LOG.warn(
                     "Failed to write audit log entry for {} {} by user id {}",
@@ -101,6 +107,27 @@ public class AuditLogEventListener {
                     user.id(),
                     ex);
         }
+    }
+
+    private <T extends WithId> Optional<String> getNameOfData(T data) {
+        Objects.requireNonNull(data, "data must not be null");
+        return Arrays.stream(data.getClass().getMethods())
+                .filter(method -> method.isAnnotationPresent(NameSupplier.class))
+                .filter(method -> method.getParameterCount() == 0)
+                .filter(method -> String.class.equals(method.getReturnType()))
+                .findFirst()
+                .flatMap(method -> {
+                    try {
+                        return Optional.ofNullable((String) method.invoke(data));
+                    } catch (final ReflectiveOperationException ex) {
+                        LOG.warn(
+                                "Failed to invoke @NameSupplier method {} on {}",
+                                method.getName(),
+                                data.getClass().getName(),
+                                ex);
+                        return Optional.empty();
+                    }
+                });
     }
 
     private UserEntity resolveUser() {

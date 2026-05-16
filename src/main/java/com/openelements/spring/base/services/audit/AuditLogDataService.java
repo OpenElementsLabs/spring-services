@@ -212,15 +212,18 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
     public AuditLogDto createEntry(
             @NonNull final String entityType,
             @NonNull final UUID entityId,
+            @NonNull final String name,
             @NonNull final AuditAction action,
             @NonNull final UserEntity user) {
         Objects.requireNonNull(entityType, "entityType must not be null");
         Objects.requireNonNull(entityId, "entityId must not be null");
+        Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(action, "action must not be null");
         Objects.requireNonNull(user, "user must not be null");
         final AuditLogEntity entity = new AuditLogEntity();
         entity.setEntityType(entityType);
         entity.setEntityId(entityId);
+        entity.setName(name);
         entity.setAction(action);
         entity.setUser(user);
         return AuditLogDto.fromEntity(auditLogRepository.save(entity));

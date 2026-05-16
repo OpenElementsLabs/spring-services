@@ -1,6 +1,5 @@
 package com.openelements.spring.base.services.audit;
 
-import com.openelements.spring.base.data.AbstractEntity;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserEntity;
 import jakarta.persistence.*;
@@ -25,6 +24,9 @@ public class AuditLogEntity extends AbstractEntity {
 
     @Column(name = "entity_id", nullable = false)
     private UUID entityId;
+
+    @Column(name = "entity_name", nullable = false)
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action", nullable = false, length = 20)
@@ -75,6 +77,14 @@ public class AuditLogEntity extends AbstractEntity {
 
     public void setUser(final UserEntity user) {
         this.user = Objects.requireNonNull(user, "user must not be null");
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override

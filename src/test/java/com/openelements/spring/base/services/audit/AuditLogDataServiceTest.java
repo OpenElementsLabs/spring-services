@@ -252,16 +252,25 @@ class AuditLogDataServiceTest {
     @Test
     void createEntryShouldRejectNull() {
         assertThatThrownBy(
-                () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, alice))
+                () -> service.createEntry(null, UUID.randomUUID(), "name", AuditAction.INSERT, alice))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> service.createEntry("BookDto", null, AuditAction.INSERT, alice))
+        assertThatThrownBy(
+                () -> service.createEntry("BookDto", null, "name", AuditAction.INSERT, alice))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> service.createEntry("BookDto", UUID.randomUUID(), null, alice))
+        assertThatThrownBy(
+                () -> service.createEntry("BookDto", UUID.randomUUID(), null, AuditAction.INSERT, alice))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                () -> service.createEntry("BookDto", UUID.randomUUID(), "name", null, alice))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
                 () ->
                         service.createEntry(
-                                "BookDto", UUID.randomUUID(), AuditAction.INSERT, (UserEntity) null))
+                                "BookDto",
+                                UUID.randomUUID(),
+                                "name",
+                                AuditAction.INSERT,
+                                (UserEntity) null))
                 .isInstanceOf(NullPointerException.class);
     }
 }

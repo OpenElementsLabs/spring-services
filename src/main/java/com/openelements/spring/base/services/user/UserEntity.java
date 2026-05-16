@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.user;
 
-import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.NameSupplier;
+import com.openelements.spring.base.services.audit.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -64,6 +65,7 @@ public class UserEntity extends AbstractEntity {
      * Returns the cached display name of the user, kept in sync with the JWT {@code name} claim by
      * {@link UserService}.
      */
+    @NameSupplier
     public String getName() {
         return name;
     }

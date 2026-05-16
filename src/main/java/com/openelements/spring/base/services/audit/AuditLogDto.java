@@ -23,6 +23,7 @@ public record AuditLogDto(
         @Schema(description = "Audit entry id", requiredMode = Schema.RequiredMode.REQUIRED) UUID id,
         @Schema(description = "Audited DTO type (simple class name)") String entityType,
         @Schema(description = "Id of the audited entity") UUID entityId,
+        @Schema(description = "Human readable name of the audited entity") String name,
         @Schema(description = "Kind of lifecycle event") AuditAction action,
         @Schema(description = "User who performed the action (System User for unauthenticated calls)")
         UserDto user,
@@ -41,6 +42,7 @@ public record AuditLogDto(
                 entity.getId(),
                 entity.getEntityType(),
                 entity.getEntityId(),
+                entity.getName(),
                 entity.getAction(),
                 UserDto.fromEntity(entity.getUser()),
                 entity.getCreatedAt());

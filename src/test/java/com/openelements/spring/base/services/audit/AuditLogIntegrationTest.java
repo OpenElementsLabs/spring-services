@@ -100,7 +100,7 @@ class AuditLogIntegrationTest {
     private AuditLogDto seed(
             final UserEntity user, final String entityType, final AuditAction action) {
         when(authService.getUserInformation()).thenReturn(userInfo(user));
-        return auditLogDataService.createEntry(entityType, UUID.randomUUID(), action, user);
+        return auditLogDataService.createEntry(entityType, UUID.randomUUID(), "name", action, user);
     }
 
     @Nested
@@ -179,7 +179,8 @@ class AuditLogIntegrationTest {
         void shouldNotCreateAuditEntryForAuditEntry() {
             when(authService.getUserInformation()).thenReturn(userInfo(alice));
 
-            auditLogDataService.createEntry("BookDto", UUID.randomUUID(), AuditAction.INSERT, alice);
+            auditLogDataService.createEntry(
+                    "BookDto", UUID.randomUUID(), "name", AuditAction.INSERT, alice);
 
             final List<AuditLogDto> all = auditLogDataService.getAll();
             assertThat(all).hasSize(1);
