@@ -73,6 +73,16 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
     List<AuditLogEntity> findAllByOrderByCreatedAtDesc(Limit limit);
 
     /**
+     * Returns the most recent audit entries for the given entity type, ordered by creation time
+     * (newest first), capped by the given {@link Limit}.
+     *
+     * @param entityType the simple class name to filter on
+     * @param limit      the maximum number of rows to return
+     * @return matching entries, possibly empty, at most {@code limit.max()} elements
+     */
+    List<AuditLogEntity> findByEntityTypeOrderByCreatedAtDesc(String entityType, Limit limit);
+
+    /**
      * Returns all distinct entity types that have at least one audit entry.
      *
      * @return distinct entity type names, possibly empty

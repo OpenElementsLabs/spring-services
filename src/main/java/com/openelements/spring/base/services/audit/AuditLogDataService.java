@@ -162,6 +162,31 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
     }
 
     /**
+     * Returns the {@code limit} most recent audit entries for the given entity type, ordered by
+     * creation time (newest first).
+     *
+     * <p>If fewer than {@code limit} entries exist for the type, the returned list contains all of
+     * them.
+     *
+     * @param entityType the simple class name to filter on
+     * @param limit      the maximum number of entries to return, must be greater than zero
+     * @return matching entries as DTOs, at most {@code limit} elements, possibly empty
+     * @throws IllegalArgumentException if {@code limit} is not positive
+     */
+    public List<AuditLogDto> findLatestByEntityType(
+            @NonNull final String entityType, final int limit) {
+        Objects.requireNonNull(entityType, "entityType must not be null");
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be greater than zero");
+        }
+        return auditLogRepository
+                .findByEntityTypeOrderByCreatedAtDesc(entityType, Limit.of(limit))
+                .stream()
+                .map(AuditLogDto::fromEntity)
+                .toList();
+    }
+
+    /**
      * Returns all distinct entity types that have at least one audit entry.
      *
      * @return distinct entity type names, possibly empty

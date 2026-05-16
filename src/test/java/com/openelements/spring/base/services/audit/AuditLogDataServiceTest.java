@@ -203,6 +203,53 @@ class AuditLogDataServiceTest {
     }
 
     @Test
+    void findLatestByEntityTypeShouldDelegateWithLimitAndMap() {
+        final AuditLogEntity first = new AuditLogEntity();
+        first.setEntityType("BookDto");
+        first.setEntityId(UUID.randomUUID());
+        first.setAction(AuditAction.UPDATE);
+        first.setUser(alice);
+        final AuditLogEntity second = new AuditLogEntity();
+        second.setEntityType("BookDto");
+        second.setEntityId(UUID.randomUUID());
+        second.setAction(AuditAction.INSERT);
+        second.setUser(bob);
+        when(repository.findByEntityTypeOrderByCreatedAtDesc("BookDto", Limit.of(5)))
+                .thenReturn(List.of(first, second));
+
+        final List<AuditLogDto> result = service.findLatestByEntityType("BookDto", 5);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).entityType()).isEqualTo("BookDto");
+        assertThat(result.get(0).action()).isEqualTo(AuditAction.UPDATE);
+        assertThat(result.get(0).user().id()).isEqualTo(alice.id());
+        assertThat(result.get(1).action()).isEqualTo(AuditAction.INSERT);
+        assertThat(result.get(1).user().id()).isEqualTo(bob.id());
+    }
+
+    @Test
+    void findLatestByEntityTypeShouldReturnEmptyWhenNoMatches() {
+        when(repository.findByEntityTypeOrderByCreatedAtDesc("NoteDto", Limit.of(10)))
+                .thenReturn(List.of());
+
+        assertThat(service.findLatestByEntityType("NoteDto", 10)).isEmpty();
+    }
+
+    @Test
+    void findLatestByEntityTypeShouldRejectNullType() {
+        assertThatThrownBy(() -> service.findLatestByEntityType(null, 5))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void findLatestByEntityTypeShouldRejectNonPositiveLimit() {
+        assertThatThrownBy(() -> service.findLatestByEntityType("BookDto", 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.findLatestByEntityType("BookDto", -1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void createEntryShouldRejectNull() {
         assertThatThrownBy(
                 () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, alice))
