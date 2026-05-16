@@ -7,6 +7,7 @@ import com.openelements.spring.base.services.user.UserEntity;
 import com.openelements.spring.base.services.user.UserRepository;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -138,6 +139,24 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
                         day.atStartOfDay(zone).toInstant(),
                         day.plusDays(1).atStartOfDay(zone).toInstant())
                 .stream()
+                .map(AuditLogDto::fromEntity)
+                .toList();
+    }
+
+    /**
+     * Returns the {@code limit} most recent audit entries, ordered by creation time (newest first).
+     *
+     * <p>If fewer than {@code limit} entries exist, the returned list contains all of them.
+     *
+     * @param limit the maximum number of entries to return, must be greater than zero
+     * @return matching entries as DTOs, at most {@code limit} elements, possibly empty
+     * @throws IllegalArgumentException if {@code limit} is not positive
+     */
+    public List<AuditLogDto> findLatest(final int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be greater than zero");
+        }
+        return auditLogRepository.findAllByOrderByCreatedAtDesc(Limit.of(limit)).stream()
                 .map(AuditLogDto::fromEntity)
                 .toList();
     }

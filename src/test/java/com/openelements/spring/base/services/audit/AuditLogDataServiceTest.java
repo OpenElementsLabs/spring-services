@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -159,6 +160,46 @@ class AuditLogDataServiceTest {
     void findByDayShouldRejectNull() {
         assertThatThrownBy(() -> service.findByDay(null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void findLatestShouldDelegateWithLimitAndMap() {
+        final AuditLogEntity first = new AuditLogEntity();
+        first.setEntityType("BookDto");
+        first.setEntityId(UUID.randomUUID());
+        first.setAction(AuditAction.DELETE);
+        first.setUser(alice);
+        final AuditLogEntity second = new AuditLogEntity();
+        second.setEntityType("BookDto");
+        second.setEntityId(UUID.randomUUID());
+        second.setAction(AuditAction.INSERT);
+        second.setUser(bob);
+        when(repository.findAllByOrderByCreatedAtDesc(Limit.of(3)))
+                .thenReturn(List.of(first, second));
+
+        final List<AuditLogDto> result = service.findLatest(3);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).action()).isEqualTo(AuditAction.DELETE);
+        assertThat(result.get(0).user().id()).isEqualTo(alice.id());
+        assertThat(result.get(1).action()).isEqualTo(AuditAction.INSERT);
+        assertThat(result.get(1).user().id()).isEqualTo(bob.id());
+    }
+
+    @Test
+    void findLatestShouldReturnEmptyWhenNoEntries() {
+        when(repository.findAllByOrderByCreatedAtDesc(Limit.of(10)))
+                .thenReturn(List.of());
+
+        assertThat(service.findLatest(10)).isEmpty();
+    }
+
+    @Test
+    void findLatestShouldRejectNonPositiveLimit() {
+        assertThatThrownBy(() -> service.findLatest(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.findLatest(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

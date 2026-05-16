@@ -2,6 +2,7 @@ package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.EntityRepository;
 import com.openelements.spring.base.services.user.SystemUser;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
@@ -61,6 +62,15 @@ public interface AuditLogRepository extends EntityRepository<AuditLogEntity> {
      */
     List<AuditLogEntity> findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
             Instant from, Instant to);
+
+    /**
+     * Returns the most recent audit entries ordered by creation time (newest first), capped by the
+     * given {@link Limit}.
+     *
+     * @param limit the maximum number of rows to return
+     * @return matching entries, possibly empty, at most {@code limit.max()} elements
+     */
+    List<AuditLogEntity> findAllByOrderByCreatedAtDesc(Limit limit);
 
     /**
      * Returns all distinct entity types that have at least one audit entry.
