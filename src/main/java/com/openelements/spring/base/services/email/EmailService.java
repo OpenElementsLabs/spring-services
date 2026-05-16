@@ -1,6 +1,6 @@
 package com.openelements.spring.base.services.email;
 
-import com.openelements.spring.base.security.user.UserEntity;
+import com.openelements.spring.base.services.user.UserEntity;
 import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.InternetAddress;
 import org.jspecify.annotations.NonNull;

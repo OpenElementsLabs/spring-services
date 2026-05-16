@@ -1,16 +1,13 @@
-package com.openelements.spring.base.services.comment;
+package com.openelements.spring.base.services.user;
 
-import com.openelements.spring.base.services.user.UserConfig;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
 
 @Configuration
 @ComponentScan
 @AutoConfiguration
 @EnableAutoConfiguration
-@Import(UserConfig.class)
-public class CommentConfig {
+public class UserConfig {
 }

@@ -1,4 +1,4 @@
-package com.openelements.spring.base.security.user;
+package com.openelements.spring.base.security.roles;
 
 /**
  * Predefined roles.
@@ -19,4 +19,13 @@ public final class Roles {
      * Predefined role for IT administrators.
      */
     public static final String ROLE_IT_ADMIN = "IT-ADMIN";
+
+    public static final String ROLE_EMPLOYEE = "EMPLOYEE";
+
+    public static final String ROLE_EXTERNAL = "EXTERNAL";
+
+    public static final String ROLE_BACKOFFICE = "BACKOFFICE";
+
+    public static final String ROLE_MANAGEMENT = "MANAGEMENT";
+
 }

@@ -1,27 +1,17 @@
 package com.openelements.spring.base.services.comment;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
-import com.openelements.spring.base.security.user.UserEntity;
-import com.openelements.spring.base.security.user.UserRepository;
-import com.openelements.spring.base.security.user.UserService;
 import com.openelements.spring.base.services.audit.AuditAction;
 import com.openelements.spring.base.services.audit.AuditLogEntity;
 import com.openelements.spring.base.services.audit.AuditLogRepository;
+import com.openelements.spring.base.services.user.UserEntity;
+import com.openelements.spring.base.services.user.UserRepository;
+import com.openelements.spring.base.services.user.UserService;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import com.openelements.spring.base.testcontainers.TestApplication;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 import org.hibernate.Hibernate;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -40,6 +30,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
@@ -47,15 +46,27 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DisplayName("CommentService integration")
 class CommentServiceIntegrationTest {
 
-    @Autowired private CommentService commentService;
-    @Autowired private CommentRepository commentRepository;
-    @MockitoSpyBean private UserService userService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private AuditLogRepository auditLogRepository;
-    @Autowired private JdbcTemplate jdbcTemplate;
-    @PersistenceContext private EntityManager entityManager;
+    @Autowired
+    private CommentService commentService;
+    @Autowired
+    private CommentRepository commentRepository;
+    @MockitoSpyBean
+    private UserService userService;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    @MockitoBean private AuthService authService;
+    @MockitoBean
+    private AuthService authService;
+
+    private static CommentDto blankComment(final String text) {
+        return new CommentDto(null, text, null, null, null);
+    }
 
     @BeforeEach
     void setUp() {
@@ -92,30 +103,30 @@ class CommentServiceIntegrationTest {
         @Test
         void shouldHaveAuthorIdColumnAndForeignKeyConstraint() {
             final List<String> columns =
-                jdbcTemplate.queryForList(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'comments'",
-                    String.class);
+                    jdbcTemplate.queryForList(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'comments'",
+                            String.class);
             assertThat(columns).contains("author_id").doesNotContain("author");
 
             final String dataType =
-                jdbcTemplate.queryForObject(
-                    "SELECT data_type FROM information_schema.columns "
-                        + "WHERE table_name = 'comments' AND column_name = 'author_id'",
-                    String.class);
+                    jdbcTemplate.queryForObject(
+                            "SELECT data_type FROM information_schema.columns "
+                                    + "WHERE table_name = 'comments' AND column_name = 'author_id'",
+                            String.class);
             assertThat(dataType).isEqualTo("uuid");
 
             final String isNullable =
-                jdbcTemplate.queryForObject(
-                    "SELECT is_nullable FROM information_schema.columns "
-                        + "WHERE table_name = 'comments' AND column_name = 'author_id'",
-                    String.class);
+                    jdbcTemplate.queryForObject(
+                            "SELECT is_nullable FROM information_schema.columns "
+                                    + "WHERE table_name = 'comments' AND column_name = 'author_id'",
+                            String.class);
             assertThat(isNullable).isEqualTo("NO");
 
             final List<String> fks =
-                jdbcTemplate.queryForList(
-                    "SELECT constraint_name FROM information_schema.table_constraints "
-                        + "WHERE table_name = 'comments' AND constraint_type = 'FOREIGN KEY'",
-                    String.class);
+                    jdbcTemplate.queryForList(
+                            "SELECT constraint_name FROM information_schema.table_constraints "
+                                    + "WHERE table_name = 'comments' AND constraint_type = 'FOREIGN KEY'",
+                            String.class);
             assertThat(fks).contains("fk_comments_author");
         }
 
@@ -129,8 +140,8 @@ class CommentServiceIntegrationTest {
             final CommentEntity loaded = commentRepository.findById(persisted.getId()).orElseThrow();
 
             assertThat(Hibernate.isInitialized(loaded.getAuthor()))
-                .as("author proxy should not be initialized before getAuthor() is dereferenced")
-                .isFalse();
+                    .as("author proxy should not be initialized before getAuthor() is dereferenced")
+                    .isFalse();
         }
 
         @Test
@@ -164,8 +175,8 @@ class CommentServiceIntegrationTest {
             assertThat(saved.author().name()).isEqualTo("Existing");
 
             final UUID storedAuthorId =
-                jdbcTemplate.queryForObject(
-                    "SELECT author_id FROM comments WHERE id = ?", UUID.class, saved.id());
+                    jdbcTemplate.queryForObject(
+                            "SELECT author_id FROM comments WHERE id = ?", UUID.class, saved.id());
             assertThat(storedAuthorId).isEqualTo(saved.author().id());
         }
 
@@ -176,14 +187,14 @@ class CommentServiceIntegrationTest {
             final CommentDto saved = commentService.save(blankComment("hi from a new user"));
 
             final UserEntity provisioned =
-                userRepository.findBySub("sub-brand-new").orElseThrow();
+                    userRepository.findBySub("sub-brand-new").orElseThrow();
             assertThat(saved.author().id()).isEqualTo(provisioned.getId());
 
             final Long fkCount =
-                jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM comments WHERE author_id = ?",
-                    Long.class,
-                    provisioned.getId());
+                    jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM comments WHERE author_id = ?",
+                            Long.class,
+                            provisioned.getId());
             assertThat(fkCount).isEqualTo(1L);
         }
 
@@ -192,7 +203,7 @@ class CommentServiceIntegrationTest {
             when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
 
             assertThatThrownBy(() -> commentService.save(blankComment("nope")))
-                .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(IllegalStateException.class);
 
             assertThat(commentRepository.count()).isZero();
             assertThat(userRepository.count()).isZero();
@@ -236,7 +247,7 @@ class CommentServiceIntegrationTest {
             // assertion is itself about a Hibernate batching behaviour. Production code stays
             // on the JPA APIs.
             final Statistics stats =
-                entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+                    entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
             stats.clear();
 
             final List<CommentDto> all = commentService.getAll();
@@ -253,8 +264,8 @@ class CommentServiceIntegrationTest {
             // is gone.
             final long statements = stats.getPrepareStatementCount();
             assertThat(statements)
-                .as("expected ≤10 SQL statements; without @BatchSize this would be 101")
-                .isLessThanOrEqualTo(10L);
+                    .as("expected ≤10 SQL statements; without @BatchSize this would be 101")
+                    .isLessThanOrEqualTo(10L);
         }
 
     }
@@ -274,7 +285,7 @@ class CommentServiceIntegrationTest {
             comment.setAuthor(phantom);
 
             assertThatThrownBy(() -> commentRepository.saveAndFlush(comment))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                    .isInstanceOf(DataIntegrityViolationException.class);
         }
 
         @Test
@@ -314,9 +325,9 @@ class CommentServiceIntegrationTest {
             final CommentDto saved = commentService.save(blankComment("audit me"));
 
             final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
-                .filter(e -> "CommentDto".equals(e.getEntityType()))
-                .filter(e -> saved.id().equals(e.getEntityId()))
-                .toList();
+                    .filter(e -> "CommentDto" .equals(e.getEntityType()))
+                    .filter(e -> saved.id().equals(e.getEntityId()))
+                    .toList();
             assertThat(matches).hasSize(1);
             assertThat(matches.get(0).getAction()).isEqualTo(AuditAction.INSERT);
         }
@@ -331,10 +342,10 @@ class CommentServiceIntegrationTest {
             commentService.save(new CommentDto(saved.id(), "v2", null, null, null));
 
             final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
-                .filter(e -> "CommentDto".equals(e.getEntityType()))
-                .filter(e -> saved.id().equals(e.getEntityId()))
-                .filter(e -> e.getAction() == AuditAction.UPDATE)
-                .toList();
+                    .filter(e -> "CommentDto" .equals(e.getEntityType()))
+                    .filter(e -> saved.id().equals(e.getEntityId()))
+                    .filter(e -> e.getAction() == AuditAction.UPDATE)
+                    .toList();
             assertThat(matches).hasSize(1);
         }
 
@@ -348,15 +359,11 @@ class CommentServiceIntegrationTest {
             commentService.delete(saved);
 
             final List<AuditLogEntity> matches = auditLogRepository.findAll().stream()
-                .filter(e -> "CommentDto".equals(e.getEntityType()))
-                .filter(e -> saved.id().equals(e.getEntityId()))
-                .filter(e -> e.getAction() == AuditAction.DELETE)
-                .toList();
+                    .filter(e -> "CommentDto" .equals(e.getEntityType()))
+                    .filter(e -> saved.id().equals(e.getEntityId()))
+                    .filter(e -> e.getAction() == AuditAction.DELETE)
+                    .toList();
             assertThat(matches).hasSize(1);
         }
-    }
-
-    private static CommentDto blankComment(final String text) {
-        return new CommentDto(null, text, null, null, null);
     }
 }

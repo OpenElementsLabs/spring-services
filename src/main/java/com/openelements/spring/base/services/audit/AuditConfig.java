@@ -1,9 +1,11 @@
 package com.openelements.spring.base.services.audit;
 
+import com.openelements.spring.base.services.user.UserConfig;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -18,4 +20,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @AutoConfiguration
 @EnableAutoConfiguration
 @EnableScheduling
-public class AuditConfig {}
+@Import(UserConfig.class)
+public class AuditConfig {
+}

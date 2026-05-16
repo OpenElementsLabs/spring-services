@@ -7,7 +7,7 @@
  * dedicated to a single authentication mechanism.
  *
  * <h2>Two-chain model</h2>
- *
+ * <p>
  * The {@link com.openelements.spring.base.security.SecurityConfig} configuration contributes two
  * filter-chain beans:
  *
@@ -32,7 +32,7 @@
  * than imperative inside the filter.
  *
  * <h2>Anonymous access</h2>
- *
+ * <p>
  * The default chain permits anonymous access to two categories of endpoints:
  *
  * <ul>
@@ -72,10 +72,10 @@
  *             read-only HTTP-method restriction.
  *       </ul>
  * </ul>
- *
+ * <p>
  * Keys are issued through {@link
  * com.openelements.spring.base.services.apikey.ApiKeyDataService#create(
- * com.openelements.spring.base.services.apikey.ApiKeyCreateDto)}: a cryptographically strong random
+ *com.openelements.spring.base.services.apikey.ApiKeyCreateDto)}: a cryptographically strong random
  * value (prefix {@code crm_} plus 48 random alphanumeric characters generated via {@link
  * java.security.SecureRandom}) is returned to the caller exactly once. Only its SHA-256 hash and a
  * short display prefix (e.g. {@code crm_AbCd...wXyZ}) are persisted, so a leaked database snapshot
@@ -100,7 +100,7 @@
  * </ul>
  *
  * <h2>Helper services</h2>
- *
+ * <p>
  * Application code rarely interacts with Spring Security directly. Two services in this package
  * encapsulate the most common needs:
  *
@@ -111,8 +111,8 @@
  *       For non-JWT principals (typically API-key authenticated requests) {@link
  *       com.openelements.spring.base.security.AuthService#getUserInformation()} returns the static
  *       {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)} instead of throwing.
- *   <li>{@link com.openelements.spring.base.security.user.UserService} — looks up (or lazily
- *       creates) the {@link com.openelements.spring.base.security.user.UserEntity} that mirrors the
+ *   <li>{@link com.openelements.spring.base.services.user.UserService} — looks up (or lazily
+ *       creates) the {@link com.openelements.spring.base.services.user.UserEntity} that mirrors the
  *       JWT subject in the local database, and manages the user's avatar image.
  * </ul>
  *

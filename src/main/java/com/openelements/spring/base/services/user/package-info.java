@@ -10,9 +10,9 @@
  * <h2>Lifecycle</h2>
  *
  * <ul>
- *   <li>The {@link com.openelements.spring.base.security.user.UserEntity} for a given JWT subject
+ *   <li>The {@link com.openelements.spring.base.services.user.UserEntity} for a given JWT subject
  *       is created lazily on first access by {@link
- *       com.openelements.spring.base.security.user.UserService#getCurrentUser()}.
+ *       com.openelements.spring.base.services.user.UserService#getCurrentUser()}.
  *   <li>If the JWT's {@code name} or {@code email} claim has changed since the last call, the local
  *       entity is updated transparently.
  *   <li>Avatars (max 2 MB, {@code image/jpeg} or {@code image/png}) are stored as a {@code byte[]}
@@ -20,4 +20,4 @@
  *       com.openelements.spring.base.data.image.ImageData}.
  * </ul>
  */
-package com.openelements.spring.base.security.user;
+package com.openelements.spring.base.services.user;

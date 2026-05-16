@@ -1,14 +1,8 @@
 package com.openelements.spring.base.services.comment;
 
 import com.openelements.spring.base.data.AbstractEntity;
-import com.openelements.spring.base.security.user.UserEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import com.openelements.spring.base.services.user.UserEntity;
+import jakarta.persistence.*;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;

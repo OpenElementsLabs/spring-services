@@ -1,6 +1,5 @@
-package com.openelements.spring.base.security.user;
+package com.openelements.spring.base.services.user;
 
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -9,6 +8,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 /**
  * Ensures the {@link SystemUser System User} row exists in the {@code users} table on application
@@ -29,33 +30,33 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class SystemUserInitializer implements ApplicationRunner {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SystemUserInitializer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SystemUserInitializer.class);
 
-  private static final String INSERT_SQL =
-      "INSERT INTO users (id, sub, name, updated_at, created_at) "
-          + "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+    private static final String INSERT_SQL =
+            "INSERT INTO users (id, sub, name, updated_at, created_at) "
+                    + "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
 
-  private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-  private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
-  public SystemUserInitializer(
-      final UserRepository userRepository, final JdbcTemplate jdbcTemplate) {
-    this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
-    this.jdbcTemplate = Objects.requireNonNull(jdbcTemplate, "jdbcTemplate must not be null");
-  }
-
-  @Override
-  @Transactional
-  public void run(final ApplicationArguments args) {
-    if (userRepository.existsById(SystemUser.ID)) {
-      return;
+    public SystemUserInitializer(
+            final UserRepository userRepository, final JdbcTemplate jdbcTemplate) {
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.jdbcTemplate = Objects.requireNonNull(jdbcTemplate, "jdbcTemplate must not be null");
     }
-    try {
-      jdbcTemplate.update(INSERT_SQL, SystemUser.ID, SystemUser.SUB, SystemUser.NAME);
-      LOG.info("Created System User row (id={}, sub={})", SystemUser.ID, SystemUser.SUB);
-    } catch (final DataIntegrityViolationException e) {
-      LOG.debug("System User row was created concurrently by another instance — ignoring.", e);
+
+    @Override
+    @Transactional
+    public void run(final ApplicationArguments args) {
+        if (userRepository.existsById(SystemUser.ID)) {
+            return;
+        }
+        try {
+            jdbcTemplate.update(INSERT_SQL, SystemUser.ID, SystemUser.SUB, SystemUser.NAME);
+            LOG.info("Created System User row (id={}, sub={})", SystemUser.ID, SystemUser.SUB);
+        } catch (final DataIntegrityViolationException e) {
+            LOG.debug("System User row was created concurrently by another instance — ignoring.", e);
+        }
     }
-  }
 }

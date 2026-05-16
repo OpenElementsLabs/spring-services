@@ -1,14 +1,7 @@
 package com.openelements.spring.base.services.audit;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import com.openelements.spring.base.security.user.UserEntity;
-import com.openelements.spring.base.security.user.UserRepository;
-import java.util.List;
-import java.util.UUID;
+import com.openelements.spring.base.services.user.UserEntity;
+import com.openelements.spring.base.services.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,116 +11,121 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 @DisplayName("AuditLogDataService finders (unit)")
 class AuditLogDataServiceTest {
 
-  private final AuditLogRepository repository = mock(AuditLogRepository.class);
-  private final UserRepository userRepository = mock(UserRepository.class);
+    private static final Pageable DEFAULT_PAGE = PageRequest.of(0, 20);
+    private final AuditLogRepository repository = mock(AuditLogRepository.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
+    private final AuditLogDataService service =
+            new AuditLogDataService(repository, userRepository, mock(ApplicationEventPublisher.class));
+    private final UserEntity alice = new UserEntity();
+    private final UserEntity bob = new UserEntity();
 
-  private final AuditLogDataService service =
-      new AuditLogDataService(repository, userRepository, mock(ApplicationEventPublisher.class));
+    @BeforeEach
+    void initUsers() {
+        alice.setId(UUID.randomUUID());
+        alice.setSub("alice-sub");
+        alice.setName("alice");
+        bob.setId(UUID.randomUUID());
+        bob.setSub("bob-sub");
+        bob.setName("bob");
+    }
 
-  private static final Pageable DEFAULT_PAGE = PageRequest.of(0, 20);
+    @Test
+    void findByEntityTypeShouldDelegateAndMap() {
+        final AuditLogEntity entity = new AuditLogEntity();
+        entity.setEntityType("BookDto");
+        entity.setEntityId(UUID.randomUUID());
+        entity.setAction(AuditAction.INSERT);
+        entity.setUser(alice);
+        when(repository.findByEntityTypeOrderByCreatedAtDesc("BookDto", DEFAULT_PAGE))
+                .thenReturn(new PageImpl<>(List.of(entity)));
 
-  private final UserEntity alice = new UserEntity();
-  private final UserEntity bob = new UserEntity();
+        final Page<AuditLogDto> result = service.findByEntityType("BookDto", DEFAULT_PAGE);
 
-  @BeforeEach
-  void initUsers() {
-    alice.setId(UUID.randomUUID());
-    alice.setSub("alice-sub");
-    alice.setName("alice");
-    bob.setId(UUID.randomUUID());
-    bob.setSub("bob-sub");
-    bob.setName("bob");
-  }
+        assertThat(result).hasSize(1);
+        assertThat(result.getContent().getFirst().entityType()).isEqualTo("BookDto");
+        assertThat(result.getContent().getFirst().user().id()).isEqualTo(alice.id());
+        assertThat(result.getContent().getFirst().user().name()).isEqualTo("alice");
+    }
 
-  @Test
-  void findByEntityTypeShouldDelegateAndMap() {
-    final AuditLogEntity entity = new AuditLogEntity();
-    entity.setEntityType("BookDto");
-    entity.setEntityId(UUID.randomUUID());
-    entity.setAction(AuditAction.INSERT);
-    entity.setUser(alice);
-    when(repository.findByEntityTypeOrderByCreatedAtDesc("BookDto", DEFAULT_PAGE))
-        .thenReturn(new PageImpl<>(List.of(entity)));
+    @Test
+    void findByUserShouldDelegateAndMap() {
+        final AuditLogEntity entity = new AuditLogEntity();
+        entity.setEntityType("UserDto");
+        entity.setEntityId(UUID.randomUUID());
+        entity.setAction(AuditAction.UPDATE);
+        entity.setUser(bob);
+        when(repository.findByUserIdOrderByCreatedAtDesc(bob.id(), DEFAULT_PAGE))
+                .thenReturn(new PageImpl<>(List.of(entity)));
 
-    final Page<AuditLogDto> result = service.findByEntityType("BookDto", DEFAULT_PAGE);
+        final Page<AuditLogDto> result = service.findByUser(bob.id(), DEFAULT_PAGE);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getContent().getFirst().entityType()).isEqualTo("BookDto");
-    assertThat(result.getContent().getFirst().user().id()).isEqualTo(alice.id());
-    assertThat(result.getContent().getFirst().user().name()).isEqualTo("alice");
-  }
+        assertThat(result).hasSize(1);
+        assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.UPDATE);
+        assertThat(result.getContent().getFirst().user().id()).isEqualTo(bob.id());
+    }
 
-  @Test
-  void findByUserShouldDelegateAndMap() {
-    final AuditLogEntity entity = new AuditLogEntity();
-    entity.setEntityType("UserDto");
-    entity.setEntityId(UUID.randomUUID());
-    entity.setAction(AuditAction.UPDATE);
-    entity.setUser(bob);
-    when(repository.findByUserIdOrderByCreatedAtDesc(bob.id(), DEFAULT_PAGE))
-        .thenReturn(new PageImpl<>(List.of(entity)));
+    @Test
+    void findByEntityTypeAndUserShouldDelegateAndMap() {
+        final AuditLogEntity entity = new AuditLogEntity();
+        entity.setEntityType("BookDto");
+        entity.setEntityId(UUID.randomUUID());
+        entity.setAction(AuditAction.DELETE);
+        entity.setUser(alice);
+        when(repository.findByEntityTypeAndUserIdOrderByCreatedAtDesc(
+                "BookDto", alice.id(), DEFAULT_PAGE))
+                .thenReturn(new PageImpl<>(List.of(entity)));
 
-    final Page<AuditLogDto> result = service.findByUser(bob.id(), DEFAULT_PAGE);
+        final Page<AuditLogDto> result =
+                service.findByEntityTypeAndUser("BookDto", alice.id(), DEFAULT_PAGE);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.UPDATE);
-    assertThat(result.getContent().getFirst().user().id()).isEqualTo(bob.id());
-  }
+        assertThat(result).hasSize(1);
+        assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.DELETE);
+    }
 
-  @Test
-  void findByEntityTypeAndUserShouldDelegateAndMap() {
-    final AuditLogEntity entity = new AuditLogEntity();
-    entity.setEntityType("BookDto");
-    entity.setEntityId(UUID.randomUUID());
-    entity.setAction(AuditAction.DELETE);
-    entity.setUser(alice);
-    when(repository.findByEntityTypeAndUserIdOrderByCreatedAtDesc(
-            "BookDto", alice.id(), DEFAULT_PAGE))
-        .thenReturn(new PageImpl<>(List.of(entity)));
+    @Test
+    void findByEntityTypeShouldReturnEmptyWhenNoMatches() {
+        when(repository.findByEntityTypeOrderByCreatedAtDesc("NoteDto", DEFAULT_PAGE))
+                .thenReturn(Page.empty());
 
-    final Page<AuditLogDto> result =
-        service.findByEntityTypeAndUser("BookDto", alice.id(), DEFAULT_PAGE);
+        assertThat(service.findByEntityType("NoteDto", DEFAULT_PAGE)).isEmpty();
+    }
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getContent().getFirst().action()).isEqualTo(AuditAction.DELETE);
-  }
+    @Test
+    void findersShouldRejectNull() {
+        assertThatThrownBy(() -> service.findByEntityType(null, DEFAULT_PAGE))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.findByUser(null, DEFAULT_PAGE))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.findByEntityTypeAndUser(null, alice.id(), DEFAULT_PAGE))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.findByEntityTypeAndUser("BookDto", null, DEFAULT_PAGE))
+                .isInstanceOf(NullPointerException.class);
+    }
 
-  @Test
-  void findByEntityTypeShouldReturnEmptyWhenNoMatches() {
-    when(repository.findByEntityTypeOrderByCreatedAtDesc("NoteDto", DEFAULT_PAGE))
-        .thenReturn(Page.empty());
-
-    assertThat(service.findByEntityType("NoteDto", DEFAULT_PAGE)).isEmpty();
-  }
-
-  @Test
-  void findersShouldRejectNull() {
-    assertThatThrownBy(() -> service.findByEntityType(null, DEFAULT_PAGE))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.findByUser(null, DEFAULT_PAGE))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.findByEntityTypeAndUser(null, alice.id(), DEFAULT_PAGE))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.findByEntityTypeAndUser("BookDto", null, DEFAULT_PAGE))
-        .isInstanceOf(NullPointerException.class);
-  }
-
-  @Test
-  void createEntryShouldRejectNull() {
-    assertThatThrownBy(
-            () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, alice))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.createEntry("BookDto", null, AuditAction.INSERT, alice))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> service.createEntry("BookDto", UUID.randomUUID(), null, alice))
-        .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(
-            () ->
-                service.createEntry(
-                    "BookDto", UUID.randomUUID(), AuditAction.INSERT, (UserEntity) null))
-        .isInstanceOf(NullPointerException.class);
-  }
+    @Test
+    void createEntryShouldRejectNull() {
+        assertThatThrownBy(
+                () -> service.createEntry(null, UUID.randomUUID(), AuditAction.INSERT, alice))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.createEntry("BookDto", null, AuditAction.INSERT, alice))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> service.createEntry("BookDto", UUID.randomUUID(), null, alice))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(
+                () ->
+                        service.createEntry(
+                                "BookDto", UUID.randomUUID(), AuditAction.INSERT, (UserEntity) null))
+                .isInstanceOf(NullPointerException.class);
+    }
 }

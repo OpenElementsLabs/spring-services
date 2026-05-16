@@ -1,7 +1,7 @@
 package com.openelements.spring.base.services.comment;
 
 import com.openelements.spring.base.data.WithId;
-import com.openelements.spring.base.security.user.UserDto;
+import com.openelements.spring.base.services.user.UserDto;
 
 import java.time.Instant;
 import java.util.UUID;
