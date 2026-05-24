@@ -21,7 +21,7 @@ public record ImageData(@NonNull byte[] data, @NonNull ImageType imageType) {
      * Maximum image size in bytes (2 MB). Used as the JPA column length for image fields and must
      * match the Spring multipart {@code max-file-size} configured in application.yml.
      */
-    public static final int MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+    public static final int MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
     public ImageData {
         Objects.requireNonNull(data, "data must not be null");
@@ -30,7 +30,7 @@ public record ImageData(@NonNull byte[] data, @NonNull ImageType imageType) {
             throw new IllegalArgumentException("data must not be empty");
         }
         if (data.length > MAX_IMAGE_SIZE) {
-            throw new IllegalArgumentException("File too large (max 2MB)");
+            throw new IllegalArgumentException("File too large (max 20 MB)");
         }
     }
 
