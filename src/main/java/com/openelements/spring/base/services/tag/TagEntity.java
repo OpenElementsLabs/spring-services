@@ -1,7 +1,7 @@
 package com.openelements.spring.base.services.tag;
 
 import com.openelements.spring.base.data.NameSupplier;
-import com.openelements.spring.base.services.audit.AbstractEntity;
+import com.openelements.spring.base.data.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

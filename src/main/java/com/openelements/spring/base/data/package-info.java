@@ -12,7 +12,7 @@
  *       DTOs implement {@link com.openelements.spring.base.data.WithId} so the generic service
  *       contract can identify them by {@link java.util.UUID}.
  *   <li><b>Entity layer</b> — JPA-managed persistence objects that extend {@link
- *       com.openelements.spring.base.services.audit.AbstractEntity}. The base class provides a generated
+ *       com.openelements.spring.base.data.AbstractEntity}. The base class provides a generated
  *       {@code UUID} identifier as well as {@code createdAt} / {@code updatedAt} audit timestamps
  *       managed by Hibernate.
  *   <li><b>Service layer</b> — implementations of {@link

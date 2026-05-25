@@ -1,7 +1,5 @@
-package com.openelements.spring.base.services.audit;
+package com.openelements.spring.base.data;
 
-import com.openelements.spring.base.data.DbEntity;
-import com.openelements.spring.base.services.apikey.ApiKeyEntity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -96,7 +94,7 @@ public abstract class AbstractEntity implements DbEntity {
     public boolean equals(final Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        return Objects.equals(id(), ((ApiKeyEntity) o).id());
+        return Objects.equals(id(), ((AbstractEntity) o).id());
     }
 
     @Override

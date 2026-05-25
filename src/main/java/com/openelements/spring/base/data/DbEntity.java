@@ -1,6 +1,5 @@
 package com.openelements.spring.base.data;
 
-import com.openelements.spring.base.services.audit.AbstractEntity;
 import org.jspecify.annotations.Nullable;
 
 import java.io.Serializable;

@@ -3,7 +3,7 @@ package com.openelements.spring.base.data;
 import com.openelements.spring.base.events.OnObjectCreate;
 import com.openelements.spring.base.events.OnObjectDelete;
 import com.openelements.spring.base.events.OnObjectUpdate;
-import com.openelements.spring.base.services.audit.AbstractEntity;
+import com.openelements.spring.base.data.AbstractEntity;
 import jakarta.persistence.Entity;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.DisplayName;

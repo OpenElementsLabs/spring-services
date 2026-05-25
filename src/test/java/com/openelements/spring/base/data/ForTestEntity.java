@@ -1,6 +1,6 @@
 package com.openelements.spring.base.data;
 
-import com.openelements.spring.base.services.audit.AbstractEntity;
+import com.openelements.spring.base.data.AbstractEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 

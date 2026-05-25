@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.audit;
 
+import com.openelements.spring.base.data.AbstractEntity;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserEntity;
 import jakarta.persistence.*;
