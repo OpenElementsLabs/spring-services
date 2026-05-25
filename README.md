@@ -73,6 +73,14 @@ meta-annotation.
 - **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
   synchronously inside the originating transaction; consumers opt into post-commit behaviour
   with `@TransactionalEventListener`.
+- **Search** — Meilisearch-backed full-text search via a thin `RestClient` wrapper
+  (`MeilisearchClient`). At startup the lib exchanges the master key for a scoped runtime key,
+  applies declarative per-index settings, and runs a full reindex: the application contributes one
+  `SearchIndexBootstrapStep` bean per index (streaming already-mapped documents) and an optional
+  `IndexSettings` / `ScopedKeySpec` bean. The lib never sees domain types. `Highlighter` turns
+  Meilisearch's `_formatted` output into HTML-safe highlighted fragments. An unreachable sidecar is
+  skipped with a warning, so the feature is inert until Meilisearch is available. Connection settings
+  bind from `openelements.meilisearch.*`.
 
 For per-package overviews, see the `package-info.java` files under
 `src/main/java/com/openelements/spring/base/`.
@@ -97,6 +105,7 @@ src/main/java/com/openelements/spring/base/
 │   └── user/                      — Local user mirror
 ├── services/
 │   ├── apikey/                    — API key data layer
+│   ├── search/                    — Meilisearch client, startup reindex, highlighter
 │   ├── settings/                  — Key/value settings
 │   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
 │   └── webhook/                   — Outbound webhook delivery

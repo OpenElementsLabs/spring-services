@@ -5,6 +5,7 @@ import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.comment.CommentConfig;
 import com.openelements.spring.base.services.email.EmailConfig;
+import com.openelements.spring.base.services.search.SearchConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.slack.SlackConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
@@ -40,6 +41,8 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link SlackConfig} — Slack messaging service for posting plain-text messages to channels.
  *   <li>{@link EmailConfig} — Email sending service for delivering plain-text emails via SMTP.
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
+ *   <li>{@link SearchConfig} — Meilisearch-backed full-text search: startup reindex, scoped keys,
+ *       and per-index settings.
  * </ul>
  */
 @Import({
@@ -53,7 +56,8 @@ import org.springframework.context.annotation.Import;
         EmailConfig.class,
         AuditConfig.class,
         CommentConfig.class,
-        LanguageConfig.class
+        LanguageConfig.class,
+        SearchConfig.class
 })
 public class FullSpringServiceConfig {
 }
