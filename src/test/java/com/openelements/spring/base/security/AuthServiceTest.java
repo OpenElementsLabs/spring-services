@@ -1,6 +1,11 @@
 package com.openelements.spring.base.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
+import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,290 +15,284 @@ import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.time.Instant;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 @DisplayName("AuthService")
 class AuthServiceTest {
 
-    private final AuthService authService = new AuthService();
+  private final AuthService authService = new AuthService();
 
-    @AfterEach
-    void clearSecurityContext() {
-        SecurityContextHolder.clearContext();
+  @AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
+  }
+
+  @Nested
+  @DisplayName("getAuthentication")
+  class GetAuthenticationTest {
+
+    @Test
+    void shouldReturnAuthenticationWhenPresent() {
+      // GIVEN
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken("user", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN & THEN
+      assertThat(authService.getAuthentication()).isSameAs(auth);
     }
 
-    @Nested
-    @DisplayName("getAuthentication")
-    class GetAuthenticationTest {
+    @Test
+    void shouldThrowWhenNoAuthentication() {
+      // GIVEN
+      SecurityContextHolder.clearContext();
 
-        @Test
-        void shouldReturnAuthenticationWhenPresent() {
-            // GIVEN
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken("user", "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
+      // WHEN & THEN
+      assertThatThrownBy(() -> authService.getAuthentication())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("No authentication found");
+    }
+  }
 
-            // WHEN & THEN
-            assertThat(authService.getAuthentication()).isSameAs(auth);
-        }
+  @Nested
+  @DisplayName("getPrincipalObject")
+  class GetPrincipalObjectTest {
 
-        @Test
-        void shouldThrowWhenNoAuthentication() {
-            // GIVEN
-            SecurityContextHolder.clearContext();
+    @Test
+    void shouldReturnPrincipal() {
+      // GIVEN
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken("user123", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
 
-            // WHEN & THEN
-            assertThatThrownBy(() -> authService.getAuthentication())
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No authentication found");
-        }
+      // WHEN
+      final Object principal = authService.getPrincipalObject();
+
+      // THEN
+      assertThat(principal).isEqualTo("user123");
+    }
+  }
+
+  @Nested
+  @DisplayName("getPrincipalJwt")
+  class GetPrincipalJwtTest {
+
+    @Test
+    void shouldReturnJwtWhenPrincipalIsJwt() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|123")
+              .claim("name", "Test User")
+              .claim("email", "test@example.com")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final Jwt result = authService.getPrincipalJwt();
+
+      // THEN
+      assertThat(result).isSameAs(jwt);
     }
 
-    @Nested
-    @DisplayName("getPrincipalObject")
-    class GetPrincipalObjectTest {
+    @Test
+    void shouldThrowWhenPrincipalIsNotJwt() {
+      // GIVEN
+      final TestingAuthenticationToken auth =
+          new TestingAuthenticationToken("stringPrincipal", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
 
-        @Test
-        void shouldReturnPrincipal() {
-            // GIVEN
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken("user123", "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
+      // WHEN & THEN
+      assertThatThrownBy(() -> authService.getPrincipalJwt())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Principal is not a JWT");
+    }
+  }
 
-            // WHEN
-            final Object principal = authService.getPrincipalObject();
+  @Nested
+  @DisplayName("getUserInformation")
+  class GetUserInformationTest {
 
-            // THEN
-            assertThat(principal).isEqualTo("user123");
-        }
+    @Test
+    void shouldExtractUserInformationFromJwt() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|456")
+              .claim("name", "Hendrik Ebbers")
+              .claim("email", "hendrik@example.com")
+              .claim("picture", "https://auth.example.com/avatar.jpg")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
+
+      // THEN
+      assertThat(info.id()).isEqualTo("auth0|456");
+      assertThat(info.name()).isEqualTo("Hendrik Ebbers");
+      assertThat(info.email()).isEqualTo("hendrik@example.com");
+      assertThat(info.avatarUrl()).isEqualTo("https://auth.example.com/avatar.jpg");
     }
 
-    @Nested
-    @DisplayName("getPrincipalJwt")
-    class GetPrincipalJwtTest {
+    @Test
+    void shouldReturnNullAvatarUrlWhenAvatarClaimMissing() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|789")
+              .claim("name", "No Avatar User")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
 
-        @Test
-        void shouldReturnJwtWhenPrincipalIsJwt() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("auth0|123")
-                            .claim("name", "Test User")
-                            .claim("email", "test@example.com")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
 
-            // WHEN
-            final Jwt result = authService.getPrincipalJwt();
-
-            // THEN
-            assertThat(result).isSameAs(jwt);
-        }
-
-        @Test
-        void shouldThrowWhenPrincipalIsNotJwt() {
-            // GIVEN
-            final TestingAuthenticationToken auth =
-                    new TestingAuthenticationToken("stringPrincipal", "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN & THEN
-            assertThatThrownBy(() -> authService.getPrincipalJwt())
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Principal is not a JWT");
-        }
+      // THEN
+      assertThat(info.avatarUrl()).isNull();
     }
 
-    @Nested
-    @DisplayName("getUserInformation")
-    class GetUserInformationTest {
+    @Test
+    void shouldReturnNullAvatarUrlWhenAvatarClaimIsBlank() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("auth0|blank")
+              .claim("picture", "   ")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
 
-        @Test
-        void shouldExtractUserInformationFromJwt() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("auth0|456")
-                            .claim("name", "Hendrik Ebbers")
-                            .claim("email", "hendrik@example.com")
-                            .claim("picture", "https://auth.example.com/avatar.jpg")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
 
-            // WHEN
-            final UserInformation info = authService.getUserInformation();
-
-            // THEN
-            assertThat(info.id()).isEqualTo("auth0|456");
-            assertThat(info.name()).isEqualTo("Hendrik Ebbers");
-            assertThat(info.email()).isEqualTo("hendrik@example.com");
-            assertThat(info.avatarUrl()).isEqualTo("https://auth.example.com/avatar.jpg");
-        }
-
-        @Test
-        void shouldReturnNullAvatarUrlWhenAvatarClaimMissing() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("auth0|789")
-                            .claim("name", "No Avatar User")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final UserInformation info = authService.getUserInformation();
-
-            // THEN
-            assertThat(info.avatarUrl()).isNull();
-        }
-
-        @Test
-        void shouldReturnNullAvatarUrlWhenAvatarClaimIsBlank() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("auth0|blank")
-                            .claim("picture", "   ")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final UserInformation info = authService.getUserInformation();
-
-            // THEN
-            assertThat(info.avatarUrl()).isNull();
-        }
-
-        @Test
-        void shouldThrowWhenSubjectIsBlank() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN & THEN
-            assertThatThrownBy(() -> authService.getUserInformation())
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No sub found");
-        }
-
-        @Test
-        @DisplayName("returns UNKNOWN user when principal is an ApiKeyEntity")
-        void shouldReturnUnknownUserForApiKeyPrincipal() {
-            // GIVEN
-            final ApiKeyEntity entity = new ApiKeyEntity();
-            entity.setId(UUID.randomUUID());
-            entity.setName("CRM key");
-            entity.setKeyHash("hash");
-            entity.setKeyPrefix("crm_test...1234");
-            entity.setCreatedBy("admin");
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(entity, null);
-            auth.setAuthenticated(true);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final UserInformation info = authService.getUserInformation();
-
-            // THEN
-            assertThat(info.id()).isEqualTo("UNKNOWN");
-            assertThat(info.name()).isEqualTo("UNKNOWN");
-            assertThat(info.email()).isNull();
-            assertThat(info.avatarUrl()).isNull();
-        }
-
-        @Test
-        @DisplayName("returns UNKNOWN user when principal is a String")
-        void shouldReturnUnknownUserForStringPrincipal() {
-            // GIVEN
-            final TestingAuthenticationToken auth =
-                    new TestingAuthenticationToken("string-principal", "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final UserInformation info = authService.getUserInformation();
-
-            // THEN
-            assertThat(info.id()).isEqualTo("UNKNOWN");
-            assertThat(info.name()).isEqualTo("UNKNOWN");
-            assertThat(info.email()).isNull();
-            assertThat(info.avatarUrl()).isNull();
-        }
+      // THEN
+      assertThat(info.avatarUrl()).isNull();
     }
 
-    @Nested
-    @DisplayName("getPrincipal")
-    class GetPrincipalTest {
+    @Test
+    void shouldThrowWhenSubjectIsBlank() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
 
-        @Test
-        void shouldReturnAuthenticatedPrincipalForJwt() {
-            // GIVEN
-            final Jwt jwt =
-                    Jwt.withTokenValue("token")
-                            .header("alg", "RS256")
-                            .subject("jwt-subject")
-                            .issuedAt(Instant.now())
-                            .expiresAt(Instant.now().plusSeconds(3600))
-                            .build();
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final AuthenticatedPrincipal principal = authService.getPrincipal();
-
-            // THEN
-            assertThat(principal.getName()).isEqualTo("jwt-subject");
-        }
-
-        @Test
-        void shouldReturnAuthenticatedPrincipalForStringPrincipal() {
-            // GIVEN
-            final TestingAuthenticationToken auth = new TestingAuthenticationToken("string-user", "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final AuthenticatedPrincipal principal = authService.getPrincipal();
-
-            // THEN
-            assertThat(principal.getName()).isEqualTo("string-user");
-        }
-
-        @Test
-        void shouldReturnAuthenticatedPrincipalDirectly() {
-            // GIVEN
-            final AuthenticatedPrincipal directPrincipal = () -> "direct-name";
-            final TestingAuthenticationToken auth =
-                    new TestingAuthenticationToken(directPrincipal, "pass");
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // WHEN
-            final AuthenticatedPrincipal result = authService.getPrincipal();
-
-            // THEN
-            assertThat(result.getName()).isEqualTo("direct-name");
-        }
+      // WHEN & THEN
+      assertThatThrownBy(() -> authService.getUserInformation())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("No sub found");
     }
+
+    @Test
+    @DisplayName("returns UNKNOWN user when principal is an ApiKeyEntity")
+    void shouldReturnUnknownUserForApiKeyPrincipal() {
+      // GIVEN
+      final ApiKeyEntity entity = new ApiKeyEntity();
+      entity.setId(UUID.randomUUID());
+      entity.setName("CRM key");
+      entity.setKeyHash("hash");
+      entity.setKeyPrefix("crm_test...1234");
+      entity.setCreatedBy("admin");
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(entity, null);
+      auth.setAuthenticated(true);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
+
+      // THEN
+      assertThat(info.id()).isEqualTo("UNKNOWN");
+      assertThat(info.name()).isEqualTo("UNKNOWN");
+      assertThat(info.email()).isNull();
+      assertThat(info.avatarUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("returns UNKNOWN user when principal is a String")
+    void shouldReturnUnknownUserForStringPrincipal() {
+      // GIVEN
+      final TestingAuthenticationToken auth =
+          new TestingAuthenticationToken("string-principal", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final UserInformation info = authService.getUserInformation();
+
+      // THEN
+      assertThat(info.id()).isEqualTo("UNKNOWN");
+      assertThat(info.name()).isEqualTo("UNKNOWN");
+      assertThat(info.email()).isNull();
+      assertThat(info.avatarUrl()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("getPrincipal")
+  class GetPrincipalTest {
+
+    @Test
+    void shouldReturnAuthenticatedPrincipalForJwt() {
+      // GIVEN
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("jwt-subject")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken(jwt, null);
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final AuthenticatedPrincipal principal = authService.getPrincipal();
+
+      // THEN
+      assertThat(principal.getName()).isEqualTo("jwt-subject");
+    }
+
+    @Test
+    void shouldReturnAuthenticatedPrincipalForStringPrincipal() {
+      // GIVEN
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken("string-user", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final AuthenticatedPrincipal principal = authService.getPrincipal();
+
+      // THEN
+      assertThat(principal.getName()).isEqualTo("string-user");
+    }
+
+    @Test
+    void shouldReturnAuthenticatedPrincipalDirectly() {
+      // GIVEN
+      final AuthenticatedPrincipal directPrincipal = () -> "direct-name";
+      final TestingAuthenticationToken auth =
+          new TestingAuthenticationToken(directPrincipal, "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      // WHEN
+      final AuthenticatedPrincipal result = authService.getPrincipal();
+
+      // THEN
+      assertThat(result.getName()).isEqualTo("direct-name");
+    }
+  }
 }

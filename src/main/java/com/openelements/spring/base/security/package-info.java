@@ -7,8 +7,8 @@
  * dedicated to a single authentication mechanism.
  *
  * <h2>Two-chain model</h2>
- * <p>
- * The {@link com.openelements.spring.base.security.SecurityConfig} configuration contributes two
+ *
+ * <p>The {@link com.openelements.spring.base.security.SecurityConfig} configuration contributes two
  * filter-chain beans:
  *
  * <ol>
@@ -32,8 +32,8 @@
  * than imperative inside the filter.
  *
  * <h2>Anonymous access</h2>
- * <p>
- * The default chain permits anonymous access to two categories of endpoints:
+ *
+ * <p>The default chain permits anonymous access to two categories of endpoints:
  *
  * <ul>
  *   <li>{@code /api/health/**} — for liveness/readiness probes.
@@ -41,9 +41,9 @@
  *       OpenAPI documentation UI.
  * </ul>
  *
- * <p>CSRF protection is disabled on both chains: the platform exposes a stateless REST API
- * consumed by external clients (browsers using bearer tokens, scripts using API keys,
- * server-to-server calls). No HTTP session is used.
+ * <p>CSRF protection is disabled on both chains: the platform exposes a stateless REST API consumed
+ * by external clients (browsers using bearer tokens, scripts using API keys, server-to-server
+ * calls). No HTTP session is used.
  *
  * <h2>Authentication mechanisms</h2>
  *
@@ -72,10 +72,10 @@
  *             read-only HTTP-method restriction.
  *       </ul>
  * </ul>
- * <p>
- * Keys are issued through {@link
+ *
+ * <p>Keys are issued through {@link
  * com.openelements.spring.base.services.apikey.ApiKeyDataService#create(
- *com.openelements.spring.base.services.apikey.ApiKeyCreateDto)}: a cryptographically strong random
+ * com.openelements.spring.base.services.apikey.ApiKeyCreateDto)}: a cryptographically strong random
  * value (prefix {@code crm_} plus 48 random alphanumeric characters generated via {@link
  * java.security.SecureRandom}) is returned to the caller exactly once. Only its SHA-256 hash and a
  * short display prefix (e.g. {@code crm_AbCd...wXyZ}) are persisted, so a leaked database snapshot
@@ -100,8 +100,8 @@
  * </ul>
  *
  * <h2>Helper services</h2>
- * <p>
- * Application code rarely interacts with Spring Security directly. Two services in this package
+ *
+ * <p>Application code rarely interacts with Spring Security directly. Two services in this package
  * encapsulate the most common needs:
  *
  * <ul>

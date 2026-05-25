@@ -21,5 +21,4 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAutoConfiguration
 @EnableScheduling
 @Import(UserConfig.class)
-public class AuditConfig {
-}
+public class AuditConfig {}

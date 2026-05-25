@@ -17,8 +17,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 @DisplayName("SecurityConfig JWT Role Mapping")
 class SecurityConfigRoleTest {
 
-  private final SecurityConfig securityConfig =
-      new SecurityConfig(mock(ApiKeyDataService.class));
+  private final SecurityConfig securityConfig = new SecurityConfig(mock(ApiKeyDataService.class));
   private final JwtAuthenticationConverter jwtAuthenticationConverter =
       securityConfig.jwtAuthenticationConverter();
 

@@ -1,12 +1,11 @@
 package com.openelements.spring.base.data;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * Mapped superclass that all JPA entities in the platform should extend.
@@ -43,62 +42,60 @@ import java.util.UUID;
 @MappedSuperclass
 public abstract class AbstractEntity implements DbEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "id", updatable = false, nullable = false)
+  private UUID id;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private Instant createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
 
-    /**
-     * {@inheritDoc}
-     *
-     * @return the entity id, or {@code null} if the entity has not been persisted yet
-     */
-    public UUID getId() {
-        return id;
-    }
+  /**
+   * {@inheritDoc}
+   *
+   * @return the entity id, or {@code null} if the entity has not been persisted yet
+   */
+  public UUID getId() {
+    return id;
+  }
 
-    /**
-     * {@inheritDoc}
-     */
-    public void setId(final UUID id) {
-        this.id = id;
-    }
+  /** {@inheritDoc} */
+  public void setId(final UUID id) {
+    this.id = id;
+  }
 
-    /**
-     * Returns the moment at which this entity was first persisted.
-     *
-     * @return the creation timestamp, or {@code null} if the entity has not been persisted yet
-     */
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
+  /**
+   * Returns the moment at which this entity was first persisted.
+   *
+   * @return the creation timestamp, or {@code null} if the entity has not been persisted yet
+   */
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
 
-    /**
-     * Returns the moment of the most recent update to this entity.
-     *
-     * @return the update timestamp, or {@code null} if the entity has not been persisted yet
-     */
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
+  /**
+   * Returns the moment of the most recent update to this entity.
+   *
+   * @return the update timestamp, or {@code null} if the entity has not been persisted yet
+   */
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
 
-    @Override
-    public boolean equals(final Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        return Objects.equals(id(), ((AbstractEntity) o).id());
-    }
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    return Objects.equals(id(), ((AbstractEntity) o).id());
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id());
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(id());
+  }
 }

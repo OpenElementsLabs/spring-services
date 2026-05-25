@@ -3,8 +3,8 @@
  * platform.
  *
  * <h2>Overview</h2>
- * <p>
- * This package defines the core abstractions every data-driven service in the platform builds on
+ *
+ * <p>This package defines the core abstractions every data-driven service in the platform builds on
  * top of. It separates three responsibilities so they can evolve independently:
  *
  * <ul>
@@ -23,8 +23,8 @@
  * </ul>
  *
  * <h2>Lifecycle events</h2>
- * <p>
- * Every successful {@code save} or {@code delete} performed through {@link
+ *
+ * <p>Every successful {@code save} or {@code delete} performed through {@link
  * com.openelements.spring.base.data.AbstractDbBackedDataService} publishes a Spring {@link
  * org.springframework.context.ApplicationEvent}:
  *
@@ -36,13 +36,13 @@
  *   <li>{@link com.openelements.spring.base.events.OnObjectDelete} — published after an entity has
  *       been removed.
  * </ul>
- * <p>
- * Subclasses can hook in by overriding the {@code preSave}, {@code postSave}, {@code preDelete} and
- * {@code postDelete} template methods.
+ *
+ * <p>Subclasses can hook in by overriding the {@code preSave}, {@code postSave}, {@code preDelete}
+ * and {@code postDelete} template methods.
  *
  * <h2>Example: implementing a data service for a {@code Book} domain object</h2>
- * <p>
- * The recommended layout is one entity, one repository, one DTO, and one service per domain
+ *
+ * <p>The recommended layout is one entity, one repository, one DTO, and one service per domain
  * concept. The example below shows the minimum boilerplate required to participate in the
  * platform's data infrastructure.
  *
@@ -76,8 +76,8 @@
  * }</pre>
  *
  * <h3>3. DTO</h3>
- * <p>
- * The DTO is intentionally a plain transport object with no knowledge of the entity. The mapping
+ *
+ * <p>The DTO is intentionally a plain transport object with no knowledge of the entity. The mapping
  * lives in the service (see {@code toData} below), so the API contract can evolve independently of
  * the persistence model.
  *
@@ -131,8 +131,8 @@
  * }</pre>
  *
  * <h2>Tenant-aware variants</h2>
- * <p>
- * For multi-tenant services, see {@link com.openelements.spring.base.tenant} which provides the
+ *
+ * <p>For multi-tenant services, see {@link com.openelements.spring.base.tenant} which provides the
  * tenant-scoped counterparts of the abstractions defined here.
  */
 package com.openelements.spring.base.data;

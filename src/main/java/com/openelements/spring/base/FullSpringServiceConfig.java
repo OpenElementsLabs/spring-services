@@ -46,18 +46,17 @@ import org.springframework.context.annotation.Import;
  * </ul>
  */
 @Import({
-        SecurityConfig.class,
-        TenantConfig.class,
-        ApiKeyConfig.class,
-        SettingsConfig.class,
-        TagConfig.class,
-        WebhookConfig.class,
-        SlackConfig.class,
-        EmailConfig.class,
-        AuditConfig.class,
-        CommentConfig.class,
-        LanguageConfig.class,
-        SearchConfig.class
+  SecurityConfig.class,
+  TenantConfig.class,
+  ApiKeyConfig.class,
+  SettingsConfig.class,
+  TagConfig.class,
+  WebhookConfig.class,
+  SlackConfig.class,
+  EmailConfig.class,
+  AuditConfig.class,
+  CommentConfig.class,
+  LanguageConfig.class,
+  SearchConfig.class
 })
-public class FullSpringServiceConfig {
-}
+public class FullSpringServiceConfig {}

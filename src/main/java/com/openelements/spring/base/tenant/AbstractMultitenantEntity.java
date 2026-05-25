@@ -20,32 +20,32 @@ import jakarta.persistence.PreUpdate;
  */
 @MappedSuperclass
 public class AbstractMultitenantEntity extends AbstractEntity
-        implements EntityWithMultitenantSupport {
+    implements EntityWithMultitenantSupport {
 
-    @Column(nullable = false)
-    private String tenantId;
+  @Column(nullable = false)
+  private String tenantId;
 
-    @Override
-    public String getTenantId() {
-        return tenantId;
+  @Override
+  public String getTenantId() {
+    return tenantId;
+  }
+
+  @Override
+  public void setTenantId(String tenantId) {
+    this.tenantId = tenantId;
+  }
+
+  /**
+   * JPA lifecycle callback that aborts an insert or update if the tenant id is missing. Declared
+   * {@code final} so subclasses cannot accidentally bypass the check.
+   *
+   * @throws IllegalStateException if {@code tenantId} is {@code null}
+   */
+  @PrePersist
+  @PreUpdate
+  public final void checkTenant() {
+    if (tenantId == null) {
+      throw new IllegalStateException("Tenant ID must be set before persisting");
     }
-
-    @Override
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
-
-    /**
-     * JPA lifecycle callback that aborts an insert or update if the tenant id is missing. Declared
-     * {@code final} so subclasses cannot accidentally bypass the check.
-     *
-     * @throws IllegalStateException if {@code tenantId} is {@code null}
-     */
-    @PrePersist
-    @PreUpdate
-    public final void checkTenant() {
-        if (tenantId == null) {
-            throw new IllegalStateException("Tenant ID must be set before persisting");
-        }
-    }
+  }
 }

@@ -1,15 +1,14 @@
 package com.openelements.spring.base.services.user;
 
-import com.openelements.spring.base.data.NameSupplier;
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.NameSupplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
 import java.util.Objects;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * Local mirror of an OAuth2-authenticated user.
@@ -28,83 +27,82 @@ import java.util.Objects;
 @BatchSize(size = 50)
 public class UserEntity extends AbstractEntity {
 
-    @Column(name = "sub", nullable = false, unique = true, length = 255)
-    private String sub;
+  @Column(name = "sub", nullable = false, unique = true, length = 255)
+  private String sub;
 
-    @Column(name = "name", nullable = false, length = 255)
-    private String name;
+  @Column(name = "name", nullable = false, length = 255)
+  private String name;
 
-    @Column(name = "email", length = 255)
-    private String email;
+  @Column(name = "email", length = 255)
+  private String email;
 
-    @Column(name = "avatar_url", length = 2048)
-    private String avatarUrl;
+  @Column(name = "avatar_url", length = 2048)
+  private String avatarUrl;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
 
-    public UserEntity() {
-    }
+  public UserEntity() {}
 
-    /**
-     * Returns the OAuth2 subject identifier ({@code sub} claim) of this user.
-     *
-     * @return the subject identifier, never {@code null} for persisted entities
-     */
-    public String getSub() {
-        return sub;
-    }
+  /**
+   * Returns the OAuth2 subject identifier ({@code sub} claim) of this user.
+   *
+   * @return the subject identifier, never {@code null} for persisted entities
+   */
+  public String getSub() {
+    return sub;
+  }
 
-    public void setSub(final String sub) {
-        Objects.requireNonNull(sub, "sub must not be null");
-        this.sub = sub;
-    }
+  public void setSub(final String sub) {
+    Objects.requireNonNull(sub, "sub must not be null");
+    this.sub = sub;
+  }
 
-    /**
-     * Returns the cached display name of the user, kept in sync with the JWT {@code name} claim by
-     * {@link UserService}.
-     */
-    @NameSupplier
-    public String getName() {
-        return name;
-    }
+  /**
+   * Returns the cached display name of the user, kept in sync with the JWT {@code name} claim by
+   * {@link UserService}.
+   */
+  @NameSupplier
+  public String getName() {
+    return name;
+  }
 
-    public void setName(final String name) {
-        Objects.requireNonNull(name, "name must not be null");
-        this.name = name;
-    }
+  public void setName(final String name) {
+    Objects.requireNonNull(name, "name must not be null");
+    this.name = name;
+  }
 
-    /**
-     * Returns the cached email address of the user, kept in sync with the JWT {@code email} claim by
-     * {@link UserService}. May be {@code null} if the identity provider does not assert it.
-     */
-    public String getEmail() {
-        return email;
-    }
+  /**
+   * Returns the cached email address of the user, kept in sync with the JWT {@code email} claim by
+   * {@link UserService}. May be {@code null} if the identity provider does not assert it.
+   */
+  public String getEmail() {
+    return email;
+  }
 
-    public void setEmail(final String email) {
-        this.email = email;
-    }
+  public void setEmail(final String email) {
+    this.email = email;
+  }
 
-    /**
-     * Returns the avatar URL of the user, kept in sync with the JWT {@code avatar} claim by {@link
-     * UserService}. May be {@code null} if the identity provider does not assert it.
-     */
-    public String getAvatarUrl() {
-        return avatarUrl;
-    }
+  /**
+   * Returns the avatar URL of the user, kept in sync with the JWT {@code avatar} claim by {@link
+   * UserService}. May be {@code null} if the identity provider does not assert it.
+   */
+  public String getAvatarUrl() {
+    return avatarUrl;
+  }
 
-    public void setAvatarUrl(final String avatarUrl) {
-        this.avatarUrl = avatarUrl;
-    }
+  public void setAvatarUrl(final String avatarUrl) {
+    this.avatarUrl = avatarUrl;
+  }
 
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
 
-    @Override
-    public String toString() {
-        return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
-    }
+  @Override
+  public String toString() {
+    return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
+  }
 }

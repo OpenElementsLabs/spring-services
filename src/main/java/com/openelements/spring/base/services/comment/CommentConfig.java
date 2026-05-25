@@ -12,5 +12,4 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @EnableAutoConfiguration
 @Import(UserConfig.class)
-public class CommentConfig {
-}
+public class CommentConfig {}

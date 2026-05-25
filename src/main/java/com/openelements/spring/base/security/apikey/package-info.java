@@ -6,8 +6,8 @@
  * authentication adapter: it validates the {@code X-API-Key} header against {@link
  * com.openelements.spring.base.services.apikey.ApiKeyDataService} and populates the security
  * context with an {@code ApiKeyAuthentication} carrying {@code ROLE_API_KEY}. HTTP-method
- * authorization (the read-only restriction for API-key requests) is configured declaratively on
- * the external API filter chain in {@link
+ * authorization (the read-only restriction for API-key requests) is configured declaratively on the
+ * external API filter chain in {@link
  * com.openelements.spring.base.security.SecurityConfig#externalApiFilterChain} and is not the
  * filter's responsibility.
  *

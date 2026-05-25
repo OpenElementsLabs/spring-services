@@ -11,23 +11,23 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "open-elements.email")
 public class EmailProperties {
 
-    private String from;
+  private String from;
 
-    private String fromName;
+  private String fromName;
 
-    public String getFrom() {
-        return from;
-    }
+  public String getFrom() {
+    return from;
+  }
 
-    public void setFrom(final String from) {
-        this.from = from;
-    }
+  public void setFrom(final String from) {
+    this.from = from;
+  }
 
-    public String getFromName() {
-        return fromName;
-    }
+  public String getFromName() {
+    return fromName;
+  }
 
-    public void setFromName(final String fromName) {
-        this.fromName = fromName;
-    }
+  public void setFromName(final String fromName) {
+    this.fromName = fromName;
+  }
 }

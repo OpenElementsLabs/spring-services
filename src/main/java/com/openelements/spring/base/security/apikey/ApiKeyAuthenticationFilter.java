@@ -21,22 +21,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>Registered exclusively on the external API filter chain by {@link
  * com.openelements.spring.base.security.SecurityConfig}, ahead of Spring Security's standard {@link
  * org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter}
- * anchor. This filter is <b>not</b> annotated with {@code @Component} — it must not be auto-registered
- * as a servlet-level filter, because that would cause it to run on the JWT chain too and break the
- * strict isolation between the two chains.
+ * anchor. This filter is <b>not</b> annotated with {@code @Component} — it must not be
+ * auto-registered as a servlet-level filter, because that would cause it to run on the JWT chain
+ * too and break the strict isolation between the two chains.
  *
  * <h2>Behaviour</h2>
  *
  * <ol>
  *   <li>If the {@code X-API-Key} header is <b>absent</b>, the filter does nothing and forwards the
- *       request — chain-level authorization rules will reject the request if no other authentication
- *       is supplied.
+ *       request — chain-level authorization rules will reject the request if no other
+ *       authentication is supplied.
  *   <li>If the header is <b>present</b>, the raw key is hashed (SHA-256) and looked up via {@link
  *       ApiKeyDataService#authenticate(String)}.
  *       <ul>
  *         <li>Unknown key → respond {@code 401 Unauthorized} with a JSON error body and abort.
- *         <li>Known key → place an {@link ApiKeyAuthentication} token (with the {@code ROLE_API_KEY}
- *             authority) into the security context and continue.
+ *         <li>Known key → place an {@link ApiKeyAuthentication} token (with the {@code
+ *             ROLE_API_KEY} authority) into the security context and continue.
  *       </ul>
  * </ol>
  *

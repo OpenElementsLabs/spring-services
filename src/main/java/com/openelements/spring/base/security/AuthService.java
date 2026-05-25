@@ -35,130 +35,130 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
 
-    /**
-     * Returns the {@link Authentication} of the current request.
-     *
-     * @return the current authentication, never {@code null}
-     * @throws IllegalStateException if there is no authentication in the security context
-     */
-    @NonNull
-    public Authentication getAuthentication() {
-        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            throw new IllegalStateException("No authentication found");
-        }
-        return authentication;
+  /**
+   * Returns the {@link Authentication} of the current request.
+   *
+   * @return the current authentication, never {@code null}
+   * @throws IllegalStateException if there is no authentication in the security context
+   */
+  @NonNull
+  public Authentication getAuthentication() {
+    final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null) {
+      throw new IllegalStateException("No authentication found");
     }
+    return authentication;
+  }
 
-    /**
-     * Returns the raw principal of the current authentication.
-     *
-     * <p>The concrete type depends on the authentication mechanism: a {@link Jwt} for bearer-token
-     * requests, an {@code ApiKeyEntity} for API-key requests, or a {@link String} for primitive
-     * authentication tokens.
-     *
-     * @return the raw principal, never {@code null}
-     * @throws IllegalStateException if no principal is associated with the current authentication
-     */
-    @NonNull
-    public Object getPrincipalObject() {
-        final Object principal = getAuthentication().getPrincipal();
-        if (principal == null) {
-            throw new IllegalStateException("No principal found");
-        }
-        return principal;
+  /**
+   * Returns the raw principal of the current authentication.
+   *
+   * <p>The concrete type depends on the authentication mechanism: a {@link Jwt} for bearer-token
+   * requests, an {@code ApiKeyEntity} for API-key requests, or a {@link String} for primitive
+   * authentication tokens.
+   *
+   * @return the raw principal, never {@code null}
+   * @throws IllegalStateException if no principal is associated with the current authentication
+   */
+  @NonNull
+  public Object getPrincipalObject() {
+    final Object principal = getAuthentication().getPrincipal();
+    if (principal == null) {
+      throw new IllegalStateException("No principal found");
     }
+    return principal;
+  }
 
-    /**
-     * Returns the JWT principal of the current authentication.
-     *
-     * <p>Use this when the caller is certain the request was authenticated via OAuth2 (e.g. an
-     * endpoint that is not reachable through API keys).
-     *
-     * @return the JWT principal, never {@code null}
-     * @throws IllegalStateException if the request was not authenticated via JWT
-     */
-    @NonNull
-    public Jwt getPrincipalJwt() {
-        final Object principal = getPrincipalObject();
-        if (principal == null) {
-            throw new IllegalStateException("No principal found");
-        }
-        if (principal instanceof Jwt jwt) {
-            return jwt;
-        }
-        throw new IllegalStateException("Principal is not a JWT");
+  /**
+   * Returns the JWT principal of the current authentication.
+   *
+   * <p>Use this when the caller is certain the request was authenticated via OAuth2 (e.g. an
+   * endpoint that is not reachable through API keys).
+   *
+   * @return the JWT principal, never {@code null}
+   * @throws IllegalStateException if the request was not authenticated via JWT
+   */
+  @NonNull
+  public Jwt getPrincipalJwt() {
+    final Object principal = getPrincipalObject();
+    if (principal == null) {
+      throw new IllegalStateException("No principal found");
     }
+    if (principal instanceof Jwt jwt) {
+      return jwt;
+    }
+    throw new IllegalStateException("Principal is not a JWT");
+  }
 
-    /**
-     * Returns a typed view of the user information for the current request.
-     *
-     * <p>For JWT-authenticated requests, claims are extracted from the bearer token: the {@code sub}
-     * claim is required and validated; {@code name}, {@code email}, and {@code picture} may be
-     * {@code null} depending on the identity provider's configuration. The {@code picture} claim is
-     * normalised: an absent or blank value is exposed as {@code null}.
-     *
-     * <p>For non-JWT principals — typically API-key authenticated requests, where the principal is
-     * an {@code ApiKeyEntity} — a static {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)}
-     * is returned. API keys are not currently associated with a specific user.
-     *
-     * @return the user information, never {@code null}
-     * @throws IllegalStateException if the principal is a JWT without a {@code sub} claim
-     */
-    @NonNull
-    public UserInformation getUserInformation() {
-        final Object principal = getPrincipalObject();
-        if (principal instanceof Jwt jwt) {
-            final String sub = jwt.getSubject();
-            if (sub == null || sub.isBlank()) {
-                throw new IllegalStateException("No sub found");
-            }
-            final String picture = jwt.getClaimAsString("picture");
-            final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
-            return new UserInformation(
-                    sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
-        }
-        return new UserInformation("UNKNOWN", "UNKNOWN", null, null);
+  /**
+   * Returns a typed view of the user information for the current request.
+   *
+   * <p>For JWT-authenticated requests, claims are extracted from the bearer token: the {@code sub}
+   * claim is required and validated; {@code name}, {@code email}, and {@code picture} may be {@code
+   * null} depending on the identity provider's configuration. The {@code picture} claim is
+   * normalised: an absent or blank value is exposed as {@code null}.
+   *
+   * <p>For non-JWT principals — typically API-key authenticated requests, where the principal is an
+   * {@code ApiKeyEntity} — a static {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)} is
+   * returned. API keys are not currently associated with a specific user.
+   *
+   * @return the user information, never {@code null}
+   * @throws IllegalStateException if the principal is a JWT without a {@code sub} claim
+   */
+  @NonNull
+  public UserInformation getUserInformation() {
+    final Object principal = getPrincipalObject();
+    if (principal instanceof Jwt jwt) {
+      final String sub = jwt.getSubject();
+      if (sub == null || sub.isBlank()) {
+        throw new IllegalStateException("No sub found");
+      }
+      final String picture = jwt.getClaimAsString("picture");
+      final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
+      return new UserInformation(
+          sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
     }
+    return new UserInformation("UNKNOWN", "UNKNOWN", null, null);
+  }
 
-    /**
-     * Returns the principal of the current authentication adapted to {@link AuthenticatedPrincipal}.
-     *
-     * <p>Provides a uniform abstraction across the supported authentication types:
-     *
-     * <ul>
-     *   <li>An {@link AuthenticatedPrincipal} is returned as-is.
-     *   <li>A {@link String} principal is wrapped in an ad-hoc {@link AuthenticatedPrincipal} whose
-     *       {@code getName()} returns that string.
-     *   <li>A {@link Jwt} principal is wrapped so that {@code getName()} returns the {@code sub}
-     *       claim.
-     * </ul>
-     *
-     * @return the principal as an {@link AuthenticatedPrincipal}, never {@code null}
-     * @throws IllegalStateException if the principal type is none of the above
-     */
-    @NonNull
-    public AuthenticatedPrincipal getPrincipal() {
-        final Object principal = getPrincipalObject();
-        if (principal instanceof AuthenticatedPrincipal userPrincipal) {
-            return userPrincipal;
-        }
-        if (principal instanceof String id) {
-            return new AuthenticatedPrincipal() {
-                @Override
-                public String getName() {
-                    return id;
-                }
-            };
-        }
-        if (principal instanceof Jwt jwt) {
-            return new AuthenticatedPrincipal() {
-                @Override
-                public String getName() {
-                    return jwt.getSubject();
-                }
-            };
-        }
-        throw new IllegalStateException("Principal can not be defined");
+  /**
+   * Returns the principal of the current authentication adapted to {@link AuthenticatedPrincipal}.
+   *
+   * <p>Provides a uniform abstraction across the supported authentication types:
+   *
+   * <ul>
+   *   <li>An {@link AuthenticatedPrincipal} is returned as-is.
+   *   <li>A {@link String} principal is wrapped in an ad-hoc {@link AuthenticatedPrincipal} whose
+   *       {@code getName()} returns that string.
+   *   <li>A {@link Jwt} principal is wrapped so that {@code getName()} returns the {@code sub}
+   *       claim.
+   * </ul>
+   *
+   * @return the principal as an {@link AuthenticatedPrincipal}, never {@code null}
+   * @throws IllegalStateException if the principal type is none of the above
+   */
+  @NonNull
+  public AuthenticatedPrincipal getPrincipal() {
+    final Object principal = getPrincipalObject();
+    if (principal instanceof AuthenticatedPrincipal userPrincipal) {
+      return userPrincipal;
     }
+    if (principal instanceof String id) {
+      return new AuthenticatedPrincipal() {
+        @Override
+        public String getName() {
+          return id;
+        }
+      };
+    }
+    if (principal instanceof Jwt jwt) {
+      return new AuthenticatedPrincipal() {
+        @Override
+        public String getName() {
+          return jwt.getSubject();
+        }
+      };
+    }
+    throw new IllegalStateException("Principal can not be defined");
+  }
 }
