@@ -18,7 +18,7 @@ import java.util.Objects;
 public record ImageData(@NonNull byte[] data, @NonNull ImageType imageType) {
 
     /**
-     * Maximum image size in bytes (2 MB). Used as the JPA column length for image fields and must
+     * Maximum image size in bytes (20 MB). Used as the JPA column length for image fields and must
      * match the Spring multipart {@code max-file-size} configured in application.yml.
      */
     public static final int MAX_IMAGE_SIZE = 20 * 1024 * 1024;
