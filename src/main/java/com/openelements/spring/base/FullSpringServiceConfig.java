@@ -4,6 +4,7 @@ import com.openelements.spring.base.security.SecurityConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.comment.CommentConfig;
+import com.openelements.spring.base.services.dbbackup.DbBackupConfig;
 import com.openelements.spring.base.services.email.EmailConfig;
 import com.openelements.spring.base.services.search.SearchConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
@@ -43,6 +44,8 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
  *   <li>{@link SearchConfig} — Meilisearch-backed full-text search: startup reindex, scoped keys,
  *       and per-index settings.
+ *   <li>{@link DbBackupConfig} — Client for the db-backup-service sidecar: trigger backups, poll
+ *       job status, list and stream backup artefacts.
  * </ul>
  */
 @Import({
@@ -57,6 +60,7 @@ import org.springframework.context.annotation.Import;
   AuditConfig.class,
   CommentConfig.class,
   LanguageConfig.class,
-  SearchConfig.class
+  SearchConfig.class,
+  DbBackupConfig.class
 })
 public class FullSpringServiceConfig {}
