@@ -11,4 +11,5 @@
 | 007 | 007-spring-boot-3.5-upgrade      | Spring Boot 3.5 upgrade      | build, testing, infrastructure  | Upgrade Spring Boot 3.3.2 → 3.5.14 and pin Testcontainers 2.0.5 to fix integration tests on Docker Engine 29+                               | #13          | done   |
 | 008 | 008-audit-log-user-fk            | Audit log user FK            | backend, database, security     | Replace AuditLogEntity.userName String with ManyToOne to UserEntity; bootstrap a System User with reserved nil UUID                         | #16          | done   |
 | 009 | 009-comment-author-association   | Comment author association   | backend, database, api          | Replace CommentEntity.authorId String with @ManyToOne UserEntity association — adds FK, removes N+1, renames column to author_id (breaking) | #14          | done   |
+| 010 | 010-personal-access-tokens       | Personal Access Tokens       | backend, security, database     | Persist user roles via JIT-sync from JWT and add user-bound Personal Access Tokens that carry the owner's roles for non-interactive API access | —            | open   |
 

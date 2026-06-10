@@ -9,6 +9,10 @@
 - Eigenes DB Schema mit Flyway für jedes Modul.
   Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
 - ApiKeyDataService.KEY_PREFIX soll konfigurierbar sein (je app)
+- SCIM 2.0 Provider support: Endpoints für User/Group-Sync von Authentik bereitstellen, damit User- und
+  Gruppenänderungen aus Authentik aktiv in den lokalen Store gepusht werden. Hintergrund: user-gebundene API-Tokens
+  (PATs) brauchen aktuelle Permission-Daten. Erster Schritt ist JIT-Sync beim OIDC-Login; SCIM ist der saubere
+  zentrale Kanal, sobald mehrere Services denselben User-State brauchen.
 
 Fragen zur Nutzung des Moduls die wir uns genau anschauen müssen:
 
