@@ -10,13 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit test for {@link SettingsDataService}.
- *
- * <p>Note: Integration test with real DB is not possible because {@link SettingsRepository}
- * declares {@code String} as ID type while {@link SettingsEntity} inherits {@code UUID} from {@code
- * AbstractEntity}. This type mismatch causes {@code InvalidDataAccessApiUsageException} at runtime.
- */
+/** Unit test for {@link SettingsDataService}. */
 @DisplayName("SettingsDataService")
 class SettingsDataServiceTest {
 
@@ -34,7 +28,7 @@ class SettingsDataServiceTest {
       final SettingsEntity entity = new SettingsEntity();
       entity.setKey("app.name");
       entity.setValue("TestApp");
-      when(settingsRepository.findById("app.name")).thenReturn(Optional.of(entity));
+      when(settingsRepository.findByKey("app.name")).thenReturn(Optional.of(entity));
 
       // WHEN
       final Optional<String> result = settingsDataService.get("app.name");
@@ -46,7 +40,7 @@ class SettingsDataServiceTest {
     @Test
     void shouldReturnEmptyWhenKeyDoesNotExist() {
       // GIVEN
-      when(settingsRepository.findById("nonexistent")).thenReturn(Optional.empty());
+      when(settingsRepository.findByKey("nonexistent")).thenReturn(Optional.empty());
 
       // WHEN
       final Optional<String> result = settingsDataService.get("nonexistent");
@@ -69,7 +63,7 @@ class SettingsDataServiceTest {
     @Test
     void shouldCreateNewSettingWhenKeyDoesNotExist() {
       // GIVEN
-      when(settingsRepository.findById("new.key")).thenReturn(Optional.empty());
+      when(settingsRepository.findByKey("new.key")).thenReturn(Optional.empty());
       when(settingsRepository.saveAndFlush(any(SettingsEntity.class)))
           .thenAnswer(i -> i.getArgument(0));
 
@@ -90,7 +84,7 @@ class SettingsDataServiceTest {
       final SettingsEntity existing = new SettingsEntity();
       existing.setKey("existing.key");
       existing.setValue("old.value");
-      when(settingsRepository.findById("existing.key")).thenReturn(Optional.of(existing));
+      when(settingsRepository.findByKey("existing.key")).thenReturn(Optional.of(existing));
       when(settingsRepository.saveAndFlush(any(SettingsEntity.class)))
           .thenAnswer(i -> i.getArgument(0));
 
@@ -125,7 +119,7 @@ class SettingsDataServiceTest {
       settingsDataService.delete("to.delete");
 
       // THEN
-      verify(settingsRepository).deleteById("to.delete");
+      verify(settingsRepository).deleteByKey("to.delete");
     }
 
     @Test
