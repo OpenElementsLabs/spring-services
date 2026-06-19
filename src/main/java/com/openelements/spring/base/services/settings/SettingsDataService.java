@@ -26,7 +26,7 @@ public class SettingsDataService {
   @Transactional(readOnly = true)
   public Optional<String> get(final String key) {
     Objects.requireNonNull(key, "key must not be null");
-    return settingsRepository.findById(key).map(SettingsEntity::getValue);
+    return settingsRepository.findByKey(key).map(SettingsEntity::getValue);
   }
 
   /**
@@ -40,7 +40,7 @@ public class SettingsDataService {
     Objects.requireNonNull(value, "value must not be null");
     final SettingsEntity entity =
         settingsRepository
-            .findById(key)
+            .findByKey(key)
             .orElseGet(
                 () -> {
                   final SettingsEntity e = new SettingsEntity();
@@ -58,6 +58,6 @@ public class SettingsDataService {
    */
   public void delete(final String key) {
     Objects.requireNonNull(key, "key must not be null");
-    settingsRepository.deleteById(key);
+    settingsRepository.deleteByKey(key);
   }
 }
