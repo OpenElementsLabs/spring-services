@@ -4,7 +4,7 @@
 
     <groupId>com.open-elements</groupId>
     <artifactId>spring-services</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <name>Spring Services</name>
     <description>Spring Boot service utilities by Open Elements</description>
