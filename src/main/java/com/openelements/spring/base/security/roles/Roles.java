@@ -3,6 +3,8 @@ package com.openelements.spring.base.security.roles;
 /** Predefined roles. */
 public final class Roles {
 
+  private Roles() {}
+
   /** Predefined role for administrators. */
   public static final String ROLE_APP_ADMIN = "APP-ADMIN";
 
