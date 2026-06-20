@@ -7,10 +7,9 @@ import com.openelements.spring.base.services.user.UserConfig;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
@@ -49,12 +48,11 @@ import org.springframework.security.web.SecurityFilterChain;
  * accessible on the default chain. CSRF protection is disabled on both chains because the platform
  * is a stateless REST API.
  */
+@Configuration(proxyBeanMethods = false)
+@ComponentScan(basePackageClasses = SecurityConfig.class)
 @EnableWebSecurity
-@AutoConfiguration
-@EnableAutoConfiguration
-@Import({ApiKeyConfig.class, UserConfig.class})
-@ComponentScan
 @EnableMethodSecurity
+@Import({ApiKeyConfig.class, UserConfig.class})
 public class SecurityConfig {
 
   private final ApiKeyDataService apiKeyDataService;

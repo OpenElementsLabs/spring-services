@@ -1,8 +1,6 @@
 package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.services.user.UserConfig;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -15,10 +13,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * AuditLogEventListener}, {@link AuditCleanupJob} and {@link AuditProperties}, and enables Spring
  * scheduling so the retention cleanup runs automatically.
  */
-@Configuration
-@ComponentScan
-@AutoConfiguration
-@EnableAutoConfiguration
+@Configuration(proxyBeanMethods = false)
+@ComponentScan(basePackageClasses = AuditConfig.class)
 @EnableScheduling
 @Import(UserConfig.class)
 public class AuditConfig {}

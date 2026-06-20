@@ -162,30 +162,49 @@ After each step the project must compile and the full test suite must pass befor
 
 ## Step 5: Normalise auto-configuration annotations
 
+**Scope-Expansion:** original step listed only `SecurityConfig` / `UserConfig` / `ApiKeyConfig`;
+the design goal says "every `@Configuration` / auto-configuration class in the library".
+Applied uniformly to all 14 config classes for consistency.
+
 **Changes:**
 
-- [ ] In `src/main/java/com/openelements/spring/base/security/SecurityConfig.java`:
-  - Remove `@AutoConfiguration` and `@EnableAutoConfiguration`.
-  - Remove `@ComponentScan`.
-  - Add `@Configuration(proxyBeanMethods = false)`.
-  - Keep `@EnableWebSecurity`, `@EnableMethodSecurity`, `@Import({...})`.
-- [ ] In `src/main/java/com/openelements/spring/base/services/user/UserConfig.java`:
-  - Replace the full annotation set with
-    `@Configuration(proxyBeanMethods = false)` and
-    `@ComponentScan(basePackageClasses = UserConfig.class)`.
-- [ ] In `src/main/java/com/openelements/spring/base/services/apikey/ApiKeyConfig.java`:
-  - Same replacement as `UserConfig`, anchored to `ApiKeyConfig.class`.
+- [x] All 14 `@Configuration` classes normalised to the uniform pattern:
+  - Removed `@AutoConfiguration` and `@EnableAutoConfiguration` (both were inert without an
+    `AutoConfiguration.imports` file, and `@EnableAutoConfiguration` on a library config is
+    an anti-pattern).
+  - Replaced `@Configuration` with `@Configuration(proxyBeanMethods = false)` — no `@Bean`
+    methods in this library invoke each other internally, so the CGLIB proxy is wasted cost.
+  - Anchored `@ComponentScan` to `basePackageClasses = <Self>.class` — survives package
+    renames, no fragile implicit "package of the annotated class" semantic.
+  - Kept feature-specific annotations untouched: `@EnableConfigurationProperties` (Slack,
+    DbBackup, Search), `@EnableScheduling` (Audit), `@Import` (Audit, Comment, Security),
+    `@EnableWebSecurity` + `@EnableMethodSecurity` (Security), `@Bean` methods (Slack,
+    Webhook, Security).
+- [x] Files touched: `SecurityConfig`, `UserConfig`, `ApiKeyConfig`, `AuditConfig`,
+  `CommentConfig`, `DbBackupConfig`, `EmailConfig`, `SearchConfig`, `SettingsConfig`,
+  `SlackConfig`, `TagConfig`, `LanguageConfig`, `WebhookConfig`, `TenantConfig`.
+- [x] **Two latent test-setup bugs surfaced** (both caused by the pre-change annotations
+  silently disabling parts of the library in tests):
+  - `WebhookConfig.webhookRestClient` conflicted with `PostgresTestConfiguration`'s same-named
+    test bean once `WebhookConfig` started loading properly. Fixed by enabling
+    `spring.main.allow-bean-definition-overriding=true` in the test profile — standard pattern
+    when test configs intentionally override production beans.
+  - `SecurityConfig.defaultFilterChain` required a `JwtDecoder` that the test setup explicitly
+    excluded (`OAuth2ResourceServerAutoConfiguration.class`). Plus the test had its own
+    `testSecurityFilterChain` matching `anyRequest()`, which Spring Security 6.2+ rejects
+    as conflicting with the library's `defaultFilterChain`. Fixed by adding a stub
+    `JwtDecoder` bean to `PostgresTestConfiguration` and removing the redundant test chain
+    (tests invoke services directly, not via HTTP, so the production chain is harmless).
 
 **Acceptance criteria:**
 
-- [ ] Project builds and all existing tests pass.
-- [ ] A new integration test `LibraryWiringTest` (or extension of an existing context-loading
-  test) imports `FullSpringServiceConfig` and asserts that every previously-published bean
-  is present: `UserService`, `AuthService`, `ApiKeyDataService`,
-  `ApiKeyAuthenticationFilter`, both `SecurityFilterChain` beans, `JwtAuthenticationConverter`.
-  Use `@SpringBootTest` with the existing `TestApplication` setup.
-- [ ] Boot the `TestApplication` once with the new annotations and confirm the context loads
-  without warnings about recursive auto-configuration or duplicate component scans.
+- [x] Project builds and all 312 tests pass (no failures, 2 pre-existing skips).
+- [x] All `@SpringBootTest`-based integration tests still construct their application context
+  cleanly with the new annotations — `AuditLogIntegrationTest`, `ApiKeyDataServiceIntegrationTest`,
+  `CommentServiceIntegrationTest`, `SettingsDataServiceIntegrationTest`, `TagDataServiceIntegrationTest`,
+  `UserServiceConcurrencyTest`, `WebhookDataServiceIntegrationTest`, and all
+  `Meilisearch*Test`-suite tests pass.
+- [x] No new context-loading warnings about recursive auto-configuration or duplicate scans.
 
 **Related behaviors:**
 

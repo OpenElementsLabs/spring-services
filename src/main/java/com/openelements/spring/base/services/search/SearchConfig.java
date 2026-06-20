@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Configuration;
  * bean per index, and one {@link SearchIndexBootstrapStep} bean per index — plus, for asynchronous
  * bootstrap, {@code @EnableAsync} and a {@code searchIndexExecutor} bean.
  */
-@Configuration
-@ComponentScan
+@Configuration(proxyBeanMethods = false)
+@ComponentScan(basePackageClasses = SearchConfig.class)
 @EnableConfigurationProperties(MeilisearchProperties.class)
 public class SearchConfig {}

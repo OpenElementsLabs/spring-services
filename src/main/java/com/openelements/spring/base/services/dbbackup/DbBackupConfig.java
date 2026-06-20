@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Configuration;
  * <p>The feature is inert until the consuming application configures
  * {@code openelements.db-backup.base-url} and {@code openelements.db-backup.api-token}.
  */
-@Configuration
-@ComponentScan
+@Configuration(proxyBeanMethods = false)
+@ComponentScan(basePackageClasses = DbBackupConfig.class)
 @EnableConfigurationProperties(DbBackupProperties.class)
 public class DbBackupConfig {}
