@@ -12,7 +12,9 @@ import java.util.Objects;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -53,6 +55,14 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
   private final ApiKeyDataService apiKeyService;
 
   /**
+   * Holder strategy used to publish the authenticated {@link ApiKeyAuthentication}. Resolved once
+   * at construction; honours any custom {@link SecurityContextHolder#setStrategyName(String)}
+   * installed by the consuming application.
+   */
+  private final SecurityContextHolderStrategy securityContextHolderStrategy =
+      SecurityContextHolder.getContextHolderStrategy();
+
+  /**
    * @param apiKeyService the data service used to validate API keys
    */
   public ApiKeyAuthenticationFilter(final ApiKeyDataService apiKeyService) {
@@ -82,7 +92,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     }
 
     final ApiKeyAuthentication authentication = new ApiKeyAuthentication(entity.get());
-    SecurityContextHolder.getContext().setAuthentication(authentication);
+    final SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+    context.setAuthentication(authentication);
+    securityContextHolderStrategy.setContext(context);
     filterChain.doFilter(request, response);
   }
 

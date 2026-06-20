@@ -4,6 +4,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +37,16 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
   /**
+   * Holder strategy used to look up the current {@link
+   * org.springframework.security.core.context.SecurityContext}. Resolved once at construction so
+   * the same strategy is consulted on every call — picks up any custom strategy a consuming
+   * application has installed via {@link SecurityContextHolder#setStrategyName(String)}, and
+   * remains the documented Spring Security 6 way to access the holder.
+   */
+  private final SecurityContextHolderStrategy securityContextHolderStrategy =
+      SecurityContextHolder.getContextHolderStrategy();
+
+  /**
    * Returns the {@link Authentication} of the current request.
    *
    * @return the current authentication, never {@code null}
@@ -43,7 +54,8 @@ public class AuthService {
    */
   @NonNull
   public Authentication getAuthentication() {
-    final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    final Authentication authentication =
+        securityContextHolderStrategy.getContext().getAuthentication();
     if (authentication == null) {
       throw new IllegalStateException("No authentication found");
     }
