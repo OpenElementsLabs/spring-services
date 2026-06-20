@@ -40,24 +40,36 @@ After each step the project must compile and the full test suite must pass befor
 
 **Changes:**
 
-- [ ] In `src/main/java/com/openelements/spring/base/services/user/UserService.java`,
-  remove the `synchronized` modifier from `getCurrentUserEntity()`. No body changes.
-- [ ] Update the method Javadoc to drop any references to monitor-based serialisation (none
-  exists today, but cross-check). Keep the existing note that the `DataIntegrityViolationException`
-  catch is the race-recovery path.
+- [x] In `src/main/java/com/openelements/spring/base/services/user/UserService.java`,
+  remove the `synchronized` modifier from `getCurrentUserEntity()`.
+- [x] **Discovered bug fix:** the original race-recovery (`try { save() } catch
+  DataIntegrityViolationException`) does not actually work — `save()` does not flush, so the
+  unique-constraint violation surfaces only at outer-transaction commit, outside the catch.
+  `synchronized` was masking this. Fix: extract the insert into a new `UserProvisioner`
+  component with `@Transactional(Propagation.REQUIRES_NEW)` and use `saveAndFlush`, so the
+  conflict is detected inside the inner transaction (which rolls back), leaving the outer
+  transaction alive for the retry `findBySub`.
+- [x] New file:
+  `src/main/java/com/openelements/spring/base/services/user/UserProvisioner.java`.
+- [x] `UserService` constructor gains a `UserProvisioner` parameter; the `.orElseGet(...)`
+  branch calls `userProvisioner.provision(userInformation)` instead of inlining the insert.
+- [x] Bumped `spring.datasource.hikari.maximum-pool-size=30` in
+  `application-testcontainers.properties` — `REQUIRES_NEW` doubles the connection requirement
+  per thread (suspended outer + active inner); the default pool of 10 deadlocked the
+  10-thread concurrency test.
 
 **Acceptance criteria:**
 
-- [ ] Project builds and existing tests pass.
-- [ ] A new integration test in `UserServiceTest` (or a new `UserServiceConcurrencyTest`)
-  spawns ten threads calling `getCurrentUserEntity()` simultaneously with the **same** JWT
-  `sub`. Exactly one row is inserted, every thread observes the same `UserEntity.id`. Use
-  `Testcontainers` Postgres (existing `PostgresTestConfiguration`) — no mocking of the DB.
-- [ ] A second concurrency test spawns ten threads with ten **different** JWT `sub` values.
-  All ten rows are created. Measure total wall-clock time; assert it is significantly less than
-  10 × single-thread time (e.g. `< 5 × single-thread`) — relaxed enough to be stable on CI, tight
-  enough to detect re-introduction of `synchronized`.
-- [ ] Existing drift-sync test still passes (regression for the transactional drift update).
+- [x] Project builds and existing tests pass (311 tests, 0 failures, 2 pre-existing skips).
+- [x] New `UserServiceConcurrencyTest` (Testcontainers Postgres, `@SpringBootTest`):
+  - `concurrentFirstLoginsForSameSubProduceOneRow` — 10 threads × same sub → one row, all
+    threads observe the same `UserEntity.id`.
+  - `concurrentLoginsForDifferentSubsDoNotBlock` — 10 threads × different subs → 10 rows,
+    wall-clock < 5 × single-thread baseline.
+  - `driftSyncIsTransactional` — drift sync remains atomic across name/email/avatarUrl.
+- [x] Existing `UserServiceTest` updated to mock the new `UserProvisioner` dependency in the
+  create-path tests (`shouldCreateNewUserWhenNotExists`, `shouldStoreAvatarUrlOnFirstLogin`,
+  `shouldCreateUserWithoutAvatarUrlWhenClaimMissing`, `shouldProvisionNewUserOnFirstCall`).
 
 **Related behaviors:**
 

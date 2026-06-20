@@ -4,7 +4,6 @@ import com.openelements.spring.base.data.AbstractDbBackedDataService;
 import com.openelements.spring.base.data.EntityRepository;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
-import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +11,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 /**
  * Application service that bridges the JWT-authenticated subject and the local user-profile mirror.
@@ -31,122 +32,135 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto> {
 
-  private final Logger LOG = LoggerFactory.getLogger(UserService.class);
+    private final Logger LOG = LoggerFactory.getLogger(UserService.class);
 
-  private final UserRepository userRepository;
+    private final UserRepository userRepository;
 
-  private final AuthService authService;
+    private final AuthService authService;
 
-  public UserService(
-      final UserRepository userRepository,
-      final ApplicationEventPublisher eventPublisher,
-      final AuthService authService) {
-    super(eventPublisher);
-    this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
-    this.authService = Objects.requireNonNull(authService, "authService must not be null");
-  }
+    private final UserProvisioner userProvisioner;
 
-  /**
-   * Returns the managed {@link UserEntity} for the user that owns the current request.
-   *
-   * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
-   * email} and {@code avatarUrl} fields from the JWT claims if they have drifted. The returned
-   * entity is attached to the current persistence context, which makes it suitable for callers that
-   * need to populate a JPA association (e.g., a {@code @ManyToOne UserEntity}) rather than just
-   * read the public {@link UserDto} surface.
-   *
-   * @return the managed entity for the current user
-   * @throws IllegalStateException if no JWT is bound to the current request
-   */
-  public synchronized UserEntity getCurrentUserEntity() {
-    final UserInformation userInformation = authService.getUserInformation();
-    return userRepository
-        .findBySub(userInformation.id())
-        .map(
-            user -> {
-              boolean changed = false;
-              if (!Objects.equals(userInformation.name(), user.getName())) {
-                user.setName(userInformation.name());
-                changed = true;
-              }
-              if (!Objects.equals(userInformation.email(), user.getEmail())) {
-                user.setEmail(userInformation.email());
-                changed = true;
-              }
-              if (!Objects.equals(userInformation.avatarUrl(), user.getAvatarUrl())) {
-                user.setAvatarUrl(userInformation.avatarUrl());
-                changed = true;
-              }
-              if (changed) {
-                LOG.debug("Updating user {}: {}", user.id(), user);
-                return userRepository.save(user);
-              } else {
-                return user;
-              }
-            })
-        .orElseGet(
-            () -> {
-              try {
-                LOG.debug("First login for user {}", userInformation.id());
-                final UserEntity entity = new UserEntity();
-                entity.setSub(userInformation.id());
-                entity.setName(userInformation.name());
-                entity.setEmail(userInformation.email());
-                entity.setAvatarUrl(userInformation.avatarUrl());
-                return userRepository.save(entity);
-              } catch (final DataIntegrityViolationException e) {
-                LOG.warn("Error in storing user entity. Will try to find it instead.");
-                return userRepository
-                    .findBySub(userInformation.id())
-                    .orElseThrow(
-                        () -> new IllegalStateException("Error in storing user entity", e));
-              }
-            });
-  }
+    public UserService(
+            final UserRepository userRepository,
+            final ApplicationEventPublisher eventPublisher,
+            final AuthService authService,
+            final UserProvisioner userProvisioner) {
+        super(eventPublisher);
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.authService = Objects.requireNonNull(authService, "authService must not be null");
+        this.userProvisioner =
+                Objects.requireNonNull(userProvisioner, "userProvisioner must not be null");
+    }
 
-  /**
-   * Returns the profile of the user that owns the current request.
-   *
-   * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
-   * email} and {@code avatarUrl} fields from the JWT claims if they have drifted.
-   *
-   * @return the current user's profile
-   * @throws IllegalStateException if no JWT is bound to the current request
-   */
-  public UserDto getCurrentUser() {
-    return UserDto.fromEntity(getCurrentUserEntity());
-  }
+    /**
+     * Returns the managed {@link UserEntity} for the user that owns the current request.
+     *
+     * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
+     * email} and {@code avatarUrl} fields from the JWT claims if they have drifted. The returned
+     * entity is attached to the current persistence context, which makes it suitable for callers that
+     * need to populate a JPA association (e.g., a {@code @ManyToOne UserEntity}) rather than just
+     * read the public {@link UserDto} surface.
+     *
+     * <p>The {@code .orElseGet(...)} branch — taken only for previously-unknown subjects —
+     * delegates the {@code INSERT} to {@link UserProvisioner#provision(UserInformation)}, which
+     * runs in its own {@code REQUIRES_NEW} transaction so a unique-constraint conflict with a
+     * concurrent first-login can be caught and recovered here without poisoning the outer
+     * transaction. See the package documentation's
+     * <a href="package-summary.html#concurrency">"Concurrency and first-login race recovery"</a>
+     * section for the full rationale.
+     *
+     * @return the managed entity for the current user
+     * @throws IllegalStateException if no JWT is bound to the current request
+     */
+    public UserEntity getCurrentUserEntity() {
+        final UserInformation userInformation = authService.getUserInformation();
 
-  @Override
-  protected @NonNull UserEntity createDetachedEntity() {
-    return new UserEntity();
-  }
 
-  @Override
-  protected void preSave(@NonNull UserDto data) {
-    throw new IllegalStateException(
-        "User data should never be changed since it is based on external system");
-  }
+        return userRepository
+                .findBySub(userInformation.id())
+                .map(
+                        user -> {
+                            boolean changed = false;
+                            if (!Objects.equals(userInformation.name(), user.getName())) {
+                                user.setName(userInformation.name());
+                                changed = true;
+                            }
+                            if (!Objects.equals(userInformation.email(), user.getEmail())) {
+                                user.setEmail(userInformation.email());
+                                changed = true;
+                            }
+                            if (!Objects.equals(userInformation.avatarUrl(), user.getAvatarUrl())) {
+                                user.setAvatarUrl(userInformation.avatarUrl());
+                                changed = true;
+                            }
+                            if (changed) {
+                                LOG.debug("Updating user {}: {}", user.id(), user);
+                                return userRepository.save(user);
+                            } else {
+                                return user;
+                            }
+                        })
+                .orElseGet(
+                        () -> {
+                            try {
+                                LOG.debug("First login for user {}", userInformation.id());
+                                return userProvisioner.provision(userInformation);
+                            } catch (final DataIntegrityViolationException e) {
+                                LOG.warn(
+                                        "Concurrent first-login for user {} — re-fetching the row another thread"
+                                                + " inserted.",
+                                        userInformation.id());
+                                return userRepository
+                                        .findBySub(userInformation.id())
+                                        .orElseThrow(
+                                                () -> new IllegalStateException("Error in storing user entity", e));
+                            }
+                        });
+    }
 
-  @Override
-  protected void updateEntity(@NonNull UserEntity entity, @NonNull UserDto data) {
-    entity.setName(data.name());
-    entity.setEmail(data.email());
-  }
+    /**
+     * Returns the profile of the user that owns the current request.
+     *
+     * <p>Provisions the local mirror on first access and refreshes the cached {@code name}, {@code
+     * email} and {@code avatarUrl} fields from the JWT claims if they have drifted.
+     *
+     * @return the current user's profile
+     * @throws IllegalStateException if no JWT is bound to the current request
+     */
+    public UserDto getCurrentUser() {
+        return UserDto.fromEntity(getCurrentUserEntity());
+    }
 
-  @Override
-  protected @NonNull UserDto toData(@NonNull UserEntity entity) {
-    return new UserDto(
-        entity.id(),
-        entity.getName(),
-        entity.getEmail(),
-        entity.getAvatarUrl(),
-        entity.getCreatedAt(),
-        entity.getUpdatedAt());
-  }
+    @Override
+    protected @NonNull UserEntity createDetachedEntity() {
+        return new UserEntity();
+    }
 
-  @Override
-  protected @NonNull EntityRepository<UserEntity> getRepository() {
-    return userRepository;
-  }
+    @Override
+    protected void preSave(@NonNull UserDto data) {
+        throw new IllegalStateException(
+                "User data should never be changed since it is based on external system");
+    }
+
+    @Override
+    protected void updateEntity(@NonNull UserEntity entity, @NonNull UserDto data) {
+        entity.setName(data.name());
+        entity.setEmail(data.email());
+    }
+
+    @Override
+    protected @NonNull UserDto toData(@NonNull UserEntity entity) {
+        return new UserDto(
+                entity.id(),
+                entity.getName(),
+                entity.getEmail(),
+                entity.getAvatarUrl(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt());
+    }
+
+    @Override
+    protected @NonNull EntityRepository<UserEntity> getRepository() {
+        return userRepository;
+    }
 }

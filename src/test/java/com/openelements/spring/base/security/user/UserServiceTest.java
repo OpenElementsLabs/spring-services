@@ -9,6 +9,7 @@ import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import com.openelements.spring.base.services.user.UserDto;
 import com.openelements.spring.base.services.user.UserEntity;
+import com.openelements.spring.base.services.user.UserProvisioner;
 import com.openelements.spring.base.services.user.UserRepository;
 import com.openelements.spring.base.services.user.UserService;
 import java.util.Optional;
@@ -24,8 +25,9 @@ class UserServiceTest {
   private final UserRepository userRepository = mock(UserRepository.class);
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   private final AuthService authService = mock(AuthService.class);
+  private final UserProvisioner userProvisioner = mock(UserProvisioner.class);
   private final UserService userService =
-      new UserService(userRepository, eventPublisher, authService);
+      new UserService(userRepository, eventPublisher, authService, userProvisioner);
 
   private void setupAuth(
       final String sub, final String name, final String email, final String avatarUrl) {
@@ -44,13 +46,25 @@ class UserServiceTest {
     return entity;
   }
 
+  private UserEntity entityFrom(final UserInformation info) {
+    final UserEntity entity = new UserEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setSub(info.id());
+    entity.setName(info.name());
+    entity.setEmail(info.email());
+    entity.setAvatarUrl(info.avatarUrl());
+    return entity;
+  }
+
   @Test
   void shouldRejectNullConstructorArgs() {
-    assertThatThrownBy(() -> new UserService(null, eventPublisher, authService))
+    assertThatThrownBy(() -> new UserService(null, eventPublisher, authService, userProvisioner))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new UserService(userRepository, null, authService))
+    assertThatThrownBy(() -> new UserService(userRepository, null, authService, userProvisioner))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new UserService(userRepository, eventPublisher, null))
+    assertThatThrownBy(() -> new UserService(userRepository, eventPublisher, null, userProvisioner))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new UserService(userRepository, eventPublisher, authService, null))
         .isInstanceOf(NullPointerException.class);
   }
 
@@ -63,13 +77,8 @@ class UserServiceTest {
       // GIVEN
       setupAuth("auth0|new", "New User", "new@example.com", null);
       when(userRepository.findBySub("auth0|new")).thenReturn(Optional.empty());
-      when(userRepository.save(any(UserEntity.class)))
-          .thenAnswer(
-              invocation -> {
-                final UserEntity saved = invocation.getArgument(0);
-                saved.setId(UUID.randomUUID());
-                return saved;
-              });
+      when(userProvisioner.provision(any(UserInformation.class)))
+          .thenAnswer(invocation -> entityFrom(invocation.getArgument(0)));
 
       // WHEN
       final UserDto dto = userService.getCurrentUser();
@@ -78,7 +87,7 @@ class UserServiceTest {
       assertThat(dto.name()).isEqualTo("New User");
       assertThat(dto.email()).isEqualTo("new@example.com");
       assertThat(dto.avatarUrl()).isNull();
-      verify(userRepository).save(any(UserEntity.class));
+      verify(userProvisioner).provision(any(UserInformation.class));
     }
 
     @Test
@@ -140,20 +149,15 @@ class UserServiceTest {
           "alice@example.com",
           "https://auth.example.com/media/avatars/user1.jpg");
       when(userRepository.findBySub("auth0|first-avatar")).thenReturn(Optional.empty());
-      when(userRepository.save(any(UserEntity.class)))
-          .thenAnswer(
-              invocation -> {
-                final UserEntity saved = invocation.getArgument(0);
-                saved.setId(UUID.randomUUID());
-                return saved;
-              });
+      when(userProvisioner.provision(any(UserInformation.class)))
+          .thenAnswer(invocation -> entityFrom(invocation.getArgument(0)));
 
       // WHEN
       final UserDto dto = userService.getCurrentUser();
 
       // THEN
       assertThat(dto.avatarUrl()).isEqualTo("https://auth.example.com/media/avatars/user1.jpg");
-      verify(userRepository).save(any(UserEntity.class));
+      verify(userProvisioner).provision(any(UserInformation.class));
     }
 
     @Test
@@ -233,20 +237,15 @@ class UserServiceTest {
       // GIVEN
       setupAuth("auth0|no-avatar-first", "User", "user@example.com", null);
       when(userRepository.findBySub("auth0|no-avatar-first")).thenReturn(Optional.empty());
-      when(userRepository.save(any(UserEntity.class)))
-          .thenAnswer(
-              invocation -> {
-                final UserEntity saved = invocation.getArgument(0);
-                saved.setId(UUID.randomUUID());
-                return saved;
-              });
+      when(userProvisioner.provision(any(UserInformation.class)))
+          .thenAnswer(invocation -> entityFrom(invocation.getArgument(0)));
 
       // WHEN
       final UserDto dto = userService.getCurrentUser();
 
       // THEN
       assertThat(dto.avatarUrl()).isNull();
-      verify(userRepository).save(any(UserEntity.class));
+      verify(userProvisioner).provision(any(UserInformation.class));
     }
   }
 
@@ -279,13 +278,8 @@ class UserServiceTest {
           "brandnew@example.com",
           "https://auth.example.com/avatars/new.jpg");
       when(userRepository.findBySub("auth0|entity-new")).thenReturn(Optional.empty());
-      when(userRepository.save(any(UserEntity.class)))
-          .thenAnswer(
-              invocation -> {
-                final UserEntity saved = invocation.getArgument(0);
-                saved.setId(UUID.randomUUID());
-                return saved;
-              });
+      when(userProvisioner.provision(any(UserInformation.class)))
+          .thenAnswer(invocation -> entityFrom(invocation.getArgument(0)));
 
       // WHEN
       final UserEntity result = userService.getCurrentUserEntity();
@@ -296,7 +290,7 @@ class UserServiceTest {
       assertThat(result.getEmail()).isEqualTo("brandnew@example.com");
       assertThat(result.getAvatarUrl()).isEqualTo("https://auth.example.com/avatars/new.jpg");
       assertThat(result.getId()).isNotNull();
-      verify(userRepository).save(any(UserEntity.class));
+      verify(userProvisioner).provision(any(UserInformation.class));
     }
 
     @Test
