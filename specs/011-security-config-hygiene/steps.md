@@ -115,30 +115,37 @@ After each step the project must compile and the full test suite must pass befor
 
 **Changes:**
 
-- [ ] In `src/main/java/com/openelements/spring/base/security/AuthService.java`:
-  - Change return type of `getUserInformation()` to `Optional<UserInformation>`.
-  - For non-JWT principals, return `Optional.empty()` (drop the `"UNKNOWN"` sentinel).
-  - Remove the dead `if (principal == null)` check in `getPrincipalJwt()`.
-- [ ] In `src/main/java/com/openelements/spring/base/services/user/UserService.java`:
-  - Update the single call site to `authService.getUserInformation().orElseThrow(() ->
-    new IllegalStateException("No JWT bound to current request"));`.
-- [ ] Update Javadoc on `AuthService.getUserInformation()` to describe the new contract:
-  present for JWT-authenticated requests, empty for non-JWT principals (API key, primitive).
-- [ ] Search the project for any other callers of `getUserInformation()` and update them.
-  Likely none outside `UserService`, but verify via `grep -r "getUserInformation"`.
+- [x] `AuthService.getUserInformation()` returns `Optional<UserInformation>`; non-JWT principals
+  return `Optional.empty()` instead of the `"UNKNOWN"` sentinel record.
+- [x] Removed the dead `if (principal == null)` check in `getPrincipalJwt()`.
+- [x] `UserService.getCurrentUserEntity()` calls `.orElseThrow(...)` with a clear message
+  pointing the caller at the JWT-only contract.
+- [x] **Second caller discovered:** `AuditLogEventListener.resolveUser()` also called
+  `getUserInformation()` and had its own `UNKNOWN_PRINCIPAL_ID` constant to detect the sentinel.
+  Refactored to consume the `Optional` directly; the local `UNKNOWN_PRINCIPAL_ID` constant
+  removed. Behaviour identical: API-key-authenticated requests still attribute audit rows to
+  the System User.
+- [x] Javadoc updated on `AuthService.getUserInformation()`, on the `AuthService` class-level
+  usage example, and in `security/package-info.java` to reflect the `Optional` contract.
 
 **Acceptance criteria:**
 
-- [ ] Project builds and existing tests pass.
-- [ ] `AuthServiceTest` is extended with:
-  - A test that calls `getUserInformation()` with a JWT-authenticated context and asserts
-    `isPresent() == true` plus the expected field values.
-  - A test that calls it with an API-key-authenticated context (use the existing
-    `ApiKeyAuthentication` token) and asserts `isEmpty()`.
-  - A test that `getPrincipalJwt()` still throws `IllegalStateException("Principal is not a
-    JWT")` for a non-JWT principal — covers the post-removal of the dead `null` check.
-- [ ] `UserServiceTest` is extended with a test that calling `getCurrentUserEntity()` without a
-  JWT-authenticated context throws `IllegalStateException`.
+- [x] Project builds; full test suite passes (312 tests, 0 failures, 2 pre-existing skips).
+- [x] `AuthServiceTest`:
+  - `shouldExtractUserInformationFromJwt` / avatar-claim tests now use `.orElseThrow()` to
+    unwrap, implicitly asserting `isPresent() == true`.
+  - `shouldReturnEmptyForApiKeyPrincipal` (renamed from `…UnknownUser…`) asserts
+    `isEmpty()`.
+  - `shouldReturnEmptyForStringPrincipal` asserts `isEmpty()`.
+  - `shouldThrowWhenPrincipalIsNotJwt` (pre-existing) covers `getPrincipalJwt()` behaviour
+    after the dead-null-check removal.
+- [x] New `UserServiceTest.shouldThrowWhenNoJwtBoundToRequest` covers the
+  `Optional.empty() → IllegalStateException` path; verifies neither the repository nor the
+  provisioner is touched.
+- [x] All other test files (`UserServiceConcurrencyTest`, `UserServiceTest.setupAuth`,
+  `CommentServiceIntegrationTest`, `AuditLogIntegrationTest`, `AuditLogEventListenerTest`)
+  updated for the new `Optional` return type. Test helpers (`userNamed`, `userInfo`) now
+  return `Optional<UserInformation>` so call sites stay uniform.
 
 **Related behaviors:**
 

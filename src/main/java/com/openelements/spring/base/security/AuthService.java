@@ -1,5 +1,6 @@
 package com.openelements.spring.base.security;
 
+import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.Authentication;
@@ -27,7 +28,8 @@ import org.springframework.stereotype.Service;
  *   private final AuthService authService;
  *
  *   public Note createNote(String body) {
- *     UserInformation user = authService.getUserInformation();
+ *     UserInformation user = authService.getUserInformation()
+ *         .orElseThrow(() -> new IllegalStateException("Not a JWT request"));
  *     return new Note(user.id(), body);
  *   }
  * }
@@ -93,9 +95,6 @@ public class AuthService {
   @NonNull
   public Jwt getPrincipalJwt() {
     final Object principal = getPrincipalObject();
-    if (principal == null) {
-      throw new IllegalStateException("No principal found");
-    }
     if (principal instanceof Jwt jwt) {
       return jwt;
     }
@@ -103,7 +102,8 @@ public class AuthService {
   }
 
   /**
-   * Returns a typed view of the user information for the current request.
+   * Returns a typed view of the user information for the current request, if the request was
+   * authenticated via a JWT.
    *
    * <p>For JWT-authenticated requests, claims are extracted from the bearer token: the {@code sub}
    * claim is required and validated; {@code name}, {@code email}, and {@code picture} may be {@code
@@ -111,14 +111,16 @@ public class AuthService {
    * normalised: an absent or blank value is exposed as {@code null}.
    *
    * <p>For non-JWT principals — typically API-key authenticated requests, where the principal is an
-   * {@code ApiKeyEntity} — a static {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)} is
-   * returned. API keys are not currently associated with a specific user.
+   * {@code ApiKeyEntity} — an empty {@link Optional} is returned. API keys are not currently
+   * associated with a specific user, and callers must explicitly opt in to handling that case
+   * rather than receiving a sentinel value that could be persisted by accident.
    *
-   * @return the user information, never {@code null}
+   * @return the user information for the current request, or empty if the request was not
+   *     authenticated via a JWT
    * @throws IllegalStateException if the principal is a JWT without a {@code sub} claim
    */
   @NonNull
-  public UserInformation getUserInformation() {
+  public Optional<UserInformation> getUserInformation() {
     final Object principal = getPrincipalObject();
     if (principal instanceof Jwt jwt) {
       final String sub = jwt.getSubject();
@@ -127,10 +129,11 @@ public class AuthService {
       }
       final String picture = jwt.getClaimAsString("picture");
       final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
-      return new UserInformation(
-          sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl);
+      return Optional.of(
+          new UserInformation(
+              sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl));
     }
-    return new UserInformation("UNKNOWN", "UNKNOWN", null, null);
+    return Optional.empty();
   }
 
   /**

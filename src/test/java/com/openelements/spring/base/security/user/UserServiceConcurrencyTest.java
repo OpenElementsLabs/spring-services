@@ -14,6 +14,7 @@ import com.openelements.spring.base.testcontainers.TestApplication;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -69,7 +70,7 @@ class UserServiceConcurrencyTest {
     final String sharedSub = "auth0|concurrent-same";
     final UserInformation info =
         new UserInformation(sharedSub, "Same User", "same@example.com", null);
-    when(authService.getUserInformation()).thenReturn(info);
+    when(authService.getUserInformation()).thenReturn(Optional.of(info));
 
     final int threadCount = 10;
     final CountDownLatch start = new CountDownLatch(1);
@@ -111,7 +112,7 @@ class UserServiceConcurrencyTest {
     final int threadCount = 10;
     final ConcurrentMap<Thread, UserInformation> threadInfo = new ConcurrentHashMap<>();
     when(authService.getUserInformation())
-        .thenAnswer(inv -> threadInfo.get(Thread.currentThread()));
+        .thenAnswer(inv -> Optional.ofNullable(threadInfo.get(Thread.currentThread())));
 
     // Baseline: measure single-threaded duration so the assertion is dimensionless.
     threadInfo.put(
@@ -176,12 +177,14 @@ class UserServiceConcurrencyTest {
   void driftSyncIsTransactional() {
     final String sub = "auth0|drift-tx";
     when(authService.getUserInformation())
-        .thenReturn(new UserInformation(sub, "Original", "orig@example.com", null));
+        .thenReturn(Optional.of(new UserInformation(sub, "Original", "orig@example.com", null)));
     final UserEntity created = userService.getCurrentUserEntity();
     assertThat(created.getName()).isEqualTo("Original");
 
     when(authService.getUserInformation())
-        .thenReturn(new UserInformation(sub, "Updated", "new@example.com", "https://avatar"));
+        .thenReturn(
+            Optional.of(
+                new UserInformation(sub, "Updated", "new@example.com", "https://avatar")));
     final UserEntity updated = userService.getCurrentUserEntity();
 
     assertThat(updated.getId()).isEqualTo(created.getId());

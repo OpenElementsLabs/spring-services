@@ -109,8 +109,9 @@
  *       org.springframework.security.core.Authentication}, principal, and JWT, and converts the JWT
  *       claims into a typed {@link com.openelements.spring.base.security.UserInformation} record.
  *       For non-JWT principals (typically API-key authenticated requests) {@link
- *       com.openelements.spring.base.security.AuthService#getUserInformation()} returns the static
- *       {@code UserInformation("UNKNOWN", "UNKNOWN", null, null)} instead of throwing.
+ *       com.openelements.spring.base.security.AuthService#getUserInformation()} returns an empty
+ *       {@link java.util.Optional} — callers must explicitly handle the "no JWT" case rather than
+ *       receiving a sentinel value that could be silently persisted.
  *   <li>{@link com.openelements.spring.base.services.user.UserService} — looks up (or lazily
  *       creates) the {@link com.openelements.spring.base.services.user.UserEntity} that mirrors the
  *       JWT subject in the local database, and manages the user's avatar image.

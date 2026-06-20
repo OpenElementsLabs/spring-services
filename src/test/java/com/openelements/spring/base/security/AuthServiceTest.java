@@ -130,7 +130,7 @@ class AuthServiceTest {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       // WHEN
-      final UserInformation info = authService.getUserInformation();
+      final UserInformation info = authService.getUserInformation().orElseThrow();
 
       // THEN
       assertThat(info.id()).isEqualTo("auth0|456");
@@ -154,7 +154,7 @@ class AuthServiceTest {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       // WHEN
-      final UserInformation info = authService.getUserInformation();
+      final UserInformation info = authService.getUserInformation().orElseThrow();
 
       // THEN
       assertThat(info.avatarUrl()).isNull();
@@ -175,7 +175,7 @@ class AuthServiceTest {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       // WHEN
-      final UserInformation info = authService.getUserInformation();
+      final UserInformation info = authService.getUserInformation().orElseThrow();
 
       // THEN
       assertThat(info.avatarUrl()).isNull();
@@ -201,8 +201,8 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("returns UNKNOWN user when principal is an ApiKeyEntity")
-    void shouldReturnUnknownUserForApiKeyPrincipal() {
+    @DisplayName("returns empty Optional when principal is an ApiKeyEntity")
+    void shouldReturnEmptyForApiKeyPrincipal() {
       // GIVEN
       final ApiKeyEntity entity = new ApiKeyEntity();
       entity.setId(UUID.randomUUID());
@@ -215,31 +215,25 @@ class AuthServiceTest {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       // WHEN
-      final UserInformation info = authService.getUserInformation();
+      final java.util.Optional<UserInformation> info = authService.getUserInformation();
 
       // THEN
-      assertThat(info.id()).isEqualTo("UNKNOWN");
-      assertThat(info.name()).isEqualTo("UNKNOWN");
-      assertThat(info.email()).isNull();
-      assertThat(info.avatarUrl()).isNull();
+      assertThat(info).isEmpty();
     }
 
     @Test
-    @DisplayName("returns UNKNOWN user when principal is a String")
-    void shouldReturnUnknownUserForStringPrincipal() {
+    @DisplayName("returns empty Optional when principal is a String")
+    void shouldReturnEmptyForStringPrincipal() {
       // GIVEN
       final TestingAuthenticationToken auth =
           new TestingAuthenticationToken("string-principal", "pass");
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       // WHEN
-      final UserInformation info = authService.getUserInformation();
+      final java.util.Optional<UserInformation> info = authService.getUserInformation();
 
       // THEN
-      assertThat(info.id()).isEqualTo("UNKNOWN");
-      assertThat(info.name()).isEqualTo("UNKNOWN");
-      assertThat(info.email()).isNull();
-      assertThat(info.avatarUrl()).isNull();
+      assertThat(info).isEmpty();
     }
   }
 

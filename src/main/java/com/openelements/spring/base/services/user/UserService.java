@@ -73,7 +73,14 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
      * @throws IllegalStateException if no JWT is bound to the current request
      */
     public UserEntity getCurrentUserEntity() {
-        final UserInformation userInformation = authService.getUserInformation();
+        final UserInformation userInformation =
+                authService
+                        .getUserInformation()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "No JWT bound to current request — getCurrentUserEntity"
+                                                        + " may only be called from JWT-authenticated request threads."));
 
 
         return userRepository

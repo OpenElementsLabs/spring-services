@@ -58,8 +58,9 @@ class AuditLogIntegrationTest {
   private UserEntity alice;
   private UserEntity bob;
 
-  private static UserInformation userInfo(final UserEntity user) {
-    return new UserInformation(user.getSub(), user.getName(), "test@example.com", null);
+  private static java.util.Optional<UserInformation> userInfo(final UserEntity user) {
+    return java.util.Optional.of(
+        new UserInformation(user.getSub(), user.getName(), "test@example.com", null));
   }
 
   @BeforeEach
@@ -151,8 +152,7 @@ class AuditLogIntegrationTest {
 
     @Test
     void shouldUseSystemUserForApiKeyPrincipal() {
-      when(authService.getUserInformation())
-          .thenReturn(new UserInformation("UNKNOWN", "UNKNOWN", null, null));
+      when(authService.getUserInformation()).thenReturn(java.util.Optional.empty());
 
       tagDataService.save(new TagDto(null, "tag-api-key", "desc", "#aabbcc"));
 

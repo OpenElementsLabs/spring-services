@@ -32,7 +32,7 @@ class UserServiceTest {
   private void setupAuth(
       final String sub, final String name, final String email, final String avatarUrl) {
     when(authService.getUserInformation())
-        .thenReturn(new UserInformation(sub, name, email, avatarUrl));
+        .thenReturn(Optional.of(new UserInformation(sub, name, email, avatarUrl)));
   }
 
   private UserEntity createExistingUser(
@@ -308,6 +308,19 @@ class UserServiceTest {
       // THEN
       assertThat(result.getName()).isEqualTo("New Name");
       verify(userRepository).save(existing);
+    }
+
+    @Test
+    void shouldThrowWhenNoJwtBoundToRequest() {
+      // GIVEN — AuthService returns empty Optional (non-JWT principal, e.g. API key)
+      when(authService.getUserInformation()).thenReturn(Optional.empty());
+
+      // WHEN & THEN
+      assertThatThrownBy(() -> userService.getCurrentUserEntity())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("No JWT bound to current request");
+      verify(userRepository, never()).findBySub(any());
+      verify(userProvisioner, never()).provision(any());
     }
   }
 }

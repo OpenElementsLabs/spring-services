@@ -69,7 +69,8 @@ class CommentServiceIntegrationTest {
   }
 
   private void setAuthenticatedUser(final String sub, final String name, final String email) {
-    when(authService.getUserInformation()).thenReturn(new UserInformation(sub, name, email, null));
+    when(authService.getUserInformation())
+        .thenReturn(java.util.Optional.of(new UserInformation(sub, name, email, null)));
   }
 
   private UserEntity seedUser(final String sub, final String name) {

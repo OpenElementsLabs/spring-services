@@ -32,8 +32,6 @@ public class AuditLogEventListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuditLogEventListener.class);
 
-  private static final String UNKNOWN_PRINCIPAL_ID = "UNKNOWN";
-
   private final AuditLogDataService auditLogDataService;
 
   private final AuthService authService;
@@ -131,22 +129,23 @@ public class AuditLogEventListener {
   }
 
   private UserEntity resolveUser() {
-    final UserInformation userInformation;
+    final Optional<UserInformation> userInformationOpt;
     try {
-      userInformation = authService.getUserInformation();
+      userInformationOpt = authService.getUserInformation();
     } catch (final IllegalStateException ex) {
       LOG.warn(
           "Failed to resolve user information from security context, falling back to System User.",
           ex);
       return systemUserReference();
     }
-    if (userInformation == null) {
-      LOG.warn("User information is null, falling back to System User.");
+    if (userInformationOpt.isEmpty()) {
+      LOG.debug("Non-JWT principal (e.g. API-key request), attributing audit row to System User.");
       return systemUserReference();
     }
+    final UserInformation userInformation = userInformationOpt.get();
     final String sub = userInformation.id();
-    if (sub == null || sub.isBlank() || UNKNOWN_PRINCIPAL_ID.equals(sub)) {
-      LOG.warn("Non-JWT principal (sub={}), falling back to System User.", sub);
+    if (sub == null || sub.isBlank()) {
+      LOG.warn("JWT principal with blank sub, falling back to System User.");
       return systemUserReference();
     }
     final String name = userInformation.name();

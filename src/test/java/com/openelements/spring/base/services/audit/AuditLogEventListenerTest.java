@@ -35,8 +35,8 @@ class AuditLogEventListenerTest {
   private final UserEntity alice = new UserEntity();
   private final UserEntity bob = new UserEntity();
 
-  private static UserInformation userNamed(final String sub, final String name) {
-    return new UserInformation(sub, name, "test@example.com", null);
+  private static Optional<UserInformation> userNamed(final String sub, final String name) {
+    return Optional.of(new UserInformation(sub, name, "test@example.com", null));
   }
 
   @BeforeEach
@@ -109,9 +109,9 @@ class AuditLogEventListenerTest {
   }
 
   @Test
-  void shouldUseSystemUserWhenUserInformationIsNull() {
+  void shouldUseSystemUserWhenPrincipalIsNotAJwt() {
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getUserInformation()).thenReturn(null);
+    when(authService.getUserInformation()).thenReturn(Optional.empty());
 
     listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
@@ -159,8 +159,7 @@ class AuditLogEventListenerTest {
   @Test
   void shouldUseSystemUserForApiKeyPrincipal() {
     final TestData data = new TestData(UUID.randomUUID(), "x");
-    when(authService.getUserInformation())
-        .thenReturn(new UserInformation("UNKNOWN", "UNKNOWN", null, null));
+    when(authService.getUserInformation()).thenReturn(Optional.empty());
 
     listener.handleOnObjectCreate(new OnObjectCreate<>(data));
 
