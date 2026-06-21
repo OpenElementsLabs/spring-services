@@ -8,13 +8,13 @@ into the full stack with a single import or pick the parts they need.
 ## Requirements
 
 - Java 21
-- Spring Boot 3.3.x
+- Spring Boot 3.5.x
 - A relational database supported by Spring Data JPA (PostgreSQL is used in CI / integration tests)
 
 ## Installation
 
-Releases are published to Maven Central; SNAPSHOTs are published to GitHub Packages on every push
-to `main`.
+Releases are published to Maven Central; SNAPSHOTs are published to the Sonatype Central Portal
+snapshot repository on every push to `main`.
 
 ```xml
 <dependency>
@@ -22,6 +22,21 @@ to `main`.
     <artifactId>spring-services</artifactId>
     <version><!-- latest released version --></version>
 </dependency>
+```
+
+To consume a `-SNAPSHOT` build, also declare the Central Portal snapshot repository (releases still
+come from Maven Central):
+
+```xml
+<repositories>
+    <repository>
+        <id>central-portal-snapshots</id>
+        <name>Central Portal Snapshots</name>
+        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        <releases><enabled>false</enabled></releases>
+        <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+</repositories>
 ```
 
 ## Quick Start
@@ -236,13 +251,16 @@ src/main/java/com/openelements/spring/base/
 ### SNAPSHOT Publishing (automatic)
 
 Every push to `main` triggers the `snapshot.yml` GitHub Actions workflow, which builds the project, runs all tests, and
-publishes a SNAPSHOT artifact to GitHub Packages at:
+publishes a SNAPSHOT artifact to the Sonatype Central Portal snapshot repository at:
 
 ```
-https://maven.pkg.github.com/OpenElementsLabs/spring-services
+https://central.sonatype.com/repository/maven-snapshots/
 ```
 
-No manual steps are required. SNAPSHOT publishing only happens on `main` — feature branches only run the build workflow.
+Publishing is gated on the POM version ending in `-SNAPSHOT`: the brief release-version commit that `release.sh`
+pushes to `main` is skipped cleanly (not failed) rather than published. Authentication uses the same
+`MAVEN_CENTRAL_USERNAME` / `MAVEN_CENTRAL_PASSWORD` secrets as the full release. No manual steps are required, and
+SNAPSHOT publishing only happens on `main` — feature branches only run the build workflow.
 
 ### Full Release (tag-triggered)
 
@@ -282,12 +300,16 @@ Example:
 This will:
 
 1. Set the project version to `1.0.0`
-2. Build and run all tests locally (`mvn clean verify`) so a broken tag is never pushed
-3. Commit and push the release version
-4. Create and push the `v1.0.0` tag — **this triggers the `release.yml` workflow**, which deploys to
+2. Build, test, and assemble the publication artifacts locally with `mvn -Ppublication clean verify`
+   (the same profile the release uses, so a broken Javadoc `@link`, a missing source jar, or an SBOM
+   failure is caught here — before any tag is pushed)
+3. Generate the release/upgrade documentation under `docs/` via Claude Code — best-effort: if the
+   `claude` CLI is not installed the step logs a warning and continues, so it never blocks a release
+4. Commit and push the release version (including the generated doc)
+5. Create and push the `v1.0.0` tag — **this triggers the `release.yml` workflow**, which deploys to
    Maven Central and creates the GitHub Release
-5. Set the project version to `1.1.0-SNAPSHOT`
-6. Commit and push the next snapshot version
+6. Set the project version to `1.1.0-SNAPSHOT`
+7. Commit and push the next snapshot version
 
 The actual Maven Central deployment happens asynchronously in CI — watch the **Actions** tab for the
 "Release Artifacts" run. If any local step fails the script stops immediately (`set -e`); if it fails

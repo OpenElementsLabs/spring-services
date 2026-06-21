@@ -4,5 +4,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
-@ComponentScan(basePackageClasses = LanguageConfig.class)
-public class LanguageConfig {}
+@ComponentScan(basePackageClasses = TranslationConfig.class)
+public class TranslationConfig {
+}

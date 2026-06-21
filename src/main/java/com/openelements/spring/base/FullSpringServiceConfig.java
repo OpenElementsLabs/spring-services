@@ -10,7 +10,7 @@ import com.openelements.spring.base.services.search.SearchConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.slack.SlackConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
-import com.openelements.spring.base.services.translation.LanguageConfig;
+import com.openelements.spring.base.services.translation.TranslationConfig;
 import com.openelements.spring.base.services.webhook.WebhookConfig;
 import com.openelements.spring.base.tenant.TenantConfig;
 import org.springframework.context.annotation.Import;
@@ -49,18 +49,19 @@ import org.springframework.context.annotation.Import;
  * </ul>
  */
 @Import({
-  SecurityConfig.class,
-  TenantConfig.class,
-  ApiKeyConfig.class,
-  SettingsConfig.class,
-  TagConfig.class,
-  WebhookConfig.class,
-  SlackConfig.class,
-  EmailConfig.class,
-  AuditConfig.class,
-  CommentConfig.class,
-  LanguageConfig.class,
-  SearchConfig.class,
-  DbBackupConfig.class
+        SecurityConfig.class,
+        TenantConfig.class,
+        ApiKeyConfig.class,
+        SettingsConfig.class,
+        TagConfig.class,
+        WebhookConfig.class,
+        SlackConfig.class,
+        EmailConfig.class,
+        AuditConfig.class,
+        CommentConfig.class,
+        TranslationConfig.class,
+        SearchConfig.class,
+        DbBackupConfig.class
 })
-public class FullSpringServiceConfig {}
+public class FullSpringServiceConfig {
+}
