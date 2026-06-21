@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -79,11 +80,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * 10 concurrent {@code REQUIRES_NEW} provisioning attempts (2 connections per thread =
  * suspended outer + active inner) do not deadlock the pool.
  *
- * <p><b>Known flakiness.</b> The different-{@code sub} non-blocking test compares wall-clock
- * times. Under heavy CI load it occasionally fails because the parallel measurement scales
- * non-linearly with system load while the baseline does not. Single-test isolation reliably
- * passes. The functional invariant (exactly one row per {@code sub}) is robust; only the
- * timing ratio is sensitive.
+ * <p><b>Load-independent.</b> The different-{@code sub} non-blocking test no longer compares
+ * wall-clock times. It proves concurrency directly with a {@link CyclicBarrier} that can only
+ * trip when every thread is inside {@code getCurrentUserEntity()} at once, so it passes or fails
+ * on the actual concurrency property regardless of CI load. The only timeouts are correctness
+ * guards against serialisation, not performance thresholds.
  */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
@@ -167,46 +168,56 @@ class UserServiceConcurrencyTest {
   }
 
   /**
-   * Regression guard against re-introducing {@code synchronized} on the hot path. Measures a
-   * single-threaded baseline, then runs 10 parallel logins for 10 distinct {@code sub} values.
-   * Asserts {@code parallelTotalNs < 5 × threadCount × singleThreadNs} — generous enough to
-   * survive CI jitter, strict enough to catch a JVM-level monitor that would force serial
-   * execution.
+   * Regression guard against re-introducing {@code synchronized} on the hot path — proven
+   * <em>deterministically</em>, without any wall-clock measurement.
    *
-   * <p>Per-thread {@code UserInformation} is dispatched via a {@link
-   * java.util.concurrent.ConcurrentHashMap} keyed by {@link Thread} — the Mockito {@code
-   * thenAnswer} lambda reads the calling thread's entry. No Spring Security context is needed.
+   * <p>The mechanism: {@code authService.getUserInformation()} is the first call inside {@code
+   * getCurrentUserEntity()}, and it is a mock. Its answer parks every calling thread on a {@link
+   * CyclicBarrier} sized to {@code threadCount}. The barrier can only trip if all {@code
+   * threadCount} threads are inside {@code getCurrentUserEntity()} <em>at the same time</em>:
+   *
+   * <ul>
+   *   <li>If the method is <b>not</b> serialised (the correct state), all threads enter
+   *       concurrently, all reach the barrier, it trips immediately, and each proceeds to create
+   *       its own row.
+   *   <li>If the method were {@code synchronized} again, only one thread could be inside at a
+   *       time; the other nine would block on the monitor and never reach the barrier, so the
+   *       barrier would time out — surfacing as a {@link java.util.concurrent.TimeoutException}
+   *       and failing the test.
+   * </ul>
+   *
+   * <p>The only timeouts involved are correctness guards against a deadlock-like serialisation,
+   * not performance ratios, so the test is immune to CI load — it passes or fails on the actual
+   * concurrency property, deterministically.
+   *
+   * <p>Per-thread {@code UserInformation} is dispatched via a {@link ConcurrentHashMap} keyed by
+   * {@link Thread} — the Mockito {@code thenAnswer} lambda reads the calling thread's entry. No
+   * Spring Security context is needed.
    */
   @Test
   @DisplayName(
-      "Ten concurrent first-logins for ten distinct subs run in less than 5× the single-thread "
-          + "baseline — guards against re-introducing synchronized on the hot path.")
+      "Ten concurrent first-logins for ten distinct subs are all inside getCurrentUserEntity() "
+          + "simultaneously (proven via a CyclicBarrier) — guards against re-introducing "
+          + "synchronized on the hot path.")
   void concurrentLoginsForDifferentSubsDoNotBlock() throws Exception {
     final int threadCount = 10;
     final ConcurrentMap<Thread, UserInformation> threadInfo = new ConcurrentHashMap<>();
+
+    // Trips only when all threadCount threads are simultaneously inside getCurrentUserEntity().
+    // A synchronized method would let only one thread in at a time, so the barrier would never
+    // reach threadCount parties and await() below would time out.
+    final CyclicBarrier allInsideMethod = new CyclicBarrier(threadCount);
+
     when(authService.getUserInformation())
-        .thenAnswer(inv -> Optional.ofNullable(threadInfo.get(Thread.currentThread())));
+        .thenAnswer(
+            inv -> {
+              // Runs INSIDE getCurrentUserEntity(); rendezvous here proves concurrent entry.
+              allInsideMethod.await(15, TimeUnit.SECONDS);
+              return Optional.ofNullable(threadInfo.get(Thread.currentThread()));
+            });
 
-    // Baseline: measure single-threaded duration so the assertion is dimensionless.
-    threadInfo.put(
-        Thread.currentThread(),
-        new UserInformation(
-            "baseline-sub",
-            "Baseline",
-            "baseline@example.com",
-            null,
-            "baseline-sub",
-            "baseline-sub"));
-    final long baselineStart = System.nanoTime();
-    userService.getCurrentUserEntity();
-    final long singleThreadNs = System.nanoTime() - baselineStart;
-    threadInfo.clear();
-
-    final CountDownLatch start = new CountDownLatch(1);
     final ExecutorService exec = Executors.newFixedThreadPool(threadCount);
     final List<Future<UUID>> futures = new ArrayList<>();
-    final long parallelStart;
-    final long parallelTotalNs;
     try {
       for (int i = 0; i < threadCount; i++) {
         final int n = i;
@@ -222,32 +233,23 @@ class UserServiceConcurrencyTest {
                           null,
                           "concurrent-sub-" + n,
                           "concurrent-sub-" + n));
-                  start.await();
                   return userService.getCurrentUserEntity().getId();
                 }));
       }
-      parallelStart = System.nanoTime();
-      start.countDown();
+
       final Set<UUID> ids = new HashSet<>();
       for (final Future<UUID> f : futures) {
+        // If the method serialised, the barrier would have timed out and this would surface the
+        // resulting exception instead of a clean id.
         ids.add(f.get(30, TimeUnit.SECONDS));
       }
-      parallelTotalNs = System.nanoTime() - parallelStart;
 
       assertThat(ids)
-          .as("each thread must create its own distinct row")
-          .hasSize(threadCount);
-
-      // If `synchronized` were still on the method, this would scale linearly:
-      // parallelTotalNs ≈ threadCount * singleThreadNs. The 5× ceiling is relaxed enough
-      // to survive CI jitter while still flagging a re-introduction of serialisation.
-      final long ceilingNs = (long) threadCount * singleThreadNs * 5L;
-      assertThat(parallelTotalNs)
           .as(
-              "10 concurrent first-time logins must not scale linearly with the single-thread"
-                  + " duration (baseline=%d ns, parallel=%d ns, ceiling=%d ns)",
-              singleThreadNs, parallelTotalNs, ceilingNs)
-          .isLessThan(ceilingNs);
+              "all %d threads reached the barrier inside getCurrentUserEntity() concurrently and "
+                  + "each created its own distinct row",
+              threadCount)
+          .hasSize(threadCount);
     } finally {
       exec.shutdownNow();
     }
