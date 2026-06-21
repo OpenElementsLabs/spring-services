@@ -79,10 +79,13 @@ echo "Releasing version $NEW_VERSION"
 # version delta.
 generate_release_doc
 
-# `commit -am` only stages modified tracked files; the new doc is untracked,
-# so add docs/releases/ explicitly (guarded — the dir may not exist if the
-# doc step was skipped or failed).
-git add docs/releases 2>/dev/null || true
+# `commit -am` only stages modified tracked files, but the release doc is a NEW
+# (untracked) file — and its exact path depends on the project's convention
+# (this repo uses docs/upgrade-to-X.Y.md, others use docs/releases/vX.Y.md). Stage
+# the whole docs/ tree so the freshly generated doc is included regardless of its
+# name or sub-directory (guarded — docs/ should exist, but never block the release
+# if it doesn't).
+git add docs 2>/dev/null || true
 git commit -am "Version $NEW_VERSION"
 git push
 
