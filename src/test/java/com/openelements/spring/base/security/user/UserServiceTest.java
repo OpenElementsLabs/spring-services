@@ -32,7 +32,7 @@ class UserServiceTest {
   private void setupAuth(
       final String sub, final String name, final String email, final String avatarUrl) {
     when(authService.getUserInformation())
-        .thenReturn(Optional.of(new UserInformation(sub, name, email, avatarUrl)));
+        .thenReturn(Optional.of(new UserInformation(sub, name, email, avatarUrl, sub, sub)));
   }
 
   private UserEntity createExistingUser(

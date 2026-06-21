@@ -63,9 +63,12 @@ public class UserProvisioner {
   public UserEntity provision(final UserInformation userInformation) {
     final UserEntity entity = new UserEntity();
     entity.setSub(userInformation.id());
+    entity.setExternalId(userInformation.externalId());
+    entity.setUserName(userInformation.userName());
     entity.setName(userInformation.name());
     entity.setEmail(userInformation.email());
     entity.setAvatarUrl(userInformation.avatarUrl());
+    entity.setActive(true);
     return userRepository.saveAndFlush(entity);
   }
 }

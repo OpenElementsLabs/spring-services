@@ -69,7 +69,8 @@ class UserServiceConcurrencyTest {
   void concurrentFirstLoginsForSameSubProduceOneRow() throws Exception {
     final String sharedSub = "auth0|concurrent-same";
     final UserInformation info =
-        new UserInformation(sharedSub, "Same User", "same@example.com", null);
+        new UserInformation(
+            sharedSub, "Same User", "same@example.com", null, sharedSub, sharedSub);
     when(authService.getUserInformation()).thenReturn(Optional.of(info));
 
     final int threadCount = 10;
@@ -117,7 +118,13 @@ class UserServiceConcurrencyTest {
     // Baseline: measure single-threaded duration so the assertion is dimensionless.
     threadInfo.put(
         Thread.currentThread(),
-        new UserInformation("baseline-sub", "Baseline", "baseline@example.com", null));
+        new UserInformation(
+            "baseline-sub",
+            "Baseline",
+            "baseline@example.com",
+            null,
+            "baseline-sub",
+            "baseline-sub"));
     final long baselineStart = System.nanoTime();
     userService.getCurrentUserEntity();
     final long singleThreadNs = System.nanoTime() - baselineStart;
@@ -140,7 +147,9 @@ class UserServiceConcurrencyTest {
                           "concurrent-sub-" + n,
                           "User " + n,
                           "user" + n + "@example.com",
-                          null));
+                          null,
+                          "concurrent-sub-" + n,
+                          "concurrent-sub-" + n));
                   start.await();
                   return userService.getCurrentUserEntity().getId();
                 }));
@@ -177,14 +186,17 @@ class UserServiceConcurrencyTest {
   void driftSyncIsTransactional() {
     final String sub = "auth0|drift-tx";
     when(authService.getUserInformation())
-        .thenReturn(Optional.of(new UserInformation(sub, "Original", "orig@example.com", null)));
+        .thenReturn(
+            Optional.of(
+                new UserInformation(sub, "Original", "orig@example.com", null, sub, sub)));
     final UserEntity created = userService.getCurrentUserEntity();
     assertThat(created.getName()).isEqualTo("Original");
 
     when(authService.getUserInformation())
         .thenReturn(
             Optional.of(
-                new UserInformation(sub, "Updated", "new@example.com", "https://avatar")));
+                new UserInformation(
+                    sub, "Updated", "new@example.com", "https://avatar", sub, sub)));
     final UserEntity updated = userService.getCurrentUserEntity();
 
     assertThat(updated.getId()).isEqualTo(created.getId());

@@ -27,8 +27,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 @BatchSize(size = 50)
 public class UserEntity extends AbstractEntity {
 
-  @Column(name = "sub", nullable = false, unique = true, length = 255)
+  @Column(name = "sub", nullable = true, unique = true, length = 255)
   private String sub;
+
+  @Column(name = "external_id", nullable = true, unique = true, length = 255)
+  private String externalId;
+
+  @Column(name = "user_name", nullable = false, unique = true, length = 255)
+  private String userName;
 
   @Column(name = "name", nullable = false, length = 255)
   private String name;
@@ -39,6 +45,9 @@ public class UserEntity extends AbstractEntity {
   @Column(name = "avatar_url", length = 2048)
   private String avatarUrl;
 
+  @Column(name = "active", nullable = false)
+  private boolean active = true;
+
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
@@ -48,15 +57,70 @@ public class UserEntity extends AbstractEntity {
   /**
    * Returns the OAuth2 subject identifier ({@code sub} claim) of this user.
    *
-   * @return the subject identifier, never {@code null} for persisted entities
+   * <p>May be {@code null} for rows that were provisioned by SCIM before the user ever logged in
+   * interactively — once the user authenticates the first time, the JIT flow backfills this field
+   * from the JWT {@code sub} claim. For interactively-provisioned users (the historical default)
+   * this is always populated.
+   *
+   * @return the subject identifier, or {@code null} for SCIM-pre-provisioned rows that have not
+   *     yet seen an interactive login
    */
   public String getSub() {
     return sub;
   }
 
   public void setSub(final String sub) {
-    Objects.requireNonNull(sub, "sub must not be null");
     this.sub = sub;
+  }
+
+  /**
+   * Returns the stable IdP-side identifier of this user.
+   *
+   * <p>For Authentik (and most IdPs that use the same value for OIDC {@code sub} and SCIM
+   * {@code externalId}), this mirrors {@link #getSub()} once the user has logged in interactively.
+   * Populated independently of {@code sub} when the row is created via SCIM provisioning, which
+   * is what makes correlation between SCIM-pre-provisioned and JIT-logged-in users possible.
+   *
+   * @return the IdP-side identifier, or {@code null} for users provisioned before the
+   *     {@code externalId} column existed and not yet seen for an interactive login since
+   */
+  public String getExternalId() {
+    return externalId;
+  }
+
+  public void setExternalId(final String externalId) {
+    this.externalId = externalId;
+  }
+
+  /**
+   * Returns the unique business-key handle of this user — typically the IdP's
+   * {@code preferred_username} claim, with a fallback chain ({@code email → sub → "user-<UUID>"})
+   * applied at JIT-login time to guarantee a non-null value.
+   *
+   * @return the user-name handle, never {@code null} for persisted entities
+   */
+  public String getUserName() {
+    return userName;
+  }
+
+  public void setUserName(final String userName) {
+    Objects.requireNonNull(userName, "userName must not be null");
+    this.userName = userName;
+  }
+
+  /**
+   * Returns whether this user is active. An inactive user is rejected by every authentication
+   * path (JWT chain throws {@code AccessDeniedException}; opaque-token chain throws
+   * {@code BadOpaqueTokenException} via the {@code PrincipalDirectory} live check).
+   *
+   * @return {@code true} if the user is active, {@code false} otherwise
+   */
+  public boolean isActive() {
+    return active;
+  }
+
+  public void setActive(final boolean active) {
+    this.active = active;
   }
 
   /**
@@ -103,6 +167,18 @@ public class UserEntity extends AbstractEntity {
 
   @Override
   public String toString() {
-    return "UserEntity[id=" + id() + ", sub=" + sub + ", name=" + name + "]";
+    return "UserEntity[id="
+        + id()
+        + ", sub="
+        + sub
+        + ", externalId="
+        + externalId
+        + ", userName="
+        + userName
+        + ", active="
+        + active
+        + ", name="
+        + name
+        + "]";
   }
 }

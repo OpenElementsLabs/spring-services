@@ -16,6 +16,21 @@ package com.openelements.spring.base.security;
  *       identity provider or if the {@code email} scope was not granted.
  *   <li>{@code avatarUrl} — the {@code avatar} claim, an absolute URL pointing at the identity
  *       provider's avatar image for the user. May be {@code null} if the claim is absent or blank.
+ *   <li>{@code userName} — the {@code preferred_username} claim with a fallback chain
+ *       ({@code preferred_username → email → sub → "user-<UUID>"}) applied by {@code AuthService}.
+ *       Guaranteed non-null and non-blank for {@code AuthService}-produced records, so {@link
+ *       com.openelements.spring.base.services.user.UserEntity#getUserName()} can be populated
+ *       unconditionally on JIT login.
+ *   <li>{@code externalId} — the stable IdP-side identifier. Mirrors {@code id} (the JWT
+ *       {@code sub}) for IdPs that use the same value for OIDC {@code sub} and SCIM
+ *       {@code externalId} — which covers Authentik, Okta, Entra ID, and Keycloak in default
+ *       configurations.
  * </ul>
  */
-public record UserInformation(String id, String name, String email, String avatarUrl) {}
+public record UserInformation(
+    String id,
+    String name,
+    String email,
+    String avatarUrl,
+    String userName,
+    String externalId) {}

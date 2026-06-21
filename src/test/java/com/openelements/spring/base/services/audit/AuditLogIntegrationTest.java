@@ -60,7 +60,13 @@ class AuditLogIntegrationTest {
 
   private static java.util.Optional<UserInformation> userInfo(final UserEntity user) {
     return java.util.Optional.of(
-        new UserInformation(user.getSub(), user.getName(), "test@example.com", null));
+        new UserInformation(
+            user.getSub(),
+            user.getName(),
+            "test@example.com",
+            null,
+            user.getSub(),
+            user.getSub()));
   }
 
   @BeforeEach
@@ -75,9 +81,10 @@ class AuditLogIntegrationTest {
 
   private void persistSystemUser() {
     jdbcTemplate.update(
-        "INSERT INTO users (id, sub, name, updated_at, created_at) "
-            + "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        "INSERT INTO users (id, sub, user_name, name, active, updated_at, created_at) "
+            + "VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         SystemUser.ID,
+        SystemUser.SUB,
         SystemUser.SUB,
         SystemUser.NAME);
   }
@@ -85,6 +92,8 @@ class AuditLogIntegrationTest {
   private UserEntity saveUser(final String sub, final String name) {
     final UserEntity user = new UserEntity();
     user.setSub(sub);
+    user.setExternalId(sub);
+    user.setUserName(sub);
     user.setName(name);
     return userRepository.save(user);
   }

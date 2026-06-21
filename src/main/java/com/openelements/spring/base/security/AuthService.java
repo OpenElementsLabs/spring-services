@@ -1,6 +1,7 @@
 package com.openelements.spring.base.security;
 
 import java.util.Optional;
+import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.Authentication;
@@ -127,13 +128,37 @@ public class AuthService {
       if (sub == null || sub.isBlank()) {
         throw new IllegalStateException("No sub found");
       }
+      final String name = jwt.getClaimAsString("name");
+      final String email = jwt.getClaimAsString("email");
       final String picture = jwt.getClaimAsString("picture");
       final String avatarUrl = (picture == null || picture.isBlank()) ? null : picture;
-      return Optional.of(
-          new UserInformation(
-              sub, jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), avatarUrl));
+      final String preferredUsername = jwt.getClaimAsString("preferred_username");
+      final String userName = resolveUserName(preferredUsername, email, sub);
+      return Optional.of(new UserInformation(sub, name, email, avatarUrl, userName, sub));
     }
     return Optional.empty();
+  }
+
+  /**
+   * Applies the {@code preferred_username → email → sub → "user-<UUID>"} fallback chain so that
+   * {@link UserInformation#userName()} is always non-null and non-blank.
+   *
+   * <p>The synthetic UUID fallback is a last-resort guard: in practice it is unreachable because
+   * {@code sub} is enforced non-blank above, so the third arm of the chain always succeeds. The
+   * guard exists so the contract of {@code UserInformation.userName()} is unconditional.
+   */
+  private static String resolveUserName(
+      final String preferredUsername, final String email, final String sub) {
+    if (preferredUsername != null && !preferredUsername.isBlank()) {
+      return preferredUsername;
+    }
+    if (email != null && !email.isBlank()) {
+      return email;
+    }
+    if (sub != null && !sub.isBlank()) {
+      return sub;
+    }
+    return "user-" + UUID.randomUUID();
   }
 
   /**

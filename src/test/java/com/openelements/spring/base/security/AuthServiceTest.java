@@ -123,6 +123,7 @@ class AuthServiceTest {
               .claim("name", "Hendrik Ebbers")
               .claim("email", "hendrik@example.com")
               .claim("picture", "https://auth.example.com/avatar.jpg")
+              .claim("preferred_username", "hendrik")
               .issuedAt(Instant.now())
               .expiresAt(Instant.now().plusSeconds(3600))
               .build();
@@ -137,6 +138,82 @@ class AuthServiceTest {
       assertThat(info.name()).isEqualTo("Hendrik Ebbers");
       assertThat(info.email()).isEqualTo("hendrik@example.com");
       assertThat(info.avatarUrl()).isEqualTo("https://auth.example.com/avatar.jpg");
+      assertThat(info.userName()).isEqualTo("hendrik");
+      assertThat(info.externalId()).isEqualTo("auth0|456");
+    }
+
+    @Test
+    void userNameFallsBackToEmailWhenPreferredUsernameMissing() {
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("xyz789")
+              .claim("email", "bob@example.com")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(jwt, null));
+
+      final UserInformation info = authService.getUserInformation().orElseThrow();
+
+      assertThat(info.userName()).isEqualTo("bob@example.com");
+    }
+
+    @Test
+    void userNameFallsBackToSubWhenPreferredUsernameAndEmailMissing() {
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("svc-123")
+              .claim("name", "Service Account")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(jwt, null));
+
+      final UserInformation info = authService.getUserInformation().orElseThrow();
+
+      assertThat(info.userName()).isEqualTo("svc-123");
+    }
+
+    @Test
+    void userNameFallsBackToEmailWhenPreferredUsernameIsBlank() {
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("blank-pref-sub")
+              .claim("preferred_username", "   ")
+              .claim("email", "blank@example.com")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(jwt, null));
+
+      final UserInformation info = authService.getUserInformation().orElseThrow();
+
+      assertThat(info.userName()).isEqualTo("blank@example.com");
+    }
+
+    @Test
+    void externalIdMirrorsSubject() {
+      final Jwt jwt =
+          Jwt.withTokenValue("token")
+              .header("alg", "RS256")
+              .subject("authentik|abc123")
+              .claim("preferred_username", "alice")
+              .issuedAt(Instant.now())
+              .expiresAt(Instant.now().plusSeconds(3600))
+              .build();
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(jwt, null));
+
+      final UserInformation info = authService.getUserInformation().orElseThrow();
+
+      assertThat(info.externalId()).isEqualTo("authentik|abc123");
+      assertThat(info.id()).isEqualTo("authentik|abc123");
     }
 
     @Test

@@ -32,8 +32,8 @@ public class SystemUserInitializer implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(SystemUserInitializer.class);
 
   private static final String INSERT_SQL =
-      "INSERT INTO users (id, sub, name, updated_at, created_at) "
-          + "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+      "INSERT INTO users (id, sub, user_name, name, active, updated_at, created_at) "
+          + "VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
 
   private final UserRepository userRepository;
 
@@ -52,7 +52,8 @@ public class SystemUserInitializer implements ApplicationRunner {
       return;
     }
     try {
-      jdbcTemplate.update(INSERT_SQL, SystemUser.ID, SystemUser.SUB, SystemUser.NAME);
+      jdbcTemplate.update(
+          INSERT_SQL, SystemUser.ID, SystemUser.SUB, SystemUser.SUB, SystemUser.NAME);
       LOG.info("Created System User row (id={}, sub={})", SystemUser.ID, SystemUser.SUB);
     } catch (final DataIntegrityViolationException e) {
       LOG.debug("System User row was created concurrently by another instance — ignoring.", e);

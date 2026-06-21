@@ -36,7 +36,7 @@ class AuditLogEventListenerTest {
   private final UserEntity bob = new UserEntity();
 
   private static Optional<UserInformation> userNamed(final String sub, final String name) {
-    return Optional.of(new UserInformation(sub, name, "test@example.com", null));
+    return Optional.of(new UserInformation(sub, name, "test@example.com", null, sub, sub));
   }
 
   @BeforeEach
