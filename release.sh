@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e  # Exit the script if any command fails
 
+# Cuts a release by setting the version, tagging, and pushing.
+# Pushing the tag (vA.B.C) triggers .github/workflows/release.yml, which
+# builds, signs, and deploys to Maven Central and creates the GitHub
+# release. This script only prepares git state; it does NOT deploy.
+
 if [ -z "$1" ]; then
   echo "Please provide version that should be released and the next snapshot version. Example: ./release.sh 0.1.0 0.2.0-SNAPSHOT"
   exit 1
@@ -26,11 +31,17 @@ NEXT_VERSION="$2"
 
 echo "Releasing version $NEW_VERSION"
 ./mvnw versions:set -DnewVersion=$NEW_VERSION
+# Build and test locally so we never push a tag that fails CI.
 ./mvnw clean verify
 git commit -am "Version $NEW_VERSION"
 git push
-./mvnw -Ppublication deploy -DaltDeploymentRepository=local::file:./target/staging-deploy
-./mvnw -Ppublication jreleaser:full-release
+
+# Tag and push. The vA.B.C tag triggers the release workflow that deploys
+# to Maven Central and creates the GitHub release.
+echo "Tagging v$NEW_VERSION (this triggers the release workflow)"
+git tag "v$NEW_VERSION"
+git push origin "v$NEW_VERSION"
+
 echo "Setting version to $NEXT_VERSION"
 ./mvnw versions:set -DnewVersion=$NEXT_VERSION
 git commit -am "Version $NEXT_VERSION"
