@@ -29,10 +29,43 @@ fi
 NEW_VERSION="$1"
 NEXT_VERSION="$2"
 
+# Best-effort: generate release/upgrade documentation with Claude Code.
+# Requires the `claude` CLI (Claude Code) on this machine. Documentation is a
+# "nice to have" for the release, not a gate: if the CLI is missing or the run
+# fails, we log a warning and continue so a doc problem never blocks a release.
+generate_release_doc() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "WARNING: 'claude' CLI not found; skipping release documentation."
+    echo "         Install Claude Code to auto-generate docs/releases/ on release."
+    return 0
+  fi
+  echo "Generating release documentation for v$NEW_VERSION with Claude Code..."
+  # Runs headless (-p). The /release-doc skill reads git history (Bash) and
+  # writes the doc into docs/releases/, so we allow exactly those tools and
+  # auto-accept edits — no interactive prompt is possible in a script.
+  if claude -p "/release-doc v$NEW_VERSION" \
+      --permission-mode acceptEdits \
+      --allowedTools "Bash Read Write Edit Glob Grep"; then
+    echo "Release documentation generated under docs/releases/."
+  else
+    echo "WARNING: release documentation generation failed; continuing release."
+  fi
+}
+
 echo "Releasing version $NEW_VERSION"
 ./mvnw versions:set -DnewVersion=$NEW_VERSION
+
+# Generate the release doc before committing so it ships inside the release
+# commit (and therefore the v$NEW_VERSION tag). The version is already set in
+# the build file, so the skill can derive the correct version delta.
+generate_release_doc
+
 # Build and test locally so we never push a tag that fails CI.
 ./mvnw clean verify
+# `commit -am` only stages modified tracked files; the new doc is untracked,
+# so add docs/releases/ explicitly (guarded — the dir may not exist if the
+# doc step was skipped or failed).
+git add docs/releases 2>/dev/null || true
 git commit -am "Version $NEW_VERSION"
 git push
 
