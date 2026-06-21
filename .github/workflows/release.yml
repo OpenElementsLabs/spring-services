@@ -57,9 +57,9 @@ jobs:
       - name: Build & stage artifacts
         # Build, test, and stage the artifacts into a local repository that
         # JReleaser then signs and uploads to Maven Central.
-        # distributionManagement points at GitHub Packages, so we override
-        # the deploy target to the local staging directory configured in the
-        # JReleaser <stagingRepositories> block (target/staging-deploy).
+        # The POM intentionally defines no release <repository>, so we must point
+        # the deploy target at the local staging directory consumed by the JReleaser
+        # <stagingRepositories> block (target/staging-deploy).
         run: ./mvnw -B -Ppublication clean deploy -DaltDeploymentRepository=local::file:./target/staging-deploy
 
       - name: Publish with JReleaser

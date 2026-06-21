@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -17,15 +16,41 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+          # Generate a settings.xml with a <server id="central-portal-snapshots">
+          # whose credentials come from the env vars below. The id must match
+          # <snapshotRepository><id> in pom.xml, so `mvn deploy` of a -SNAPSHOT
+          # authenticates against the Central Portal snapshot repository.
+          server-id: central-portal-snapshots
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_PASSWORD
       - name: Cache Maven dependencies
         uses: actions/cache@v5
         with:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: maven-
-      - name: Build and test
-        run: ./mvnw clean verify
-      - name: Publish SNAPSHOT to GitHub Packages
-        run: ./mvnw -Ppublication deploy
+      - name: Check this is a SNAPSHOT version
+        # release.sh briefly pushes a release-version commit ("Version X.Y.Z") to
+        # main before bumping back to the next -SNAPSHOT. That push also triggers
+        # this workflow. We must NOT publish a release version to the snapshot repo,
+        # so gate the deploy on the POM version ending in -SNAPSHOT. A non-SNAPSHOT
+        # push is skipped cleanly (green), not failed.
+        id: version
+        run: |
+          POM_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          if [[ "$POM_VERSION" == *-SNAPSHOT ]]; then
+            echo "is_snapshot=true" >> "$GITHUB_OUTPUT"
+            echo "POM version $POM_VERSION is a SNAPSHOT — will publish."
+          else
+            echo "is_snapshot=false" >> "$GITHUB_OUTPUT"
+            echo "POM version $POM_VERSION is not a SNAPSHOT — skipping snapshot publish."
+          fi
+      - name: Publish SNAPSHOT to Central Portal
+        # `deploy` runs the full lifecycle (incl. tests) and pushes the -SNAPSHOT
+        # artifacts to the Central Portal snapshot repo configured in pom.xml.
+        # No GPG signing is required for snapshots.
+        if: steps.version.outputs.is_snapshot == 'true'
+        run: ./mvnw -B -Ppublication clean deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
