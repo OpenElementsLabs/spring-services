@@ -1,6 +1,6 @@
 # Implementation Steps: Security Configuration Hygiene
 
-Spec: [`011-security-config-hygiene`](./design.md) · Behaviors: [`behaviors.md`](./behaviors.md)
+Spec: [`011-security-config-hygiene`](design.md) · Behaviors: [`behaviors.md`](behaviors.md)
 
 The work is structured as six refactoring steps, each independently verifiable by running the
 existing test suite, followed by a documentation step. The ordering starts with the lowest-risk
@@ -62,11 +62,11 @@ After each step the project must compile and the full test suite must pass befor
 
 - [x] Project builds and existing tests pass (311 tests, 0 failures, 2 pre-existing skips).
 - [x] New `UserServiceConcurrencyTest` (Testcontainers Postgres, `@SpringBootTest`):
-  - `concurrentFirstLoginsForSameSubProduceOneRow` — 10 threads × same sub → one row, all
-    threads observe the same `UserEntity.id`.
-  - `concurrentLoginsForDifferentSubsDoNotBlock` — 10 threads × different subs → 10 rows,
-    wall-clock < 5 × single-thread baseline.
-  - `driftSyncIsTransactional` — drift sync remains atomic across name/email/avatarUrl.
+    - `concurrentFirstLoginsForSameSubProduceOneRow` — 10 threads × same sub → one row, all
+      threads observe the same `UserEntity.id`.
+    - `concurrentLoginsForDifferentSubsDoNotBlock` — 10 threads × different subs → 10 rows,
+      wall-clock < 5 × single-thread baseline.
+    - `driftSyncIsTransactional` — drift sync remains atomic across name/email/avatarUrl.
 - [x] Existing `UserServiceTest` updated to mock the new `UserProvisioner` dependency in the
   create-path tests (`shouldCreateNewUserWhenNotExists`, `shouldStoreAvatarUrlOnFirstLogin`,
   `shouldCreateUserWithoutAvatarUrlWhenClaimMissing`, `shouldProvisionNewUserOnFirstCall`).
@@ -85,18 +85,18 @@ After each step the project must compile and the full test suite must pass befor
 **Changes:**
 
 - [x] In `src/main/java/com/openelements/spring/base/security/AuthService.java`:
-  - Introduced a `private final SecurityContextHolderStrategy securityContextHolderStrategy =
+    - Introduced a `private final SecurityContextHolderStrategy securityContextHolderStrategy =
     SecurityContextHolder.getContextHolderStrategy();` field with Javadoc.
-  - Replaced the direct `SecurityContextHolder.getContext()` call in `getAuthentication()` with
-    `securityContextHolderStrategy.getContext()`.
+    - Replaced the direct `SecurityContextHolder.getContext()` call in `getAuthentication()` with
+      `securityContextHolderStrategy.getContext()`.
 - [x] In
   `src/main/java/com/openelements/spring/base/security/apikey/ApiKeyAuthenticationFilter.java`:
-  - Added the same strategy field with Javadoc.
-  - Replaced `SecurityContextHolder.getContext().setAuthentication(authentication)` with
-    `SecurityContext context = securityContextHolderStrategy.createEmptyContext();
-    context.setAuthentication(authentication);
-    securityContextHolderStrategy.setContext(context);` — matches the Spring Security 6
-    documented pattern.
+    - Added the same strategy field with Javadoc.
+    - Replaced `SecurityContextHolder.getContext().setAuthentication(authentication)` with
+      `SecurityContext context = securityContextHolderStrategy.createEmptyContext();
+      context.setAuthentication(authentication);
+      securityContextHolderStrategy.setContext(context);` — matches the Spring Security 6
+      documented pattern.
 
 **Acceptance criteria:**
 
@@ -132,13 +132,13 @@ After each step the project must compile and the full test suite must pass befor
 
 - [x] Project builds; full test suite passes (312 tests, 0 failures, 2 pre-existing skips).
 - [x] `AuthServiceTest`:
-  - `shouldExtractUserInformationFromJwt` / avatar-claim tests now use `.orElseThrow()` to
-    unwrap, implicitly asserting `isPresent() == true`.
-  - `shouldReturnEmptyForApiKeyPrincipal` (renamed from `…UnknownUser…`) asserts
-    `isEmpty()`.
-  - `shouldReturnEmptyForStringPrincipal` asserts `isEmpty()`.
-  - `shouldThrowWhenPrincipalIsNotJwt` (pre-existing) covers `getPrincipalJwt()` behaviour
-    after the dead-null-check removal.
+    - `shouldExtractUserInformationFromJwt` / avatar-claim tests now use `.orElseThrow()` to
+      unwrap, implicitly asserting `isPresent() == true`.
+    - `shouldReturnEmptyForApiKeyPrincipal` (renamed from `…UnknownUser…`) asserts
+      `isEmpty()`.
+    - `shouldReturnEmptyForStringPrincipal` asserts `isEmpty()`.
+    - `shouldThrowWhenPrincipalIsNotJwt` (pre-existing) covers `getPrincipalJwt()` behaviour
+      after the dead-null-check removal.
 - [x] New `UserServiceTest.shouldThrowWhenNoJwtBoundToRequest` covers the
   `Optional.empty() → IllegalStateException` path; verifies neither the repository nor the
   provisioner is touched.
@@ -169,32 +169,32 @@ Applied uniformly to all 14 config classes for consistency.
 **Changes:**
 
 - [x] All 14 `@Configuration` classes normalised to the uniform pattern:
-  - Removed `@AutoConfiguration` and `@EnableAutoConfiguration` (both were inert without an
-    `AutoConfiguration.imports` file, and `@EnableAutoConfiguration` on a library config is
-    an anti-pattern).
-  - Replaced `@Configuration` with `@Configuration(proxyBeanMethods = false)` — no `@Bean`
-    methods in this library invoke each other internally, so the CGLIB proxy is wasted cost.
-  - Anchored `@ComponentScan` to `basePackageClasses = <Self>.class` — survives package
-    renames, no fragile implicit "package of the annotated class" semantic.
-  - Kept feature-specific annotations untouched: `@EnableConfigurationProperties` (Slack,
-    DbBackup, Search), `@EnableScheduling` (Audit), `@Import` (Audit, Comment, Security),
-    `@EnableWebSecurity` + `@EnableMethodSecurity` (Security), `@Bean` methods (Slack,
-    Webhook, Security).
+    - Removed `@AutoConfiguration` and `@EnableAutoConfiguration` (both were inert without an
+      `AutoConfiguration.imports` file, and `@EnableAutoConfiguration` on a library config is
+      an anti-pattern).
+    - Replaced `@Configuration` with `@Configuration(proxyBeanMethods = false)` — no `@Bean`
+      methods in this library invoke each other internally, so the CGLIB proxy is wasted cost.
+    - Anchored `@ComponentScan` to `basePackageClasses = <Self>.class` — survives package
+      renames, no fragile implicit "package of the annotated class" semantic.
+    - Kept feature-specific annotations untouched: `@EnableConfigurationProperties` (Slack,
+      DbBackup, Search), `@EnableScheduling` (Audit), `@Import` (Audit, Comment, Security),
+      `@EnableWebSecurity` + `@EnableMethodSecurity` (Security), `@Bean` methods (Slack,
+      Webhook, Security).
 - [x] Files touched: `SecurityConfig`, `UserConfig`, `ApiKeyConfig`, `AuditConfig`,
   `CommentConfig`, `DbBackupConfig`, `EmailConfig`, `SearchConfig`, `SettingsConfig`,
   `SlackConfig`, `TagConfig`, `LanguageConfig`, `WebhookConfig`, `TenantConfig`.
 - [x] **Two latent test-setup bugs surfaced** (both caused by the pre-change annotations
   silently disabling parts of the library in tests):
-  - `WebhookConfig.webhookRestClient` conflicted with `PostgresTestConfiguration`'s same-named
-    test bean once `WebhookConfig` started loading properly. Fixed by enabling
-    `spring.main.allow-bean-definition-overriding=true` in the test profile — standard pattern
-    when test configs intentionally override production beans.
-  - `SecurityConfig.defaultFilterChain` required a `JwtDecoder` that the test setup explicitly
-    excluded (`OAuth2ResourceServerAutoConfiguration.class`). Plus the test had its own
-    `testSecurityFilterChain` matching `anyRequest()`, which Spring Security 6.2+ rejects
-    as conflicting with the library's `defaultFilterChain`. Fixed by adding a stub
-    `JwtDecoder` bean to `PostgresTestConfiguration` and removing the redundant test chain
-    (tests invoke services directly, not via HTTP, so the production chain is harmless).
+    - `WebhookConfig.webhookRestClient` conflicted with `PostgresTestConfiguration`'s same-named
+      test bean once `WebhookConfig` started loading properly. Fixed by enabling
+      `spring.main.allow-bean-definition-overriding=true` in the test profile — standard pattern
+      when test configs intentionally override production beans.
+    - `SecurityConfig.defaultFilterChain` required a `JwtDecoder` that the test setup explicitly
+      excluded (`OAuth2ResourceServerAutoConfiguration.class`). Plus the test had its own
+      `testSecurityFilterChain` matching `anyRequest()`, which Spring Security 6.2+ rejects
+      as conflicting with the library's `defaultFilterChain`. Fixed by adding a stub
+      `JwtDecoder` bean to `PostgresTestConfiguration` and removing the redundant test chain
+      (tests invoke services directly, not via HTTP, so the production chain is harmless).
 
 **Acceptance criteria:**
 
@@ -225,40 +225,41 @@ Applied uniformly to all 14 config classes for consistency.
   `{"status":401,"error":"Unauthorized","message":<reason>}` and sets the
   `WWW-Authenticate` header per RFC 7235 §3.1.
 - [x] `SecurityConfig`:
-  - New `@Bean jwtAuthenticationEntryPoint(ObjectMapper)` → `"Bearer"` scheme.
-  - New `@Bean apiKeyAuthenticationEntryPoint(ObjectMapper)` → `"ApiKey realm=\"external\""`.
-  - `defaultFilterChain` wires `jwtAuthenticationEntryPoint` into
-    `oauth2ResourceServer.authenticationEntryPoint(...)`.
-  - `externalApiFilterChain` wires `apiKeyAuthenticationEntryPoint` into
-    `exceptionHandling.authenticationEntryPoint(...)`, and also passes the same bean into
-    `ApiKeyAuthenticationFilter` so the filter and the chain share one error renderer.
+    - New `@Bean jwtAuthenticationEntryPoint(ObjectMapper)` → `"Bearer"` scheme.
+    - New `@Bean apiKeyAuthenticationEntryPoint(ObjectMapper)` → `"ApiKey realm=\"external\""`.
+    - `defaultFilterChain` wires `jwtAuthenticationEntryPoint` into
+      `oauth2ResourceServer.authenticationEntryPoint(...)`.
+    - `externalApiFilterChain` wires `apiKeyAuthenticationEntryPoint` into
+      `exceptionHandling.authenticationEntryPoint(...)`, and also passes the same bean into
+      `ApiKeyAuthenticationFilter` so the filter and the chain share one error renderer.
 - [x] `ApiKeyAuthenticationFilter`:
-  - Constructor now takes `(ApiKeyDataService, AuthenticationEntryPoint)` — null-checked.
-  - On invalid key: replaced the manual JSON write with
-    `entryPoint.commence(request, response, new BadCredentialsException("Invalid API key"))`.
-  - Removed unused imports (`MediaType`).
+    - Constructor now takes `(ApiKeyDataService, AuthenticationEntryPoint)` — null-checked.
+    - On invalid key: replaced the manual JSON write with
+      `entryPoint.commence(request, response, new BadCredentialsException("Invalid API key"))`.
+    - Removed unused imports (`MediaType`).
 
 **Acceptance criteria:**
 
 - [x] Project builds and the full test suite passes (317 tests, 0 failures, 2 pre-existing
   skips).
 - [x] New `JsonAuthenticationEntryPointTest` (plain JUnit 5, no Spring context) — 4 tests:
-  - `shouldWriteUniformJsonBodyForBearerScheme` — full assertion on status, `Content-Type`,
-    `WWW-Authenticate: Bearer`, and JSON body fields via `ObjectMapper.readTree`.
-  - `shouldWriteUniformJsonBodyForApiKeyScheme` — same, with the ApiKey scheme.
-  - `shouldRejectNullObjectMapper`, `shouldRejectNullScheme` — defensive constructor checks.
+    - `shouldWriteUniformJsonBodyForBearerScheme` — full assertion on status, `Content-Type`,
+      `WWW-Authenticate: Bearer`, and JSON body fields via `ObjectMapper.readTree`.
+    - `shouldWriteUniformJsonBodyForApiKeyScheme` — same, with the ApiKey scheme.
+    - `shouldRejectNullObjectMapper`, `shouldRejectNullScheme` — defensive constructor checks.
 - [x] `ApiKeyAuthenticationFilterTest`:
-  - Updated `shouldReturn401WithUniformJsonBody` to assert the new body shape, `Content-Type:
+    - Updated `shouldReturn401WithUniformJsonBody` to assert the new body shape, `Content-Type:
     application/json`, and `WWW-Authenticate: ApiKey realm="external"` via header read +
-    Jackson tree parse.
-  - Added `shouldRejectNullEntryPoint` defensive constructor check.
-  - All existing pass-through / valid-key tests pass unchanged.
+      Jackson tree parse.
+    - Added `shouldRejectNullEntryPoint` defensive constructor check.
+    - All existing pass-through / valid-key tests pass unchanged.
 
 **Deferred:** The MockMvc-based integration tests of the default-chain Bearer entry point and
 the success-path round-trips are valuable but require a richer test-application setup
 (Jwt-validated controllers, full HTTP request loop). The standalone `JsonAuthenticationEntryPointTest`
+
 + the filter-level `ApiKeyAuthenticationFilterTest` cover the new behaviour comprehensively;
-the integration round-trip can be added as a follow-up once a JWT-issuing test fixture exists.
+  the integration round-trip can be added as a follow-up once a JWT-issuing test fixture exists.
 
 **Related behaviors:**
 
@@ -275,12 +276,12 @@ the integration round-trip can be added as a follow-up once a JWT-issuing test f
 **Changes:**
 
 - [x] `README.md` — Features section:
-  - Added a new "Uniform Authentication-Failure Responses" bullet describing the JSON body
-    shape and the per-chain `WWW-Authenticate` header.
-  - Extended the "User Service" bullet to mention the `UserProvisioner` + `REQUIRES_NEW`
-    coordination, pointing at the `services.user` package documentation for the full design.
-  - Added a "Typed Authentication Surface" bullet explaining the `Optional<UserInformation>`
-    return type.
+    - Added a new "Uniform Authentication-Failure Responses" bullet describing the JSON body
+      shape and the per-chain `WWW-Authenticate` header.
+    - Extended the "User Service" bullet to mention the `UserProvisioner` + `REQUIRES_NEW`
+      coordination, pointing at the `services.user` package documentation for the full design.
+    - Added a "Typed Authentication Surface" bullet explaining the `Optional<UserInformation>`
+      return type.
 - [x] `README.md` — new "Upgrade Notes" section (between Features and Building) covering the
   1.0.x → 1.1.x transition: the `Optional` signature change with before/after code, the JSON
   body-shape change, and the HikariCP pool-sizing guidance for the `REQUIRES_NEW`
@@ -311,24 +312,24 @@ the integration round-trip can be added as a follow-up once a JWT-issuing test f
 All scenarios from `behaviors.md` are backend scenarios — this library has no UI. Every scenario
 is assigned to exactly one step.
 
-| Scenario                                                                                                                      | Layer   | Covered in Step |
-|-------------------------------------------------------------------------------------------------------------------------------|---------|-----------------|
-| Authentication-failure — Invalid API key produces uniform JSON error                                                          | Backend | Step 6          |
-| Authentication-failure — Missing JWT on default chain produces same error shape                                               | Backend | Step 6          |
-| Authentication-failure — 401 responses include `WWW-Authenticate` header                                                      | Backend | Step 6          |
-| Authentication-failure — Successful authentication is unaffected                                                              | Backend | Step 6          |
-| UserService concurrency — Concurrent first logins for the same subject still produce exactly one row                          | Backend | Step 2          |
-| UserService concurrency — Concurrent logins for different subjects do not block each other                                    | Backend | Step 2          |
-| UserService concurrency — Drift sync remains transactional                                                                    | Backend | Step 2          |
-| `AuthService.getUserInformation()` — JWT-authenticated request returns a present Optional                                     | Backend | Step 4          |
-| `AuthService.getUserInformation()` — API-key-authenticated request returns an empty Optional                                  | Backend | Step 4          |
-| `AuthService.getUserInformation()` — UserService still fails fast when called without a JWT                                   | Backend | Step 4          |
-| `AuthService.getUserInformation()` — `getPrincipalJwt()` still throws on non-JWT principals                                   | Backend | Step 4          |
-| Configuration wiring — Library still integrates via `@Import(FullSpringServiceConfig.class)`                                  | Backend | Step 5          |
-| Configuration wiring — Removing `@EnableAutoConfiguration` does not break startup                                             | Backend | Step 5          |
-| Configuration wiring — `proxyBeanMethods = false` does not break bean wiring                                                  | Backend | Step 5          |
-| Roles constants — Reflective instantiation is prevented                                                                       | Backend | Step 1          |
-| Roles constants — Constants remain unchanged                                                                                  | Backend | Step 1          |
+| Scenario                                                                                             | Layer   | Covered in Step |
+|------------------------------------------------------------------------------------------------------|---------|-----------------|
+| Authentication-failure — Invalid API key produces uniform JSON error                                 | Backend | Step 6          |
+| Authentication-failure — Missing JWT on default chain produces same error shape                      | Backend | Step 6          |
+| Authentication-failure — 401 responses include `WWW-Authenticate` header                             | Backend | Step 6          |
+| Authentication-failure — Successful authentication is unaffected                                     | Backend | Step 6          |
+| UserService concurrency — Concurrent first logins for the same subject still produce exactly one row | Backend | Step 2          |
+| UserService concurrency — Concurrent logins for different subjects do not block each other           | Backend | Step 2          |
+| UserService concurrency — Drift sync remains transactional                                           | Backend | Step 2          |
+| `AuthService.getUserInformation()` — JWT-authenticated request returns a present Optional            | Backend | Step 4          |
+| `AuthService.getUserInformation()` — API-key-authenticated request returns an empty Optional         | Backend | Step 4          |
+| `AuthService.getUserInformation()` — UserService still fails fast when called without a JWT          | Backend | Step 4          |
+| `AuthService.getUserInformation()` — `getPrincipalJwt()` still throws on non-JWT principals          | Backend | Step 4          |
+| Configuration wiring — Library still integrates via `@Import(FullSpringServiceConfig.class)`         | Backend | Step 5          |
+| Configuration wiring — Removing `@EnableAutoConfiguration` does not break startup                    | Backend | Step 5          |
+| Configuration wiring — `proxyBeanMethods = false` does not break bean wiring                         | Backend | Step 5          |
+| Roles constants — Reflective instantiation is prevented                                              | Backend | Step 1          |
+| Roles constants — Constants remain unchanged                                                         | Backend | Step 1          |
 
 Every scenario has a step. No gaps.
 
