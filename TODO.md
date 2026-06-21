@@ -28,6 +28,26 @@
   SCIM-Instance pro Tenant?), Vendor-Extensions von Authentik, Discovery-Ehrlichkeit (ServiceProviderConfig muss
   exakt das deklarieren, was wir tatsächlich können), Group-Rename/Delete und Auswirkungen auf abgeleitete Rollen.
 
+- Spec 011 (Security Configuration Hygiene) — Follow-ups aus dem `/spec-review`:
+  - **MockMvc-Integration-Test für JWT-Chain-`JsonAuthenticationEntryPoint`** (Bearer-Scheme über echten HTTP-Roundtrip):
+    aktuell nur Unit-Level abgedeckt (`JsonAuthenticationEntryPointTest`). Voraussetzung: ein JWT-issuing
+    Test-Fixture (eigener `JwtDecoder`, der hand-gecrafted Tokens akzeptiert, plus ein kleiner Test-Controller).
+    Rundet Behavior-Szenario "Missing JWT on default chain produces same error shape" ab.
+  - **`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`** anlegen?
+    Trade-off: Zero-Config-Integration für Konsumenten (kein `@Import(FullSpringServiceConfig.class)` mehr nötig)
+    gegen weniger expliziten Kontrolle. Verändert den Integration-Contract — eigener Spec wert.
+  - **Per-Feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty`** für alle Library-Beans:
+    erlaubt Konsumenten, eigene `JwtAuthenticationConverter`s zu registrieren oder einzelne Features per
+    Property zu deaktivieren (`openelements.security.api-key.enabled=false`). Braucht zuerst eine
+    Property-Namens-Konvention und einen kohärenten Toggle-Plan.
+  - **INDEX.md-Status** von Spec 011 nach Merge in `main` auf `done` flippen.
+
+- Test-Pool-Sizing-Konvention dokumentieren: integration tests setzen
+  `spring.datasource.hikari.maximum-pool-size=30` weil `UserProvisioner` mit `REQUIRES_NEW` zwei Connections
+  pro Provisioning-Thread belegt. Production-Apps brauchen das in ihrer eigenen `application.yml`
+  (`peak_concurrent_first_logins × 2 + steady-state`). Aktuell nur im README Upgrade-Notes erwähnt — sollte
+  ggf. auch in einer "Production Deployment Notes"-Sektion stehen, sobald die existiert.
+
 Fragen zur Nutzung des Moduls die wir uns genau anschauen müssen:
 
 Garantiert Authentik-Konfiguration das name-Claim für jeden User, der sich anmeldet?
