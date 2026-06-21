@@ -55,11 +55,6 @@ generate_release_doc() {
 echo "Releasing version $NEW_VERSION"
 ./mvnw versions:set -DnewVersion=$NEW_VERSION
 
-# Generate the release doc before committing so it ships inside the release
-# commit (and therefore the v$NEW_VERSION tag). The version is already set in
-# the build file, so the skill can derive the correct version delta.
-generate_release_doc
-
 # Build and test locally so we never push a tag that fails CI.
 #
 # Use the SAME profile the release workflow uses (-Ppublication) and run through
@@ -72,7 +67,18 @@ generate_release_doc
 # are only *configured* in the publication profile, not bound to a Maven phase, so
 # `verify` does not sign or deploy anything — it just builds the artifacts the
 # release will later sign and publish.
+#
+# This runs BEFORE the release doc is generated on purpose: if the build fails,
+# `set -e` aborts the script here and we never spend AI tokens documenting a
+# release that was never cut.
 ./mvnw -Ppublication clean verify
+
+# Generate the release doc only after a green build, but still before committing
+# so it ships inside the release commit (and therefore the v$NEW_VERSION tag).
+# The version is already set in the build file, so the skill derives the correct
+# version delta.
+generate_release_doc
+
 # `commit -am` only stages modified tracked files; the new doc is untracked,
 # so add docs/releases/ explicitly (guarded — the dir may not exist if the
 # doc step was skipped or failed).
