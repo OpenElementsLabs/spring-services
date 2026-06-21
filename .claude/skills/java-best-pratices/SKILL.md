@@ -86,6 +86,8 @@ Formatting rules (indentation, charset, line endings) are defined in `.editorcon
 - Test one behavior per test method. Provide meaningful assertion messages.
 - Test edge cases: null values, empty collections, boundary values, and expected exceptions.
 - Keep tests independent and fast — each test should run in milliseconds without depending on other tests.
+- **IMPORTANT**: Tests must be deterministic — they must produce the same result on every run, independent of timing, execution order, or machine speed. A flaky test (one that passes or fails intermittently) is a defect to be fixed, not ignored or retried.
+- **IMPORTANT**: Never use `Thread.sleep(...)` to "wait and hope" that asynchronous work has finished — it is the classic flaky-test anti-pattern. Wait for the actual condition: use Awaitility (`await().atMost(...).until(...)`), `Future.get()`/`CompletableFuture.join()`, `CountDownLatch`/`CompletableFuture` callbacks, or inject a fixed/controllable `Clock` so time-dependent logic is exercised deterministically.
 - **IMPORTANT**: Avoid excessive mocking. Excessive mocking is often a sign that APIs have too many dependencies or are poorly designed. Prefer simple dummy/stub implementations of interfaces for test dependencies instead if possible. Use mocking when the dependency is a concrete or final class that cannot be substituted otherwise or the complexity becomes too big.
 - **IMPORTANT**: New features must reach at least **80% test coverage** on the added or changed code (see [software-quality.md](../../conventions/software-quality.md)). Use the JaCoCo Maven plugin (`org.jacoco:jacoco-maven-plugin`) to measure coverage during the build and fail the build below the threshold.
 

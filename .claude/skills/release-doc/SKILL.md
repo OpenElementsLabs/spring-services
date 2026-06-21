@@ -43,6 +43,7 @@ Pin down exactly which two points you are documenting:
 
 Then gather the real changes between them — do not rely on memory:
 
+- **Ignore changes to the `.claude/` directory** (and `CLAUDE.md`). These are AI/tooling configuration — skills, conventions, hooks, settings — not product changes, and they have no place in release notes or upgrade guides. Exclude them from every command and from the summary, e.g. `git log <previous>..<target> --oneline -- . ':(exclude).claude' ':(exclude)CLAUDE.md'`.
 - `git log <previous>..<target> --oneline` for the change set.
 - Inspect merged PRs / commit messages for intent and grouping.
 - For anything that looks structural, read the actual diff. In particular, for libraries, diff the **public API surface** and contracts:

@@ -35,6 +35,8 @@
 - **IMPORTANT**: Every new feature must ship with automated tests. Backend code must reach **at least 80% test coverage**, frontend code **at least 70%**. Coverage is measured on the code added or changed by the feature, not only on the project total.
 - Measure coverage as part of the build (e.g., JaCoCo for Java, the test runner's `--coverage` for TypeScript) and fail the build when a feature drops below the threshold.
 - Coverage is a floor, not a goal — high coverage of meaningless assertions is worthless. Test real behavior, edge cases, and error paths, then ensure the floor is met.
+- **IMPORTANT**: Tests must be deterministic — the same code must always produce the same result, regardless of timing, execution order, machine speed, or external state. A test that passes or fails intermittently (a flaky test) is a defect and must be fixed, not retried.
+- **IMPORTANT**: Never "wait X seconds and hope" the work is done — fixed sleeps are a flaky-test anti-pattern. Wait for the actual condition instead: poll the observable state with a timeout (e.g., Awaitility in Java, `waitFor`/`vi.waitFor` in TypeScript), await the returned promise/future, use synchronization primitives (latches, callbacks), or inject a controllable clock so time is advanced explicitly.
 
 ## Continuous Integration
 
