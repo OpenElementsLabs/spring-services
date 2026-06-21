@@ -12,6 +12,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+/**
+ * Unit tests for {@link HeicSupportCheck#verifyHeicSupport()}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The library decides whether HEIC/HEIF image decoding is available at runtime by inspecting
+ * the registered {@link ImageIO} format readers and attempting a probe-decode of a bundled
+ * sample. The eight scenarios verify the full decision tree: no reader registered, registered
+ * but probe-decode succeeds, returns null, throws {@link IOException}, throws {@link
+ * RuntimeException}, throws {@link UnsatisfiedLinkError} (missing native lib), case-insensitive
+ * reader-name match, and the bundled probe resource is present on the classpath. A final test
+ * asserts the production environment without TwelveMonkeys/NightMonkeys dependencies returns
+ * {@code false} consistently.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 with Mockito's {@link org.mockito.MockedStatic} — {@link ImageIO} is a static
+ * facade with no instance to inject, so static-mocking is the only way to substitute its
+ * behaviour without a heavier integration setup. The mock is scoped tightly to each test via
+ * try-with-resources so leakage between cases is impossible.
+ *
+ * <p><b>Mock-Audit.</b> {@code MockedStatic<ImageIO>} is the only mock and it is unavoidable —
+ * {@link ImageIO} has no instance, no SPI seam, and registering a fake reader globally would
+ * pollute the JVM for the rest of the test session. The probe-resource test deliberately uses
+ * the real classpath without mocks to catch packaging regressions.
+ */
 @DisplayName("HeicSupportCheck")
 class HeicSupportCheckTest {
 

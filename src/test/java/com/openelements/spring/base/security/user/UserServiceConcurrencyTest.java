@@ -35,12 +35,54 @@ import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Integration test verifying that {@link UserService#getCurrentUserEntity()} behaves correctly
- * under concurrent calls after {@code synchronized} has been removed from its signature.
+ * Concurrency integration tests for {@link UserService#getCurrentUserEntity()} against a real
+ * Postgres database.
  *
- * <p>The original race-protection contract is preserved by the {@code UNIQUE} constraint on
- * {@code users.sub} plus the {@code DataIntegrityViolationException} recovery block inside the
- * method — not by monitor-based serialisation.
+ * <h2>What is tested</h2>
+ *
+ * <p>The three properties that pure-Mockito unit tests cannot verify because they involve real
+ * database concurrency:
+ *
+ * <ol>
+ *   <li><b>Same-{@code sub} race recovery.</b> Ten simultaneous first-logins for the identical
+ *       {@code sub} must produce exactly one row; the nine losing inserts must be caught and
+ *       transparently recovered into a re-fetch. This exercises the {@link UserProvisioner}'s
+ *       {@code REQUIRES_NEW} + {@code saveAndFlush} contract and the catch-and-refetch logic
+ *       in {@code UserService}.
+ *   <li><b>Different-{@code sub} non-blocking.</b> Ten simultaneous first-logins for ten
+ *       distinct {@code sub} values must not serialise on a JVM monitor — confirmed by
+ *       comparing wall-clock against a single-threaded baseline. Guards against re-introduction
+ *       of {@code synchronized} (the pre-spec-011 anti-pattern).
+ *   <li><b>Drift sync atomicity.</b> An existing user whose {@code name}, {@code email} and
+ *       {@code avatarUrl} all changed at once must be flushed in a single save — Postgres-level
+ *       confirmation of the unit-test claim.
+ * </ol>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * spins up a real Postgres via Testcontainers. The integration footprint is intentional: the
+ * race-recovery contract depends on Postgres's unique-index locking behaviour, which no
+ * in-memory database faithfully reproduces.
+ *
+ * <p><b>Mock surface and justification.</b> {@link
+ * com.openelements.spring.base.security.AuthService} is the single {@code @MockBean} — it would
+ * otherwise require a Spring Security {@code SecurityContextHolder} populated by the filter
+ * chain, which the tests deliberately bypass to drive {@code getCurrentUserEntity()} directly
+ * on background threads. Per-thread {@code UserInformation} dispatch is implemented with a
+ * thread-local {@link java.util.concurrent.ConcurrentHashMap} consulted from the Mockito {@code
+ * thenAnswer} lambda. The repository, {@link UserService}, and {@link UserProvisioner} are
+ * real beans backed by real Postgres — no mocking of the components under test.
+ *
+ * <p>The HikariCP pool is sized to 30 in {@code application-testcontainers.properties} so that
+ * 10 concurrent {@code REQUIRES_NEW} provisioning attempts (2 connections per thread =
+ * suspended outer + active inner) do not deadlock the pool.
+ *
+ * <p><b>Known flakiness.</b> The different-{@code sub} non-blocking test compares wall-clock
+ * times. Under heavy CI load it occasionally fails because the parallel measurement scales
+ * non-linearly with system load while the baseline does not. Single-test isolation reliably
+ * passes. The functional invariant (exactly one row per {@code sub}) is robust; only the
+ * timing ratio is sensitive.
  */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
@@ -64,8 +106,19 @@ class UserServiceConcurrencyTest {
     userRepository.deleteAll(toDelete);
   }
 
+  /**
+   * Spawns 10 threads that simultaneously call {@code getCurrentUserEntity()} with the same
+   * JWT {@code sub}. All ten threads are held on a {@link java.util.concurrent.CountDownLatch}
+   * to maximise the race window. Postgres's unique index serialises the inserts; nine attempts
+   * fail with {@code DataIntegrityViolationException}; {@code UserService} catches and re-fetches.
+   * The assertion is twofold: every thread observes the same {@code UserEntity.id}, and the
+   * database holds exactly one row for the shared {@code sub}.
+   */
   @Test
-  @DisplayName("Concurrent first logins for the same subject produce exactly one row")
+  @DisplayName(
+      "Ten threads first-logging-in with the same sub all see one shared UserEntity.id and "
+          + "the database holds exactly one row — Postgres's unique index serialises the race, "
+          + "UserService catches the violation and re-fetches.")
   void concurrentFirstLoginsForSameSubProduceOneRow() throws Exception {
     final String sharedSub = "auth0|concurrent-same";
     final UserInformation info =
@@ -107,8 +160,21 @@ class UserServiceConcurrencyTest {
     }
   }
 
+  /**
+   * Regression guard against re-introducing {@code synchronized} on the hot path. Measures a
+   * single-threaded baseline, then runs 10 parallel logins for 10 distinct {@code sub} values.
+   * Asserts {@code parallelTotalNs < 5 × threadCount × singleThreadNs} — generous enough to
+   * survive CI jitter, strict enough to catch a JVM-level monitor that would force serial
+   * execution.
+   *
+   * <p>Per-thread {@code UserInformation} is dispatched via a {@link
+   * java.util.concurrent.ConcurrentHashMap} keyed by {@link Thread} — the Mockito {@code
+   * thenAnswer} lambda reads the calling thread's entry. No Spring Security context is needed.
+   */
   @Test
-  @DisplayName("Concurrent logins for different subjects do not block each other")
+  @DisplayName(
+      "Ten concurrent first-logins for ten distinct subs run in less than 5× the single-thread "
+          + "baseline — guards against re-introducing synchronized on the hot path.")
   void concurrentLoginsForDifferentSubsDoNotBlock() throws Exception {
     final int threadCount = 10;
     final ConcurrentMap<Thread, UserInformation> threadInfo = new ConcurrentHashMap<>();
@@ -182,7 +248,9 @@ class UserServiceConcurrencyTest {
   }
 
   @Test
-  @DisplayName("Drift sync remains transactional and atomic")
+  @DisplayName(
+      "A drift across name, email and avatarUrl on an existing user is flushed to Postgres in "
+          + "one atomic save — the reloaded row reflects every changed field.")
   void driftSyncIsTransactional() {
     final String sub = "auth0|drift-tx";
     when(authService.getUserInformation())

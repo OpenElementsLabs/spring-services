@@ -15,6 +15,33 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
+/**
+ * Unit tests for the {@code publishEvents} flag on {@link AbstractDbBackedDataService}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The flag controls whether the base class emits {@link
+ * com.openelements.spring.base.events.OnObjectCreate}, {@link
+ * com.openelements.spring.base.events.OnObjectUpdate} and {@link
+ * com.openelements.spring.base.events.OnObjectDelete} on the {@link ApplicationEventPublisher}
+ * during {@code save(...)} and {@code delete(...)}. Two scenarios are verified: default
+ * behaviour (events are emitted) and opt-out behaviour (no events at all).
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Mockito-based unit test. Two collaborators are mocked: {@link ApplicationEventPublisher}
+ * (verified via {@code verify(publisher).publishEvent(any(...))}) and {@link EntityRepository}
+ * (stubbed to assign a UUID on first save and echo the entity back on subsequent calls — the
+ * helper {@code repositoryThatPersists()} encapsulates this in-memory pseudo-persistence).
+ *
+ * <p>An anonymous {@code FakeService extends AbstractDbBackedDataService} stands in for any
+ * real subclass so the test does not couple to a domain entity. The flag itself is the unit
+ * under test, not the surrounding template-method machinery.
+ *
+ * <p><b>Mock-Audit.</b> Both mocks are justified: the publisher mock is the assertion target;
+ * the repository mock substitutes for a JPA layer that would require Spring + Testcontainers
+ * to use for real, which would dwarf the focused scope of the test.
+ */
 @DisplayName("AbstractDbBackedDataService publishEvents flag")
 class AbstractDbBackedDataServicePublishEventsTest {
 
@@ -41,6 +68,9 @@ class AbstractDbBackedDataServicePublishEventsTest {
   }
 
   @Test
+  @DisplayName(
+      "With the default constructor (publishEvents not specified), save/save/delete emits "
+          + "OnObjectCreate, OnObjectUpdate, OnObjectDelete to the ApplicationEventPublisher.")
   void shouldPublishEventsByDefault() {
     // GIVEN
     final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
@@ -58,6 +88,9 @@ class AbstractDbBackedDataServicePublishEventsTest {
   }
 
   @Test
+  @DisplayName(
+      "With publishEvents=false the ApplicationEventPublisher receives zero events even though "
+          + "save() and delete() succeed and the entity gets its id assigned.")
   void shouldSuppressEventsWhenFlagIsFalse() {
     // GIVEN
     final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);

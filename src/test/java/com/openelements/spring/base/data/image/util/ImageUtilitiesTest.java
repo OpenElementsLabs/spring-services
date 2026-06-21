@@ -17,6 +17,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Unit tests for the static helpers on {@link ImageUtilities} — JPEG/PNG image inspection,
+ * validation, and transformation (resize, re-encode, EXIF strip).
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The contract of every public static method on {@code ImageUtilities}: format detection,
+ * dimension extraction, max-size guards, and lossless round-trip behaviour for the supported
+ * formats. The "bad input" branches throw {@link ResponseStatusException} so HTTP handlers can
+ * propagate the failure directly — these branches are verified individually.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5, no Spring, no Mockito. The tests build real JPEG/PNG byte arrays via
+ * {@link ImageIO} in static helper methods (the {@code createJpeg / createPng} factories at
+ * the top of the file), then feed them through {@code ImageUtilities}. No mocks at all —
+ * {@link ImageUtilities} has no external collaborators; it is pure-function image processing
+ * against {@code byte[]} input and output.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. The unit under test is intentionally a leaf utility, so
+ * real fixtures (in-memory image bytes) are both faster and more honest than any mock would be.
+ */
 @DisplayName("ImageUtilities")
 class ImageUtilitiesTest {
 
