@@ -50,7 +50,7 @@ jobs:
         # artifacts to the Central Portal snapshot repo configured in pom.xml.
         # No GPG signing is required for snapshots.
         if: steps.version.outputs.is_snapshot == 'true'
-        run: ./mvnw -B -Ppublication clean deploy
+        run: ./mvnw -B -Pfull-build clean deploy
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
