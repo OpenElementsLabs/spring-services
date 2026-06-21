@@ -44,6 +44,58 @@
   (`peak_concurrent_first_logins × 2 + steady-state`). Aktuell nur im README Upgrade-Notes erwähnt — sollte
   ggf. auch in einer "Production Deployment Notes"-Sektion stehen, sobald die existiert.
 
+- **Spec-Kandidat "Test Hygiene & Bug Fixes"** (Grundlage für `/spec-create` + `/grill-me`).
+  Im Rahmen der Test-Dokumentation aller 45 Test-Files (Class-Javadoc + `@DisplayName` + Mock-Audit,
+  durchgeführt nach Spec 012) sind drei separate Befunde aufgefallen, die eine eigene Spec rechtfertigen.
+  Die Spec wird über `/spec-create` mit vorgeschaltetem `/grill-me` ausgearbeitet — die folgenden Punkte
+  sind die rohen Findings, **nicht** das fertige Spec-Design.
+
+  **Befund 1 — Echter Bug: `WebhookEventListener.handle(...)` ignoriert `eventType`**
+  - Datei: `src/main/java/com/openelements/spring/base/services/webhook/WebhookEventListener.java`
+  - Symptom: die Methode signiert `eventType` als Parameter, ruft aber auf den Zeilen ~45-47 in beiden
+    Branches (Payload-Bau + `WebhookSupport.supports(...)`) hardcoded `WebhookDataEventType.DELETED`
+    statt den übergebenen Parameter zu nutzen. Dadurch werden CREATED- und UPDATED-Events als
+    DELETED an Subscribers verschickt.
+  - Test-Status: der bestehende Test `WebhookEventListenerTest.shouldHandleCreate` passt zufällig durch,
+    weil er nur prüft "Sender wurde aufgerufen". Agent-6 (Test-Doku-Pass) hat den Bug im Test-Javadoc
+    dokumentiert statt ihn stillschweigend zu fixen — siehe Klassen-Javadoc von `WebhookEventListenerTest`.
+  - Grill-Fragen für die Spec: müssen die Subscriber-Signaturen geändert werden? Gibt es schon Apps, die
+    sich auf das Bug-Verhalten verlassen (DELETED bei jedem Lifecycle-Event)? Wie testen wir die drei
+    Varianten verlässlich?
+
+  **Befund 2 — Über-Mocking in Integration-Tests**
+  - `ApiKeyDataServiceIntegrationTest` — `@MockBean UserService` in einem Test, der ansonsten echte
+    Postgres via Testcontainers nutzt. Sollte echten User per `userRepository.save(...)` seeden und
+    `AuthService` minimal stubben. Macht das "Integration"-Label ehrlich.
+  - `ApiKeyDataServiceIntegrationTest` — `@MockBean AuthService` wird nur wegen transitiver Wiring
+    deklariert, von den Tests aber nie gelesen. Entweder enger scopen oder durch No-Op-`SecurityContext`-
+    Setup ersetzen.
+  - `CommentServiceIntegrationTest` — `@MockitoSpyBean UserService` wird nur für eine einzige
+    `verify(never()).findById(...)`-Assertion verwendet. Die N+1-Behauptung lässt sich durch
+    Hibernate-`Statistics`-Counter (bereits in derselben Klasse genutzt für andere Assertions) direkter
+    und ehrlicher ausdrücken — der Spy wird obsolet.
+  - Grill-Fragen für die Spec: gibt es weitere Integration-Tests mit verstecktem Mocking, das wir
+    übersehen haben? Ist die Konvention "echte Beans in Integration-Tests, Mocks nur in Unit-Tests"
+    bereits in `CLAUDE.md` festgehalten? Soll das ergänzt werden?
+
+  **Befund 3 — Cosmetic: ObjectProvider-/FilterChain-Mocks ersetzbar durch echte Implementations**
+  - `SlackServiceTest` + `EmailServiceTest` — `mock(ObjectProvider.class)` mit `@SuppressWarnings("unchecked")`.
+    Spring's `ObjectProvider` ist ein Functional Interface — `(ObjectProvider<X>) () -> instance`
+    (bzw. `() -> null`) ist lesbarer und vermeidet den Cast.
+  - `ApiKeyAuthenticationFilterTest` — `FilterChain`-Mock ist konventionell, aber eine "RecordingFilterChain"
+    (echte Impl, die Aufrufe in eine Liste schreibt) wäre robuster gegen Double-Invocation-Bugs.
+  - `SecurityConfigRoleTest` — `ApiKeyDataService`-Mock ist No-Op-Konstruktor-Argument. Kann durch
+    No-Op-Impl ersetzt werden oder via Factory-Extraction (`jwtAuthenticationConverter()` als statischer
+    Helper ohne `ApiKeyDataService`-Dependency) komplett entfallen.
+  - `AuditLogDataServiceTest` — `UserRepository` + `ApplicationEventPublisher` sind in den Reader-Tests
+    toter Mock-Ballast. Wenn Reader/Writer-Split der Datenservices kommt (siehe TODO oben zu Migration
+    auf `AbstractDbBackedDataService`-Pattern), können beide Mocks entfallen.
+  - Grill-Fragen für die Spec: lohnt sich eine generelle "no `mock(...)` für functional interfaces"-Regel
+    in der `CLAUDE.md`? Sollen wir SonarQube-/PMD-Rules dafür konfigurieren?
+
+  **Scope-Frage für die Spec selbst:** Sollen alle drei Befunde in einer Spec landen oder werden sie
+  in zwei getrennt (Bug-Fix #1 isoliert, Cleanup #2 + #3 zusammen)? Die Grill-Session entscheidet.
+
 Fragen zur Nutzung des Moduls die wir uns genau anschauen müssen:
 
 Garantiert Authentik-Konfiguration das name-Claim für jeden User, der sich anmeldet?
