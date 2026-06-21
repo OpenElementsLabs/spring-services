@@ -40,6 +40,8 @@ class UserServiceTest {
     final UserEntity entity = new UserEntity();
     entity.setId(UUID.randomUUID());
     entity.setSub(sub);
+    entity.setExternalId(sub);
+    entity.setUserName(sub);
     entity.setName(name);
     entity.setEmail(email);
     entity.setAvatarUrl(avatarUrl);
@@ -321,6 +323,202 @@ class UserServiceTest {
           .hasMessageContaining("No JWT bound to current request");
       verify(userRepository, never()).findBySub(any());
       verify(userProvisioner, never()).provision(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("getCurrentUserEntity — tiered lookup")
+  class TieredLookupTest {
+
+    @Test
+    void findBySubTakesPrecedenceOverExternalIdAndUserName() {
+      setupAuth("S", "S-name", "s@example.com", null);
+      final UserEntity rowA = createExistingUser("S", "S-name", "s@example.com", null);
+      when(userRepository.findBySub("S")).thenReturn(Optional.of(rowA));
+
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      assertThat(result).isSameAs(rowA);
+      verify(userRepository, never()).findByExternalId(any());
+      verify(userRepository, never()).findByUserName(any());
+    }
+
+    @Test
+    void findByExternalIdIsUsedWhenSubMisses() {
+      setupAuth("Y", "Y-name", "y@example.com", null);
+      // SCIM-pre-provisioned row: sub null, externalId set
+      final UserEntity preProvisioned = new UserEntity();
+      preProvisioned.setId(UUID.randomUUID());
+      preProvisioned.setSub(null);
+      preProvisioned.setExternalId("Y");
+      preProvisioned.setUserName("Y");
+      preProvisioned.setName("Y-name");
+      preProvisioned.setEmail("y@example.com");
+      when(userRepository.findBySub("Y")).thenReturn(Optional.empty());
+      when(userRepository.findByExternalId("Y")).thenReturn(Optional.of(preProvisioned));
+      when(userRepository.save(preProvisioned)).thenReturn(preProvisioned);
+
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      assertThat(result).isSameAs(preProvisioned);
+      assertThat(preProvisioned.getSub()).isEqualTo("Y");
+      verify(userRepository, never()).findByUserName(any());
+      verify(userRepository).save(preProvisioned);
+    }
+
+    @Test
+    void findByUserNameIsLastResortAndBackfillsBothIdentifiers() {
+      setupAuth("Z", "Z-name", "z@example.com", null);
+      // Row exists only via userName — no sub, no externalId
+      final UserEntity row = new UserEntity();
+      row.setId(UUID.randomUUID());
+      row.setSub(null);
+      row.setExternalId(null);
+      row.setUserName("Z");
+      row.setName("Z-name");
+      row.setEmail("z@example.com");
+      when(userRepository.findBySub("Z")).thenReturn(Optional.empty());
+      when(userRepository.findByExternalId("Z")).thenReturn(Optional.empty());
+      when(userRepository.findByUserName("Z")).thenReturn(Optional.of(row));
+      when(userRepository.save(row)).thenReturn(row);
+
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      assertThat(result).isSameAs(row);
+      assertThat(row.getSub()).isEqualTo("Z");
+      assertThat(row.getExternalId()).isEqualTo("Z");
+      verify(userRepository).save(row);
+    }
+
+    @Test
+    void provisionsNewUserWhenAllThreeLookupsMiss() {
+      setupAuth("brand-new", "New User", "new@example.com", null);
+      when(userRepository.findBySub("brand-new")).thenReturn(Optional.empty());
+      when(userRepository.findByExternalId("brand-new")).thenReturn(Optional.empty());
+      when(userRepository.findByUserName("brand-new")).thenReturn(Optional.empty());
+      when(userProvisioner.provision(any(UserInformation.class)))
+          .thenAnswer(invocation -> entityFrom(invocation.getArgument(0)));
+
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      assertThat(result.getSub()).isEqualTo("brand-new");
+      verify(userProvisioner).provision(any(UserInformation.class));
+    }
+
+    @Test
+    void preFoundationUserBackfillsMissingIdentifiers() {
+      setupAuth("abc", "Alice", "alice@example.com", null);
+      // Pre-foundation row: sub set, externalId/userName null
+      final UserEntity row = new UserEntity();
+      row.setId(UUID.randomUUID());
+      row.setSub("abc");
+      row.setExternalId(null);
+      row.setUserName(null);
+      row.setName("Alice");
+      row.setEmail("alice@example.com");
+      when(userRepository.findBySub("abc")).thenReturn(Optional.of(row));
+      when(userRepository.save(row)).thenReturn(row);
+
+      userService.getCurrentUserEntity();
+
+      assertThat(row.getExternalId()).isEqualTo("abc");
+      assertThat(row.getUserName()).isEqualTo("abc");
+      verify(userRepository).save(row);
+    }
+
+    @Test
+    void driftSyncWritesAllChangedFieldsInOneSave() {
+      setupAuth("sub-drift", "New Name", "new@example.com", "https://new-avatar");
+      // Existing row with different name, email, avatarUrl, and missing externalId/userName
+      final UserEntity row = new UserEntity();
+      row.setId(UUID.randomUUID());
+      row.setSub("sub-drift");
+      row.setExternalId(null);
+      row.setUserName(null);
+      row.setName("Old Name");
+      row.setEmail("old@example.com");
+      row.setAvatarUrl("https://old-avatar");
+      when(userRepository.findBySub("sub-drift")).thenReturn(Optional.of(row));
+      when(userRepository.save(row)).thenReturn(row);
+
+      userService.getCurrentUserEntity();
+
+      assertThat(row.getName()).isEqualTo("New Name");
+      assertThat(row.getEmail()).isEqualTo("new@example.com");
+      assertThat(row.getAvatarUrl()).isEqualTo("https://new-avatar");
+      assertThat(row.getExternalId()).isEqualTo("sub-drift");
+      assertThat(row.getUserName()).isEqualTo("sub-drift");
+      verify(userRepository, times(1)).save(row);
+    }
+
+    @Test
+    void existingUserNameIsNotOverwrittenByJwtClaim() {
+      // userName is a stable identifier — once set, never overwritten by a later JWT.
+      setupAuth("S", "Same Name", "same@example.com", null);
+      final UserEntity row =
+          createExistingUser("S", "Same Name", "same@example.com", null);
+      row.setUserName("old-username"); // explicitly different from JWT preferred_username
+      when(userRepository.findBySub("S")).thenReturn(Optional.of(row));
+
+      userService.getCurrentUserEntity();
+
+      assertThat(row.getUserName()).isEqualTo("old-username");
+      verify(userRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("getCurrentUserEntity — active gate")
+  class ActiveGateTest {
+
+    @Test
+    void inactiveUserOnExistingRowThrowsAccessDenied() {
+      setupAuth("inactive-sub", "Inactive", "inactive@example.com", null);
+      final UserEntity row =
+          createExistingUser("inactive-sub", "Inactive", "inactive@example.com", null);
+      row.setActive(false);
+      when(userRepository.findBySub("inactive-sub")).thenReturn(Optional.of(row));
+
+      assertThatThrownBy(() -> userService.getCurrentUserEntity())
+          .isInstanceOf(
+              org.springframework.security.access.AccessDeniedException.class)
+          .hasMessageContaining("disabled");
+      // No save — drift sync did not run
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void inactiveScimRowFoundByExternalIdThrowsBeforeWritingSub() {
+      setupAuth("scim-sub", "SCIM User", "scim@example.com", null);
+      final UserEntity row = new UserEntity();
+      row.setId(UUID.randomUUID());
+      row.setSub(null);
+      row.setExternalId("scim-sub");
+      row.setUserName("scim-sub");
+      row.setName("SCIM User");
+      row.setActive(false);
+      when(userRepository.findBySub("scim-sub")).thenReturn(Optional.empty());
+      when(userRepository.findByExternalId("scim-sub")).thenReturn(Optional.of(row));
+
+      assertThatThrownBy(() -> userService.getCurrentUserEntity())
+          .isInstanceOf(
+              org.springframework.security.access.AccessDeniedException.class);
+      // sub MUST NOT be written onto the deactivated row
+      assertThat(row.getSub()).isNull();
+      verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void activeUserPassesThroughNormally() {
+      setupAuth("active-sub", "Active", "active@example.com", null);
+      final UserEntity row =
+          createExistingUser("active-sub", "Active", "active@example.com", null);
+      row.setActive(true);
+      when(userRepository.findBySub("active-sub")).thenReturn(Optional.of(row));
+
+      final UserEntity result = userService.getCurrentUserEntity();
+
+      assertThat(result).isSameAs(row);
     }
   }
 }

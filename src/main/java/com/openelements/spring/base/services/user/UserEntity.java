@@ -104,7 +104,6 @@ public class UserEntity extends AbstractEntity {
   }
 
   public void setUserName(final String userName) {
-    Objects.requireNonNull(userName, "userName must not be null");
     this.userName = userName;
   }
 

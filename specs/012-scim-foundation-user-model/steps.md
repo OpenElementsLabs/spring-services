@@ -113,9 +113,19 @@ as one logical commit ("Foundation infrastructure").
 
 ## Step 4: `UserService.getCurrentUserEntity()` — tiered lookup + active gate
 
+**Discovered during implementation:** the tiered lookup as designed in the spec has a
+fallback-mis-correlation hazard. When two distinct users share the same email-as-userName
+fallback (because the IdP omitted `preferred_username`), the second user's `findByUserName`
+lookup returns the first user's row and the second user effectively logs in as the first user
+— a silent identity merger, not the spec's intended `IllegalStateException`. Fix added in this
+step: a `requireUnambiguousMatch(...)` guard that throws `IllegalStateException` when the
+matched row's existing `sub` differs from the JWT's `sub` (indicating the row belongs to a
+different human). The guard fires for externalId / userName mismatches and is a no-op for
+the `findBySub` happy path.
+
 **Changes:**
 
-- [ ] In `src/main/java/com/openelements/spring/base/services/user/UserService.java`:
+- [x] In `src/main/java/com/openelements/spring/base/services/user/UserService.java`:
   - Replace the single `userRepository.findBySub(...)` with a tiered lookup:
     1. `findBySub(jwt.sub)` — if found, drop into the drift-sync path.
     2. else `findByExternalId(jwt.sub)` — if found, write `sub` onto the row, drop into
