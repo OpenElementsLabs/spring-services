@@ -16,6 +16,34 @@ import org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mail.javamail.JavaMailSender;
 
+/**
+ * Spring-Boot startup tests for {@link EmailConfig}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The graceful-degradation contract: applications must boot whether or not SMTP is wired.
+ * Spring Boot's {@link MailSenderAutoConfiguration} only registers a {@link JavaMailSender} when
+ * {@code spring.mail.host} is present, and {@link EmailService} must cope with its absence:
+ *
+ * <ul>
+ *   <li>Without {@code spring.mail.host}, the context boots and registers an {@link EmailService}
+ *       bean (so injection at autowire sites still succeeds), no {@link JavaMailSender} bean is
+ *       present, and a WARN log advertises the misconfiguration to operators.
+ *   <li>With {@code spring.mail.host} set, both beans are registered and no WARN is emitted.
+ * </ul>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Spring Boot's {@link ApplicationContextRunner} drives {@link EmailConfig} alongside the
+ * real {@link MailSenderAutoConfiguration} in isolation, with the property varied per test. A
+ * Logback {@link ListAppender} is attached to the {@link EmailService} logger before each test
+ * and detached after; WARN events are filtered out for assertion.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. Both auto-configurations run as real Spring beans inside the
+ * runner. No SMTP server is contacted because no test actually calls {@code sendEmail} — that
+ * surface belongs to {@link EmailServiceTest}; this test only verifies bean wiring and the
+ * startup WARN.
+ */
 @DisplayName("EmailConfig — application startup")
 class EmailConfigTest {
 
@@ -42,7 +70,7 @@ class EmailConfigTest {
   }
 
   @Test
-  @DisplayName("starts without spring.mail.host, registers EmailService and logs WARN")
+  @DisplayName("Without spring.mail.host the context still boots: EmailService is registered, no JavaMailSender bean exists, and a WARN is logged at startup.")
   void startsWithoutMailHost() {
     contextRunner.run(
         context -> {
@@ -53,7 +81,7 @@ class EmailConfigTest {
   }
 
   @Test
-  @DisplayName("starts with spring.mail.host set, registers JavaMailSender and logs no warning")
+  @DisplayName("With spring.mail.host set, both EmailService and JavaMailSender are wired and no WARN is emitted.")
   void startsWithMailHost() {
     contextRunner
         .withPropertyValues("spring.mail.host=smtp.example.com")

@@ -21,6 +21,40 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+/**
+ * Mockito-style unit tests for the read-side finder methods of {@link AuditLogDataService}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The argument-and-return contract of each finder: {@code findByEntityType},
+ * {@code findByUser}, {@code findByEntityTypeAndUser}, {@code findByDay}, {@code findLatest} and
+ * {@code findLatestByEntityType}. Verified concerns are: (1) the right {@link AuditLogRepository}
+ * method is called with the right arguments, (2) the day-window finder converts a {@link
+ * LocalDate} into a {@code [00:00 systemDefault, +1 day)} half-open instant range, (3) each
+ * finder maps the returned {@link AuditLogEntity}s to {@link AuditLogDto}s (including the nested
+ * user), (4) every finder rejects null arguments and {@code findLatest*} rejects a non-positive
+ * limit. Write-side ({@code createEntry}) is covered only for its null-rejection guard.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 with Mockito and AssertJ. No Spring context — the service is constructed
+ * directly with three mocked collaborators.
+ *
+ * <p><b>Mock-Audit.</b> Three mocks, all justified for a coordination-layer service:
+ *
+ * <ul>
+ *   <li>{@code AuditLogRepository} — stubbing finder return values is the entire point: the
+ *       service is responsible for delegating to the correct query method with the correct
+ *       arguments and mapping the result. Spinning up Postgres for every permutation would add
+ *       no coverage that the integration test ({@link AuditLogIntegrationTest}) does not already
+ *       provide.
+ *   <li>{@code UserRepository} — held only because the production constructor takes one for the
+ *       write path; the finder tests never invoke it. Could plausibly be unused in finder-only
+ *       tests if the service were split.
+ *   <li>{@code ApplicationEventPublisher} — inherited collaborator from
+ *       {@code AbstractDbBackedDataService}; lifecycle events are not exercised here.
+ * </ul>
+ */
 @DisplayName("AuditLogDataService finders (unit)")
 class AuditLogDataServiceTest {
 
@@ -43,6 +77,9 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "findByEntityType(type, page) delegates to findByEntityTypeOrderByCreatedAtDesc and maps "
+          + "each entity (including the nested user) to a DTO.")
   void findByEntityTypeShouldDelegateAndMap() {
     final AuditLogEntity entity = new AuditLogEntity();
     entity.setEntityType("BookDto");
@@ -61,6 +98,9 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "findByUser(userId, page) delegates to findByUserIdOrderByCreatedAtDesc and maps the result "
+          + "page to DTOs.")
   void findByUserShouldDelegateAndMap() {
     final AuditLogEntity entity = new AuditLogEntity();
     entity.setEntityType("UserDto");
@@ -78,6 +118,9 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "findByEntityTypeAndUser(type, userId, page) delegates to the combined query method and "
+          + "maps the result to DTOs.")
   void findByEntityTypeAndUserShouldDelegateAndMap() {
     final AuditLogEntity entity = new AuditLogEntity();
     entity.setEntityType("BookDto");
@@ -96,6 +139,7 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findByEntityType returns an empty page when the repository finds no rows.")
   void findByEntityTypeShouldReturnEmptyWhenNoMatches() {
     when(repository.findByEntityTypeOrderByCreatedAtDesc("NoteDto", DEFAULT_PAGE))
         .thenReturn(Page.empty());
@@ -104,6 +148,9 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "All three paged finders throw NullPointerException for any null argument — fail-fast at "
+          + "the boundary instead of surfacing as a confusing JPA error.")
   void findersShouldRejectNull() {
     assertThatThrownBy(() -> service.findByEntityType(null, DEFAULT_PAGE))
         .isInstanceOf(NullPointerException.class);
@@ -115,7 +162,15 @@ class AuditLogDataServiceTest {
         .isInstanceOf(NullPointerException.class);
   }
 
+  /**
+   * Pins the half-open day window: {@code [start-of-day, start-of-next-day)} using the
+   * system-default zone. The boundary contract is what callers depend on for "events on this
+   * calendar day" — drift to a closed/open range would silently shift entries between days.
+   */
   @Test
+  @DisplayName(
+      "findByDay(day) converts the LocalDate into a [00:00 system-zone, +1 day) half-open instant "
+          + "range and maps the resulting entities to DTOs in repository order.")
   void findByDayShouldDelegateWithDayBoundariesAndMap() {
     final LocalDate day = LocalDate.of(2026, 5, 16);
     final ZoneId zone = ZoneId.systemDefault();
@@ -143,6 +198,7 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findByDay returns an empty list when the repository finds no rows in the window.")
   void findByDayShouldReturnEmptyWhenNoMatches() {
     final LocalDate day = LocalDate.of(2026, 5, 16);
     final ZoneId zone = ZoneId.systemDefault();
@@ -154,11 +210,15 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findByDay(null) throws NullPointerException at the boundary.")
   void findByDayShouldRejectNull() {
     assertThatThrownBy(() -> service.findByDay(null)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
+  @DisplayName(
+      "findLatest(limit) calls findAllByOrderByCreatedAtDesc with Limit.of(limit) and maps the "
+          + "result to DTOs.")
   void findLatestShouldDelegateWithLimitAndMap() {
     final AuditLogEntity first = new AuditLogEntity();
     first.setEntityType("BookDto");
@@ -182,6 +242,7 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findLatest returns an empty list when the audit log is empty.")
   void findLatestShouldReturnEmptyWhenNoEntries() {
     when(repository.findAllByOrderByCreatedAtDesc(Limit.of(10))).thenReturn(List.of());
 
@@ -189,12 +250,18 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "findLatest rejects zero and negative limits with IllegalArgumentException — a non-positive "
+          + "limit has no defined semantics.")
   void findLatestShouldRejectNonPositiveLimit() {
     assertThatThrownBy(() -> service.findLatest(0)).isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> service.findLatest(-1)).isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
+  @DisplayName(
+      "findLatestByEntityType(type, limit) calls findByEntityTypeOrderByCreatedAtDesc with "
+          + "Limit.of(limit) and maps the result to DTOs.")
   void findLatestByEntityTypeShouldDelegateWithLimitAndMap() {
     final AuditLogEntity first = new AuditLogEntity();
     first.setEntityType("BookDto");
@@ -220,6 +287,7 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findLatestByEntityType returns an empty list when no rows match the entity type.")
   void findLatestByEntityTypeShouldReturnEmptyWhenNoMatches() {
     when(repository.findByEntityTypeOrderByCreatedAtDesc("NoteDto", Limit.of(10)))
         .thenReturn(List.of());
@@ -228,12 +296,15 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName("findLatestByEntityType(null, ...) throws NullPointerException at the boundary.")
   void findLatestByEntityTypeShouldRejectNullType() {
     assertThatThrownBy(() -> service.findLatestByEntityType(null, 5))
         .isInstanceOf(NullPointerException.class);
   }
 
   @Test
+  @DisplayName(
+      "findLatestByEntityType rejects zero and negative limits with IllegalArgumentException.")
   void findLatestByEntityTypeShouldRejectNonPositiveLimit() {
     assertThatThrownBy(() -> service.findLatestByEntityType("BookDto", 0))
         .isInstanceOf(IllegalArgumentException.class);
@@ -242,6 +313,9 @@ class AuditLogDataServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "createEntry(...) rejects null for every one of its five arguments (entityType, entityId, "
+          + "name, action, user) with NullPointerException.")
   void createEntryShouldRejectNull() {
     assertThatThrownBy(
             () -> service.createEntry(null, UUID.randomUUID(), "name", AuditAction.INSERT, alice))

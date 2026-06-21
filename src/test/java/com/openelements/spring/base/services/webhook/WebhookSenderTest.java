@@ -19,7 +19,46 @@ import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.client.RestClient;
 
-/** Tests for {@link WebhookSender} using WireMock to verify actual HTTP calls. */
+/**
+ * HTTP-level tests for {@link WebhookSender}, exercising the actual {@link RestClient} against a
+ * local {@link WireMockServer}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>Two surfaces of the sender:
+ *
+ * <ol>
+ *   <li><b>{@code ping(webhookId)}.</b> Issues an HTTP POST to the registered URL, captures the
+ *       response status (2xx / 4xx / 5xx) and the connection-failure sentinel (0 or -1) into the
+ *       persisted {@code lastStatus} / {@code lastCalledAt} fields, and rejects an unknown
+ *       webhook id with {@link IllegalArgumentException} and a null id with {@link
+ *       NullPointerException}.
+ *   <li><b>{@code sendAndTrack(payload)}.</b> Fans out a single payload as an HTTP POST to every
+ *       row returned by {@link WebhookDataService#findAllActive()}.
+ * </ol>
+ *
+ * <p>Also covers the constructor null-guards (RestClient and WebhookDataService).
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Plain JUnit 5. A {@link WireMockServer} bound to a dynamic port is started once per class
+ * and reset between tests; the {@link WebhookSender} is constructed with a real {@link
+ * RestClient} pointed at WireMock's base URL. Status-code stubs are configured per scenario;
+ * outgoing requests are verified against WireMock's recorded interactions.
+ *
+ * <p><b>Mock-Audit.</b> One {@code mock(WebhookDataService.class)}. The sender's contract is to
+ * read webhook rows from {@code WebhookDataService} and write back status updates via
+ * {@code save(...)}; mocking it lets the test (a) stub the row to return a WireMock-backed URL
+ * without spinning up Postgres and (b) capture the {@code save(...)} argument to verify
+ * status-tracking. End-to-end persistence is covered by {@link
+ * com.openelements.spring.base.services.webhook.data.WebhookDataServiceIntegrationTest}.
+ *
+ * <p><b>Status: currently {@link Disabled @Disabled}.</b> The {@code @Disabled} on the class and
+ * on the {@code PingTest} nested class is intentional — these tests are pending stabilisation
+ * work (likely around connection-error status values that differ between local and CI runs).
+ * The {@code @DisplayName}s and the Javadoc above are kept in place so that when the suite is
+ * re-enabled, the documentation reads correctly on the JUnit report from day one.
+ */
 @DisplayName("WebhookSender")
 @Disabled
 class WebhookSenderTest {
@@ -58,6 +97,7 @@ class WebhookSenderTest {
   }
 
   @Test
+  @DisplayName("WebhookSender constructor rejects null for either RestClient or WebhookDataService — a misconfigured Spring context fails fast at startup.")
   void shouldRejectNullConstructorArgs() {
     final RestClient restClient = RestClient.builder().build();
     final WebhookDataService dataService = mock(WebhookDataService.class);
@@ -76,6 +116,7 @@ class WebhookSenderTest {
   class PingTest {
 
     @Test
+    @DisplayName("ping(webhookId) issues an HTTP POST with Content-Type: application/json to the registered URL.")
     void shouldSendHttpPostToWebhookUrl() {
       // GIVEN
       wireMockServer.stubFor(post(urlEqualTo("/ping")).willReturn(aResponse().withStatus(200)));
@@ -91,6 +132,7 @@ class WebhookSenderTest {
     }
 
     @Test
+    @DisplayName("A 2xx response writes lastStatus=200 and a non-null lastCalledAt back to WebhookDataService.save(...).")
     void shouldTrackSuccessStatus() {
       // GIVEN
       wireMockServer.stubFor(post(urlEqualTo("/success")).willReturn(aResponse().withStatus(200)));
@@ -108,6 +150,7 @@ class WebhookSenderTest {
     }
 
     @Test
+    @DisplayName("A 5xx response writes lastStatus=500 back to WebhookDataService.save(...) — the failure is recorded, not swallowed.")
     void shouldTrackServerErrorStatus() {
       // GIVEN
       wireMockServer.stubFor(
@@ -124,6 +167,7 @@ class WebhookSenderTest {
     }
 
     @Test
+    @DisplayName("A 4xx response writes lastStatus=404 back to WebhookDataService.save(...) — the failure is recorded, not swallowed.")
     void shouldTrackClientErrorStatus() {
       // GIVEN
       wireMockServer.stubFor(
@@ -139,7 +183,14 @@ class WebhookSenderTest {
       assertThat(captor.getValue().lastStatus()).isEqualTo(404);
     }
 
+    /**
+     * Posts to {@code 192.0.2.1} — a TEST-NET-1 ({@code RFC 5737}) address guaranteed not to
+     * route — so the {@link RestClient} surfaces a connection-level failure rather than an HTTP
+     * status. The sender encodes such failures as {@code 0} or {@code -1} in {@code lastStatus}
+     * so operators can distinguish transport errors from server-side rejections.
+     */
     @Test
+    @DisplayName("A connection failure (unreachable host) writes lastStatus as 0 or -1 — transport errors are distinguishable from HTTP status codes.")
     void shouldTrackConnectionErrorAsZeroOrMinusOne() {
       // GIVEN - unreachable host
       final UUID webhookId = UUID.randomUUID();
@@ -157,6 +208,7 @@ class WebhookSenderTest {
     }
 
     @Test
+    @DisplayName("ping(unknownId) raises IllegalArgumentException with message containing \"not found\" — translated by REST layer to HTTP 404.")
     void shouldThrowForNonExistentWebhook() {
       // GIVEN
       when(webhookDataService.findById(any(UUID.class))).thenReturn(Optional.empty());
@@ -168,6 +220,7 @@ class WebhookSenderTest {
     }
 
     @Test
+    @DisplayName("ping(null) throws NullPointerException — fail-fast at the API boundary, no repository lookup attempted.")
     void shouldRejectNullId() {
       assertThatThrownBy(() -> webhookSender.ping(null)).isInstanceOf(NullPointerException.class);
     }
@@ -178,6 +231,7 @@ class WebhookSenderTest {
   class SendAndTrackPayloadTest {
 
     @Test
+    @DisplayName("sendAndTrack(payload) fans out one HTTP POST per active webhook returned by findAllActive() — both registered endpoints receive the call.")
     void shouldSendToAllActiveWebhooks() {
       // GIVEN
       wireMockServer.stubFor(post(urlEqualTo("/hook1")).willReturn(aResponse().withStatus(200)));

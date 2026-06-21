@@ -8,10 +8,32 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit tests for the {@link UserDto#fromEntity(UserEntity)} mapper.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The straight-through copy of {@code id}, {@code name}, {@code email}, and {@code avatarUrl}
+ * from {@link UserEntity} to {@link UserDto}, including the nullable contract for the optional
+ * fields — a {@code UserEntity} with no email and no avatar URL must produce a {@code UserDto}
+ * with {@code null} for both, not a default string. This is the boundary that controllers and
+ * SCIM provisioners cross when serialising users to JSON, so a silent change here would alter
+ * the wire format.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 unit tests. Real {@link UserEntity} instances are populated via their setters
+ * and passed straight to {@code UserDto.fromEntity(...)}; the resulting DTO is asserted
+ * field-by-field.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. The mapper is a pure function over POJOs — there is nothing
+ * to mock and nothing to stub.
+ */
 @DisplayName("UserDto")
 class UserDtoTest {
 
   @Test
+  @DisplayName("fromEntity(...) copies id, name, email and avatarUrl from a fully populated UserEntity onto the UserDto.")
   void shouldConvertFromEntityWithAvatarUrl() {
     // GIVEN
     final UUID id = UUID.randomUUID();
@@ -33,6 +55,7 @@ class UserDtoTest {
   }
 
   @Test
+  @DisplayName("A UserEntity with null email and null avatarUrl produces a UserDto with null for both — no defaults are invented.")
   void shouldConvertFromEntityWithoutAvatarUrl() {
     // GIVEN
     final UserEntity entity = new UserEntity();

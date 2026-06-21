@@ -18,11 +18,33 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * Integration test for {@link SettingsDataService} against a real PostgreSQL container.
  *
- * <p>Locks in the fix for the id-type mismatch: {@link SettingsEntity}'s primary key is a UUID
- * (inherited from {@code AbstractEntity}), so {@link SettingsRepository} declares the JPA generic
- * as {@code UUID} and the service looks settings up via {@code findByKey} / {@code deleteByKey}
- * against the unique business-key column. The pre-fix code called {@code findById(String)} which
- * tripped Hibernate's id-type check before any database access.
+ * <h2>What is tested</h2>
+ *
+ * <p>End-to-end CRUD on the {@code settings} table — specifically the regression that motivated
+ * the {@code findByKey} / {@code deleteByKey} routing. {@link SettingsEntity}'s primary key is a
+ * UUID (inherited from {@code AbstractEntity}), while the {@code key} column is the business
+ * identifier callers use. The pre-fix code called {@code findById(String)} which tripped
+ * Hibernate's id-type check before any SQL was issued. This test confirms:
+ *
+ * <ul>
+ *   <li>{@code get / set / delete} all round-trip through the business-key column.
+ *   <li>{@code set} is a real upsert: the second write under the same key mutates the existing
+ *       row in place rather than inserting a duplicate (verified by {@code count() == 1L}).
+ *   <li>Distinct keys produce distinct rows (no accidental cross-pollination via the UUID PK).
+ *   <li>{@code delete} on an unknown key is a no-op, not an exception.
+ * </ul>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * spins up a real Postgres via Testcontainers. The settings table is truncated in {@code
+ * @BeforeEach} so each test runs against an empty row set. The integration footprint is
+ * intentional: the id-type mismatch the test guards against only surfaces against a real JPA
+ * provider with a real database — no in-memory substitute would catch it.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. {@link SettingsDataService} and {@link SettingsRepository}
+ * are real beans wired by Spring; the database is a real Postgres in a container. Mocking would
+ * defeat the purpose of the regression guard.
  */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
@@ -45,6 +67,7 @@ class SettingsDataServiceIntegrationTest {
   class GetTest {
 
     @Test
+    @DisplayName("get(missing key) against real Postgres returns Optional.empty() — no id-type exception.")
     void shouldReturnEmptyForUnknownKeyWithoutThrowing() {
       final Optional<String> result = settingsDataService.get("missing.key");
 
@@ -52,6 +75,7 @@ class SettingsDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("A value written via set(...) is readable via get(...) in a fresh transaction.")
     void shouldReturnValueAfterSet() {
       settingsDataService.set("brevo.api-key", "secret-123");
 
@@ -66,6 +90,7 @@ class SettingsDataServiceIntegrationTest {
   class SetTest {
 
     @Test
+    @DisplayName("First set(key, value) inserts exactly one row into the settings table.")
     void shouldInsertExactlyOneRowOnFirstWrite() {
       settingsDataService.set("app.name", "open-crm");
 
@@ -73,7 +98,13 @@ class SettingsDataServiceIntegrationTest {
       assertThat(settingsDataService.get("app.name")).contains("open-crm");
     }
 
+    /**
+     * Pins the upsert contract end-to-end against Postgres: the second {@code set(...)} under the
+     * same key must mutate the existing row, not create a duplicate. {@code count() == 1L} would
+     * fail if the service ever issued a blind {@code INSERT} for an existing key.
+     */
     @Test
+    @DisplayName("Second set(key, value) for the same key updates in place — row count stays at 1.")
     void shouldUpdateInPlaceOnSecondWrite() {
       settingsDataService.set("app.name", "open-crm");
       settingsDataService.set("app.name", "open-crm-v2");
@@ -83,6 +114,7 @@ class SettingsDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Two set(...) calls with different keys produce two independent rows.")
     void shouldKeepDistinctKeysIndependent() {
       settingsDataService.set("app.name", "open-crm");
       settingsDataService.set("brevo.api-key", "secret-123");
@@ -98,6 +130,7 @@ class SettingsDataServiceIntegrationTest {
   class DeleteTest {
 
     @Test
+    @DisplayName("delete(key) for a present key removes the row and a subsequent get returns empty.")
     void shouldRemoveAnExistingSetting() {
       settingsDataService.set("brevo.api-key", "secret-123");
 
@@ -108,6 +141,7 @@ class SettingsDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("delete(unknown key) is a no-op — no exception, unrelated rows untouched.")
     void shouldBeNoopForUnknownKey() {
       settingsDataService.set("app.name", "open-crm");
 

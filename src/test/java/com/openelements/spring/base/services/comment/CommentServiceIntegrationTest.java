@@ -38,6 +38,55 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Integration tests for {@link CommentService} against a real Postgres database.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>Four orthogonal concerns of the comment subsystem:
+ *
+ * <ol>
+ *   <li><b>Entity mapping.</b> The DDL is what we expect — the {@code comments} table has an
+ *       {@code author_id uuid NOT NULL} column with the {@code fk_comments_author} foreign key,
+ *       and the {@code @ManyToOne(fetch=LAZY)} association is a real Hibernate proxy that only
+ *       initialises on dereference.
+ *   <li><b>Comment creation.</b> A saved comment is associated with the currently authenticated
+ *       user; on first login the user is provisioned JIT and the comment correctly references
+ *       the new row; missing authentication fails the entire transaction so neither comment
+ *       nor user is persisted.
+ *   <li><b>Comment retrieval.</b> {@code findById} returns a {@link CommentDto} whose nested
+ *       {@code AuthorDto} comes from the JPA fetch, not a side-channel call to {@link
+ *       UserService}. {@code getAll} on 100 distinct authors stays under 10 SQL statements
+ *       thanks to {@code @BatchSize(50)} on {@link UserEntity} — a regression that drops the
+ *       annotation would issue 101 queries and fail the assertion.
+ *   <li><b>Referential integrity.</b> A comment with an unknown {@code author_id} is rejected by
+ *       Postgres; a user with comments cannot be deleted (FK ON DELETE RESTRICT); a user with no
+ *       comments can be deleted normally.
+ *   <li><b>Audit integration.</b> Create, update, and delete each emit exactly one matching
+ *       {@code AuditLogEntity} row with the expected {@code AuditAction}.
+ * </ol>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * spins up a real Postgres via Testcontainers. The {@link JdbcTemplate} is used to introspect
+ * {@code information_schema} (the only way to verify the actual DDL — Hibernate metadata would
+ * just echo the entity mapping). Hibernate {@link Statistics} is used for the batch-fetch test
+ * because the invariant under test (number of SQL statements) is itself a Hibernate-specific
+ * behaviour; production code stays on standard JPA APIs.
+ *
+ * <p><b>Mock-Audit.</b>
+ *
+ * <ul>
+ *   <li>{@code @MockitoBean AuthService} — the test drives the service from outside the Spring
+ *       Security filter chain, so the {@code SecurityContextHolder} is not populated. Mocking
+ *       lets each test choose the JWT identity per-call via {@code setAuthenticatedUser(...)}.
+ *   <li>{@code @MockitoSpyBean UserService} — wraps the real bean so the
+ *       "no separate lookup" assertion in {@code shouldReturnAuthorDtoWithoutSeparateLookup} can
+ *       call {@code verify(userService, never()).findById(...)}. All real provisioning and
+ *       drift-sync behaviour still runs.
+ * </ul>
+ */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
@@ -95,7 +144,14 @@ class CommentServiceIntegrationTest {
   @DisplayName("entity mapping")
   class EntityMapping {
 
+    /**
+     * Asserts the DDL directly against {@code information_schema} rather than via Hibernate
+     * metadata — Hibernate would just echo back what the entity declares, while a query against
+     * the running Postgres catches schema drift, missing migrations, and naming mistakes.
+     */
     @Test
+    @DisplayName(
+        "The comments table exposes a non-null author_id UUID column and a fk_comments_author FK — no stray 'author' column.")
     void shouldHaveAuthorIdColumnAndForeignKeyConstraint() {
       final List<String> columns =
           jdbcTemplate.queryForList(
@@ -127,6 +183,8 @@ class CommentServiceIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName(
+        "findById returns a CommentEntity whose author proxy is uninitialised — fetch is LAZY until dereferenced.")
     void shouldNotInitializeAuthorProxyOnFindById() {
       final UserEntity author = seedUser("sub-lazy", "Lazy");
       final CommentEntity persisted = seedComment(author, "lazy text");
@@ -141,6 +199,8 @@ class CommentServiceIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName(
+        "Reading getAuthor().getName() inside the transaction triggers the lazy load — the proxy initialises on demand.")
     void shouldLoadAuthorOnDereferenceInsideTransaction() {
       final UserEntity author = seedUser("sub-fetch", "Fetcher");
       final CommentEntity persisted = seedComment(author, "fetch text");
@@ -159,6 +219,8 @@ class CommentServiceIntegrationTest {
   class CommentCreation {
 
     @Test
+    @DisplayName(
+        "save() stamps the comment with the authenticated user's id — the author_id column matches the returned author DTO.")
     void shouldAssociateNewCommentWithCurrentUser() {
       seedUser("sub-existing", "Existing");
       setAuthenticatedUser("sub-existing", "Existing", "existing");
@@ -176,6 +238,8 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "A first-time commenter is JIT-provisioned mid-save() — the new comment references the brand-new user's id.")
     void shouldProvisionUserOnFirstLoginAndLinkComment() {
       setAuthenticatedUser("sub-brand-new", "Newcomer", "new");
 
@@ -191,6 +255,8 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "save() with no JWT context fails fast — no comment row is written and no user is provisioned.")
     void shouldFailWhenNoAuthentication() {
       when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
 
@@ -206,7 +272,15 @@ class CommentServiceIntegrationTest {
   @DisplayName("comment retrieval")
   class CommentRetrieval {
 
+    /**
+     * Pins the "no side-channel" rule: the {@code AuthorDto} on a returned {@link CommentDto}
+     * must come from the JPA fetch graph, never from a separate {@code userService.findById}
+     * call. Verified with a Mockito spy assertion {@code verify(userService, never())} — a
+     * future refactor that re-introduces a second lookup would fail this test.
+     */
     @Test
+    @DisplayName(
+        "findById returns the author DTO straight from the JPA fetch — UserService.findById is never invoked.")
     void shouldReturnAuthorDtoWithoutSeparateLookup() {
       final UserEntity author = seedUser("sub-reader", "Reader");
       final CommentEntity persisted = seedComment(author, "readable");
@@ -218,8 +292,19 @@ class CommentServiceIntegrationTest {
       verify(userService, never()).findById(any(UUID.class));
     }
 
+    /**
+     * Regression guard against re-introducing N+1 on the author fetch. Seeds 100 distinct
+     * users with one comment each (1:1 cardinality is deliberate — 5 users / 100 comments
+     * would silently pass via session-cache deduplication even without batching). With
+     * {@code @BatchSize(50)} on {@link UserEntity}, 100 distinct author proxies initialise in
+     * {@code ceil(100/50) = 2} batched SELECTs; total ≈ 3 statements with headroom. Without
+     * batching this would be 1 + 100 = 101 statements. The {@code ≤ 10} ceiling leaves room
+     * for Hibernate-internal bookkeeping while still catching a dropped annotation.
+     */
     @Test
     @Transactional
+    @DisplayName(
+        "Listing 100 comments with 100 distinct authors stays under 10 SQL statements — @BatchSize(50) keeps N+1 dead.")
     void shouldBatchFetchAuthorsForLargeLists() {
       // 100 distinct users with one comment each makes session-cache deduplication
       // irrelevant: without @BatchSize(50) on UserEntity this would issue exactly one
@@ -268,6 +353,8 @@ class CommentServiceIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName(
+        "Persisting a comment with a phantom author_id throws DataIntegrityViolationException — the FK refuses the insert.")
     void shouldRejectInsertWithUnknownAuthor() {
       final UUID phantomUserId = UUID.randomUUID();
       final UserEntity phantom = entityManager.getReference(UserEntity.class, phantomUserId);
@@ -281,6 +368,8 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Deleting a user who still owns comments is rejected by the FK — both user and comments remain.")
     void shouldRejectUserDeleteWhenCommentsExist() {
       final UserEntity author = seedUser("sub-locked", "Locked");
       final CommentEntity comment = seedComment(author, "locks the user");
@@ -297,6 +386,7 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("A user with no comments deletes cleanly — the FK only restricts when child rows exist.")
     void shouldAllowUserDeleteWhenNoComments() {
       final UserEntity author = seedUser("sub-orphan", "OrphanUser");
 
@@ -312,6 +402,7 @@ class CommentServiceIntegrationTest {
   class AuditIntegration {
 
     @Test
+    @DisplayName("Creating a comment emits exactly one audit row with action=INSERT for that comment id.")
     void shouldEmitAuditEventOnCreate() {
       seedUser("sub-audit-c", "AuditC");
       setAuthenticatedUser("sub-audit-c", "AuditC", "auditc");
@@ -328,6 +419,7 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Updating an existing comment emits exactly one audit row with action=UPDATE.")
     void shouldEmitAuditEventOnUpdate() {
       seedUser("sub-audit-u", "AuditU");
       setAuthenticatedUser("sub-audit-u", "AuditU", "auditu");
@@ -346,6 +438,7 @@ class CommentServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Deleting a comment emits exactly one audit row with action=DELETE for that comment id.")
     void shouldEmitAuditEventOnDelete() {
       seedUser("sub-audit-d", "AuditD");
       setAuthenticatedUser("sub-audit-d", "AuditD", "auditd");

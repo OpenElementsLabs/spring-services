@@ -10,7 +10,40 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Unit test for {@link SettingsDataService}. */
+/**
+ * Mockito-style unit tests for {@link SettingsDataService}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The three CRUD operations of the settings facade and their guard rails:
+ *
+ * <ul>
+ *   <li>{@code get(key)} returns the persisted value via {@code findByKey} (business key, not the
+ *       UUID primary key) and yields an empty {@link Optional} when nothing is stored.
+ *   <li>{@code set(key, value)} performs an upsert: a missing row is created with the key wired
+ *       through, an existing row is mutated in place and re-flushed.
+ *   <li>{@code delete(key)} delegates to {@code deleteByKey} (the business-key route).
+ *   <li>All three methods, and the constructor, reject {@code null} arguments with {@link
+ *       NullPointerException} — surfaces misconfiguration immediately.
+ * </ul>
+ *
+ * <p>End-to-end persistence behaviour (id-type mismatch fix, real Postgres unique constraint on
+ * the business key) is covered by the sibling {@link SettingsDataServiceIntegrationTest}.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Plain JUnit 5 with Mockito, no Spring context. The single collaborator {@link
+ * SettingsRepository} is mocked; {@link SettingsDataService} is instantiated directly with the
+ * mock.
+ *
+ * <p><b>Mock-Audit.</b> One mock: {@code mock(SettingsRepository.class)}. {@link
+ * SettingsRepository} is a Spring Data JPA interface — there is no in-memory implementation to
+ * substitute. Stubbing {@code findByKey(...)} return values is what lets the upsert branch
+ * (existing row vs new row) be exercised independently of any database. The {@code thenAnswer(i
+ * -> i.getArgument(0))} on {@code saveAndFlush} only echoes the argument back; it does not hide
+ * behaviour. Real-database behaviour is covered by {@link SettingsDataServiceIntegrationTest}
+ * against a Testcontainers Postgres.
+ */
 @DisplayName("SettingsDataService")
 class SettingsDataServiceTest {
 
@@ -23,6 +56,7 @@ class SettingsDataServiceTest {
   class GetTest {
 
     @Test
+    @DisplayName("get(key) returns the stored value when a row exists under that business key.")
     void shouldReturnValueWhenKeyExists() {
       // GIVEN
       final SettingsEntity entity = new SettingsEntity();
@@ -38,6 +72,7 @@ class SettingsDataServiceTest {
     }
 
     @Test
+    @DisplayName("get(key) returns Optional.empty() when no row matches — no exception, no default.")
     void shouldReturnEmptyWhenKeyDoesNotExist() {
       // GIVEN
       when(settingsRepository.findByKey("nonexistent")).thenReturn(Optional.empty());
@@ -50,6 +85,7 @@ class SettingsDataServiceTest {
     }
 
     @Test
+    @DisplayName("get(null) throws NullPointerException — caller bug surfaces before any repository call.")
     void shouldRejectNullKey() {
       assertThatThrownBy(() -> settingsDataService.get(null))
           .isInstanceOf(NullPointerException.class);
@@ -61,6 +97,7 @@ class SettingsDataServiceTest {
   class SetTest {
 
     @Test
+    @DisplayName("set(key, value) for an unknown key inserts a new SettingsEntity with both fields populated.")
     void shouldCreateNewSettingWhenKeyDoesNotExist() {
       // GIVEN
       when(settingsRepository.findByKey("new.key")).thenReturn(Optional.empty());
@@ -78,7 +115,13 @@ class SettingsDataServiceTest {
                       "new.key".equals(entity.getKey()) && "new.value".equals(entity.getValue())));
     }
 
+    /**
+     * Pins the in-place mutation contract: {@code set(key, newValue)} loads the existing row,
+     * overwrites {@code value} on the managed entity, and passes the <em>same instance</em> to
+     * {@code saveAndFlush} — no second row is created, no key field is touched.
+     */
     @Test
+    @DisplayName("set(key, value) on an existing key mutates the loaded entity in place and re-flushes.")
     void shouldUpdateExistingSettingValue() {
       // GIVEN
       final SettingsEntity existing = new SettingsEntity();
@@ -97,12 +140,14 @@ class SettingsDataServiceTest {
     }
 
     @Test
+    @DisplayName("set(null, value) throws NullPointerException — no repository interaction.")
     void shouldRejectNullKey() {
       assertThatThrownBy(() -> settingsDataService.set(null, "value"))
           .isInstanceOf(NullPointerException.class);
     }
 
     @Test
+    @DisplayName("set(key, null) throws NullPointerException — null is not a valid stored value.")
     void shouldRejectNullValue() {
       assertThatThrownBy(() -> settingsDataService.set("key", null))
           .isInstanceOf(NullPointerException.class);
@@ -114,6 +159,7 @@ class SettingsDataServiceTest {
   class DeleteTest {
 
     @Test
+    @DisplayName("delete(key) routes to SettingsRepository.deleteByKey — never deleteById (UUID/String mismatch).")
     void shouldDeleteByKey() {
       // WHEN
       settingsDataService.delete("to.delete");
@@ -123,6 +169,7 @@ class SettingsDataServiceTest {
     }
 
     @Test
+    @DisplayName("delete(null) throws NullPointerException — no repository interaction.")
     void shouldRejectNullKey() {
       assertThatThrownBy(() -> settingsDataService.delete(null))
           .isInstanceOf(NullPointerException.class);
@@ -130,6 +177,7 @@ class SettingsDataServiceTest {
   }
 
   @Test
+  @DisplayName("SettingsDataService constructor rejects a null repository with NullPointerException.")
   void shouldRejectNullRepository() {
     assertThatThrownBy(() -> new SettingsDataService(null))
         .isInstanceOf(NullPointerException.class);

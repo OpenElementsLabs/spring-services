@@ -26,7 +26,37 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Integration test for {@link ApiKeyDataService} using Testcontainers with PostgreSQL. */
+/**
+ * Integration tests for {@link ApiKeyDataService} against a real Postgres database.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The full lifecycle of an API key — creation (raw key handed to the caller once, only the
+ * SHA-256 hash and a display-only prefix stored), authentication (matching a raw key against the
+ * stored hash and ignoring null/blank/unknown inputs), listing (pagination over persisted rows),
+ * and deletion (a 404-mapped {@link ResponseStatusException} for unknown ids). The format of the
+ * generated key is locked: it must start with the {@code crm_} prefix, be 4 + 48 characters
+ * long, and produce a redacted {@code keyPrefix} of the form {@code crm_XXXX...XXXX}. Two keys
+ * created with the same name must be unique. A deleted key must no longer authenticate.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * spins up a real Postgres via Testcontainers. The {@link ApiKeyDataService} bean is the real
+ * service, and the {@link ApiKeyRepository} is the real Spring Data repository writing to the
+ * containerised database.
+ *
+ * <p><b>Mock-Audit.</b> Two {@code @MockBean}s:
+ *
+ * <ul>
+ *   <li>{@code UserService} — stubbed to return a static "Test Admin" {@code UserDto}. The
+ *       service-under-test only reads {@code getCurrentUser().name()} to populate {@code
+ *       createdBy} on new keys; a real {@code UserService} would need a JWT-authenticated
+ *       Spring Security context, which adds no coverage to the API-key lifecycle.
+ *   <li>{@code AuthService} — declared because other Spring components in the test context
+ *       wire it transitively; the API-key tests themselves never read from it.
+ * </ul>
+ */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
@@ -61,6 +91,8 @@ class ApiKeyDataServiceIntegrationTest {
   class CreateTest {
 
     @Test
+    @DisplayName(
+        "create() returns a freshly generated key with the crm_ prefix, 52-char total length, and a redacted display prefix.")
     void shouldCreateKeyWithCorrectPrefixAndHash() {
       // GIVEN
       final ApiKeyCreateDto request = new ApiKeyCreateDto("CI Pipeline Key");
@@ -79,6 +111,8 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "The raw key is never persisted — only the 64-char SHA-256 hex hash is stored in keyHash.")
     void shouldStoreHashedKeyInDatabase() {
       // GIVEN
       final ApiKeyCreateDto request = new ApiKeyCreateDto("Hashed Key");
@@ -94,6 +128,8 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Two create() calls with the same name still produce distinct ids and distinct raw key material.")
     void shouldProduceUniqueKeysForSameName() {
       // GIVEN
       final ApiKeyCreateDto request = new ApiKeyCreateDto("Same Name");
@@ -108,6 +144,8 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "keyPrefix is derived from the raw key as the first 8 chars + '...' + the last 4 chars — safe to display in lists.")
     void shouldBuildKeyPrefixFromRawKey() {
       // WHEN
       final ApiKeyCreatedDto created = apiKeyDataService.create(new ApiKeyCreateDto("Prefix Test"));
@@ -119,6 +157,7 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("create() fails fast with NullPointerException when the request DTO is null.")
     void shouldRejectNullRequest() {
       assertThatThrownBy(() -> apiKeyDataService.create(null))
           .isInstanceOf(NullPointerException.class);
@@ -130,6 +169,8 @@ class ApiKeyDataServiceIntegrationTest {
   class AuthenticateTest {
 
     @Test
+    @DisplayName(
+        "A valid raw key returned by create() authenticates back to the same ApiKeyEntity row.")
     void shouldAuthenticateWithValidRawKey() {
       // GIVEN
       final ApiKeyCreatedDto created = apiKeyDataService.create(new ApiKeyCreateDto("Auth Key"));
@@ -144,6 +185,7 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("authenticate() returns Optional.empty() for a syntactically plausible key that does not exist.")
     void shouldReturnEmptyForInvalidKey() {
       // WHEN
       final Optional<ApiKeyEntity> result =
@@ -154,16 +196,19 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("authenticate(null) returns Optional.empty() — null is treated as a non-match, not an error.")
     void shouldReturnEmptyForNullKey() {
       assertThat(apiKeyDataService.authenticate(null)).isEmpty();
     }
 
     @Test
+    @DisplayName("authenticate(\"  \") returns Optional.empty() — blank strings never match.")
     void shouldReturnEmptyForBlankKey() {
       assertThat(apiKeyDataService.authenticate("  ")).isEmpty();
     }
 
     @Test
+    @DisplayName("After delete(id), the previously valid raw key no longer authenticates.")
     void shouldNotAuthenticateAfterDeletion() {
       // GIVEN
       final ApiKeyCreatedDto created = apiKeyDataService.create(new ApiKeyCreateDto("Deleted Key"));
@@ -182,6 +227,7 @@ class ApiKeyDataServiceIntegrationTest {
   class ListTest {
 
     @Test
+    @DisplayName("list() on an empty table returns a Page with zero content and zero totalElements.")
     void shouldReturnEmptyPageWhenNoKeys() {
       // WHEN
       final Page<ApiKeyDto> page = apiKeyDataService.list(PageRequest.of(0, 10));
@@ -192,6 +238,7 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("list() returns every previously-created key as an ApiKeyDto on the first page.")
     void shouldListAllCreatedKeys() {
       // GIVEN
       apiKeyDataService.create(new ApiKeyCreateDto("Key 1"));
@@ -209,6 +256,8 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "list() honours PageRequest size and reports the correct totalElements and totalPages.")
     void shouldSupportPagination() {
       // GIVEN
       for (int i = 0; i < 5; i++) {
@@ -230,6 +279,7 @@ class ApiKeyDataServiceIntegrationTest {
   class DeleteTest {
 
     @Test
+    @DisplayName("delete(id) for an existing key removes the row — repository.findById returns empty.")
     void shouldDeleteExistingKey() {
       // GIVEN
       final ApiKeyCreatedDto created = apiKeyDataService.create(new ApiKeyCreateDto("To Delete"));
@@ -242,6 +292,7 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("delete(unknownId) throws ResponseStatusException — surfaces as HTTP 404 to the caller.")
     void shouldThrow404ForNonExistentKey() {
       // GIVEN
       final UUID nonExistentId = UUID.randomUUID();
@@ -252,6 +303,7 @@ class ApiKeyDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("delete(null) fails fast with NullPointerException — null is not a valid id.")
     void shouldRejectNullId() {
       assertThatThrownBy(() -> apiKeyDataService.delete(null))
           .isInstanceOf(NullPointerException.class);

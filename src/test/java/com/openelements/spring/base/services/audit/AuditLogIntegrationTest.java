@@ -32,6 +32,46 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * End-to-end integration tests for the audit-log subsystem against a real Postgres database.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The full event-to-database round trip that unit tests cannot verify:
+ *
+ * <ol>
+ *   <li><b>Event-driven entry creation.</b> Calls to {@link TagDataService#save} / {@code delete}
+ *       publish domain events that {@link AuditLogEventListener} translates into persisted
+ *       {@link AuditLogEntity} rows — verified by reading them back through {@link
+ *       AuditLogDataService}'s finders.
+ *   <li><b>SystemUser fallback (in DB).</b> Missing or non-JWT authentication causes entries to
+ *       be attributed to {@link SystemUser} in the actual {@code audit_log.user_id} column.
+ *   <li><b>Recursion prevention (in DB).</b> Writing an audit entry must not itself produce
+ *       another audit entry — verified by inspecting the persisted table.
+ *   <li><b>Query methods on real data.</b> {@code findByEntityType}, {@code findByUser},
+ *       {@code findByEntityTypeAndUser} against multi-user, multi-type fixtures.
+ *   <li><b>Retention cleanup.</b> {@link AuditCleanupJob#cleanupExpiredEntries()} deletes only
+ *       entries older than {@code AuditProperties.retentionDays()}; the boundary is checked at
+ *       91 days (deleted) vs 89 days (kept) against a 90-day window.
+ * </ol>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * starts a real Postgres via Testcontainers. {@link TagDataService} is used as a real publisher
+ * of {@code OnObjectCreate/Update/Delete} events so the integration is end-to-end.
+ *
+ * <p><b>Mock-Audit.</b> {@code AuthService} is the single {@code @MockBean} — real
+ * {@code AuthService} reads from {@link
+ * org.springframework.security.core.context.SecurityContextHolder} populated by the filter
+ * chain, which the tests deliberately bypass to drive listener decisions directly. Every other
+ * collaborator (data service, repositories, cleanup job, tag service) is a real Spring bean
+ * backed by real Postgres — there is no mocking of the components under test.
+ *
+ * <p>The {@code system} user row is inserted via raw JDBC in {@link #persistSystemUser()} because
+ * the production data is provisioned by a Flyway migration that does not run in this test
+ * profile.
+ */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
@@ -109,6 +149,9 @@ class AuditLogIntegrationTest {
   class EventDriven {
 
     @Test
+    @DisplayName(
+        "Saving a new Tag while alice is authenticated persists an INSERT audit row attributed "
+            + "to alice — findByEntityType('TagDto') reads it back end-to-end.")
     void shouldRecordCreateEventForAuthenticatedUser() {
       when(authService.getUserInformation()).thenReturn(userInfo(alice));
 
@@ -124,6 +167,8 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Re-saving an existing Tag persists an UPDATE audit row attributed to the current user.")
     void shouldRecordUpdateEvent() {
       when(authService.getUserInformation()).thenReturn(userInfo(bob));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-update", "desc", "#aabbcc"));
@@ -136,6 +181,7 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName("Deleting a Tag persists a DELETE audit row attributed to the current user.")
     void shouldRecordDeleteEvent() {
       when(authService.getUserInformation()).thenReturn(userInfo(alice));
       final TagDto saved = tagDataService.save(new TagDto(null, "tag-delete", "desc", "#aabbcc"));
@@ -148,6 +194,9 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "When AuthService throws IllegalStateException (no authentication), the persisted audit "
+            + "row is attributed to SystemUser in the database — audit is never silently dropped.")
     void shouldUseSystemUserWhenNoAuthentication() {
       when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
 
@@ -160,6 +209,9 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "An API-key (non-JWT) principal causes the persisted audit row to be attributed to "
+            + "SystemUser in the database.")
     void shouldUseSystemUserForApiKeyPrincipal() {
       when(authService.getUserInformation()).thenReturn(java.util.Optional.empty());
 
@@ -175,7 +227,15 @@ class AuditLogIntegrationTest {
   @DisplayName("recursion prevention")
   class RecursionPrevention {
 
+    /**
+     * Persistence-level confirmation of the unit-test recursion guard: writing an audit entry
+     * must not itself fire an audit event for entity type {@code AuditLogDto}. Asserted by
+     * reading the database back after one explicit {@code createEntry} call.
+     */
     @Test
+    @DisplayName(
+        "Persisting one audit entry produces exactly one row — findByEntityType('AuditLogDto') "
+            + "stays empty, confirming the recursion guard at the database level.")
     void shouldNotCreateAuditEntryForAuditEntry() {
       when(authService.getUserInformation()).thenReturn(userInfo(alice));
 
@@ -193,6 +253,9 @@ class AuditLogIntegrationTest {
   class QueryMethods {
 
     @Test
+    @DisplayName(
+        "findByEntityType returns only the rows whose entityType matches the argument across a "
+            + "multi-type fixture.")
     void shouldFindByEntityType() {
       seed(alice, "BookDto", AuditAction.INSERT);
       seed(bob, "BookDto", AuditAction.UPDATE);
@@ -202,6 +265,8 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "findByUser returns every entry attributed to a given user regardless of entity type.")
     void shouldFindByUser() {
       seed(alice, "BookDto", AuditAction.INSERT);
       seed(alice, "UserDto", AuditAction.INSERT);
@@ -211,6 +276,9 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "findByEntityTypeAndUser returns the intersection — entries matching both the entity "
+            + "type AND the user.")
     void shouldFindByEntityTypeAndUser() {
       seed(alice, "BookDto", AuditAction.INSERT);
       seed(bob, "BookDto", AuditAction.UPDATE);
@@ -223,11 +291,20 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName("findByEntityType returns an empty page when no row matches the entity type.")
     void shouldReturnEmptyListWhenNoMatch() {
       assertThat(auditLogDataService.findByEntityType("NoteDto", Pageable.unpaged())).isEmpty();
     }
 
+    /**
+     * Resilient assertion: other listeners ({@code WebhookEventListener}) also write audit rows
+     * attributed to {@code SystemUser} via {@code AFTER_COMMIT} hooks, so a flat count would be
+     * brittle. The assertion filters by entity id to pin the specific row produced by this test.
+     */
     @Test
+    @DisplayName(
+        "findByUser(SystemUser.ID) surfaces a system-attributed audit row — assertion filters "
+            + "by entity id to ignore unrelated AFTER_COMMIT writes from other listeners.")
     void shouldFindSystemAttributedEntries() {
       when(authService.getUserInformation()).thenThrow(new IllegalStateException("no auth"));
       final TagDto saved =
@@ -247,7 +324,16 @@ class AuditLogIntegrationTest {
   @DisplayName("retention cleanup")
   class RetentionCleanup {
 
+    /**
+     * Retention boundary check against a 90-day window: an entry backdated to 91 days ago must
+     * be deleted; an entry backdated to 89 days ago must survive. Backdating uses raw SQL
+     * because {@code created_at} is mapped {@code updatable=false} on {@link
+     * com.openelements.spring.base.data.AbstractEntity}.
+     */
     @Test
+    @DisplayName(
+        "AuditCleanupJob deletes entries older than retentionDays and keeps fresher ones — 91d "
+            + "is removed, 89d survives against a 90-day window.")
     void shouldDeleteEntriesOlderThanRetention() {
       final AuditLogDto stale = seed(alice, "BookDto", AuditAction.INSERT);
       final AuditLogDto fresh = seed(alice, "BookDto", AuditAction.INSERT);
@@ -263,6 +349,9 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "AuditCleanupJob is a no-op when every entry is younger than retentionDays — nothing is "
+            + "deleted by mistake.")
     void shouldDoNothingWhenAllEntriesAreFresh() {
       seed(alice, "BookDto", AuditAction.INSERT);
       seed(bob, "BookDto", AuditAction.INSERT);

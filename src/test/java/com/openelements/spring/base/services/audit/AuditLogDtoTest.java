@@ -10,6 +10,28 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit tests for {@link AuditLogDto#fromEntity(AuditLogEntity)} — the entity-to-DTO mapper.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>That every field of an {@link AuditLogEntity} is copied verbatim onto the resulting
+ * {@link AuditLogDto}, including the inherited {@code id} and {@code createdAt} from
+ * {@link AbstractEntity} (which are not exposed through setters), and that the associated
+ * {@link UserEntity} is recursively mapped to a nested {@code UserDto} with its own id / name /
+ * email. Mapper drift would silently strip fields from API responses; the test pins the full
+ * field set.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 with AssertJ. The two inherited fields ({@code id}, {@code createdAt}) are
+ * normally set by JPA / Hibernate at flush time; here they are injected via reflection so the
+ * mapper can be exercised without a persistence context.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. The mapper is a pure function; the test builds real
+ * {@link AuditLogEntity} and {@link UserEntity} instances and uses reflection only to set
+ * package-private inherited fields.
+ */
 @DisplayName("AuditLogDto")
 class AuditLogDtoTest {
 
@@ -27,7 +49,15 @@ class AuditLogDtoTest {
     field.set(entity, createdAt);
   }
 
+  /**
+   * Pins the full field set of {@link AuditLogDto#fromEntity(AuditLogEntity)}: id, entityType,
+   * entityId, action, the nested user (id / name / email), and createdAt. Adding a new field to
+   * either record without mapping it here will fail this test.
+   */
   @Test
+  @DisplayName(
+      "AuditLogDto.fromEntity(...) copies every field — id, entityType, entityId, action, nested "
+          + "user (id/name/email), and createdAt — from the entity onto the DTO.")
   void shouldCopyAllFieldsFromEntity() throws Exception {
     final UUID id = UUID.randomUUID();
     final UUID entityId = UUID.randomUUID();

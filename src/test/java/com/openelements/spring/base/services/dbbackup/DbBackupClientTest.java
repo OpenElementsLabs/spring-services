@@ -19,12 +19,53 @@ import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
  * Wire-level tests for {@link DbBackupClient}. Uses WireMock to verify request paths, the
  * Authorization header on authenticated calls, and that the JSON shapes we receive deserialise
  * into the documented DTOs.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The HTTP contract between {@link DbBackupClient} and its remote backup service partner:
+ *
+ * <ul>
+ *   <li>{@code isHealthy()} maps HTTP {@code 200} to {@code true} and HTTP {@code 503} to
+ *       {@code false} — the health probe does not throw.
+ *   <li>{@code getInfo()} deserialises the nested service-info JSON (version, pgDump version,
+ *       retention, backup interval, last-backup age) into {@link BackupServiceInfo}.
+ *   <li>{@code triggerBackup()} accepts HTTP {@code 202} as a successful enqueue, treats HTTP
+ *       {@code 409} as an "already running" signal (returning the existing job rather than
+ *       throwing), and propagates {@code 401} as a {@link DbBackupException}. Missing
+ *       configuration ({@code api-token} unset) fails fast before any network call.
+ *   <li>{@code getJob(id)} parses a fully populated terminal-state job; HTTP {@code 404}
+ *       returns {@code Optional.empty()} — not an error.
+ *   <li>{@code listBackups()} parses the array shape and maps {@code triggeredBy} to the
+ *       {@link BackupTrigger} enum.
+ *   <li>{@code getLatestBackup()} returns {@code Optional.empty()} on {@code 404} — a brand-new
+ *       installation with no backups yet is a valid state.
+ *   <li>{@code downloadBackup(id)} streams the response body as an auto-closeable {@link
+ *       BackupDownload}, reads {@code Content-Length} into {@code sizeBytes}, and sends the
+ *       bearer token. A {@code 404} on download surfaces as {@link DbBackupException} (unlike
+ *       {@code getLatestBackup}, downloading a missing id is a programming error).
+ * </ul>
+ *
+ * <p>The Authorization header is asserted on the authenticated routes ({@code triggerBackup},
+ * {@code downloadBackup}) — silently dropping the token would break production immediately, so
+ * the test pins it explicitly.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>WireMock runs as a JVM-local HTTP server on a dynamic port; the client is constructed with
+ * its {@code baseUrl} pointed at WireMock. Each test stubs the routes it needs and the client
+ * is exercised end-to-end through its real JSON deserialiser. Pure JUnit 5 — no Spring context.
+ *
+ * <p><b>Mock-Audit.</b> Zero Mockito mocks. WireMock is a network-level fake (not a mock of the
+ * {@code DbBackupClient} collaborator) — it replaces the remote service, not the client logic
+ * under test. The {@link DbBackupClient}, the JSON deserialiser, and the {@link
+ * DbBackupProperties} configuration are all real.
  */
 class DbBackupClientTest {
 
@@ -52,6 +93,7 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName("isHealthy() returns true when the /health endpoint responds with HTTP 200.")
   void isHealthyReturnsTrueOn200() {
     wireMockServer.stubFor(get(urlEqualTo("/health")).willReturn(aResponse().withStatus(200)));
 
@@ -61,6 +103,7 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName("isHealthy() returns false (not throws) when /health responds with HTTP 503.")
   void isHealthyReturnsFalseOn503() {
     wireMockServer.stubFor(get(urlEqualTo("/health")).willReturn(aResponse().withStatus(503)));
 
@@ -68,6 +111,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "getInfo() deserialises the nested service-info JSON (version, retention, backup interval, last-backup age).")
   void getInfoParsesNestedShape() {
     final String body =
         """
@@ -97,7 +142,14 @@ class DbBackupClientTest {
     assertThat(info.backup().lastSuccessfulBackupAgeSeconds()).isEqualTo(3600L);
   }
 
+  /**
+   * Verifies two things at once: HTTP {@code 202} maps to {@code alreadyRunning=false} with the
+   * parsed queued {@link BackupJob}, and the request carried the configured bearer token —
+   * silently dropping the Authorization header would break production immediately.
+   */
   @Test
+  @DisplayName(
+      "triggerBackup() accepts HTTP 202 as a fresh enqueue and sends the Bearer token on the request.")
   void triggerBackupReturnsFreshJobOn202() {
     final String body =
         """
@@ -133,6 +185,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "triggerBackup() maps HTTP 409 to alreadyRunning=true and returns the in-progress job — not an error.")
   void triggerBackupSignalsAlreadyRunningOn409() {
     final String body =
         """
@@ -164,6 +218,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "triggerBackup() propagates HTTP 401 as DbBackupException with the status code in the message.")
   void triggerBackupThrowsOnUnauthorized() {
     wireMockServer.stubFor(
         post(urlEqualTo("/api/v1/backups")).willReturn(aResponse().withStatus(401)));
@@ -174,6 +230,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "triggerBackup() with no configured api-token fails fast before any network call is made.")
   void triggerBackupThrowsWhenApiTokenMissing() {
     final DbBackupClient anonymous =
         new DbBackupClient(new DbBackupProperties(wireMockServer.baseUrl(), null, null));
@@ -184,6 +242,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "getJob(id) on HTTP 200 returns a fully populated BackupJob — status, duration, and backupId all parsed.")
   void getJobReturnsPresentOn200() {
     final String body =
         """
@@ -215,6 +275,7 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName("getJob(unknownId) on HTTP 404 returns Optional.empty() — a missing job is not an error.")
   void getJobReturnsEmptyOn404() {
     wireMockServer.stubFor(
         get(urlEqualTo("/api/v1/backups/jobs/nope")).willReturn(aResponse().withStatus(404)));
@@ -223,6 +284,7 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName("listBackups() parses the JSON array response and maps triggeredBy to the BackupTrigger enum.")
   void listBackupsParsesArray() {
     final String body =
         """
@@ -255,6 +317,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "getLatestBackup() on HTTP 404 returns Optional.empty() — a brand-new install with no backups is valid.")
   void getLatestBackupReturnsEmptyOn404() {
     wireMockServer.stubFor(
         get(urlEqualTo("/api/v1/backups/latest")).willReturn(aResponse().withStatus(404)));
@@ -263,6 +327,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "downloadBackup(id) streams the body, reports the Content-Length, and sends the Bearer token.")
   void downloadBackupStreamsBody() throws Exception {
     final byte[] payload = "fake-gzip-bytes".getBytes(StandardCharsets.UTF_8);
     wireMockServer.stubFor(
@@ -286,6 +352,8 @@ class DbBackupClientTest {
   }
 
   @Test
+  @DisplayName(
+      "downloadBackup(missingId) throws DbBackupException on HTTP 404 — unlike getLatestBackup, a missing download id is a programming error.")
   void downloadBackupThrowsOn404() {
     wireMockServer.stubFor(
         get(urlEqualTo("/api/v1/backups/missing/download"))

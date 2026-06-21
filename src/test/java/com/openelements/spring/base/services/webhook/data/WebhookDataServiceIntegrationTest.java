@@ -22,7 +22,32 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Integration test for {@link WebhookDataService} using Testcontainers with PostgreSQL. */
+/**
+ * End-to-end CRUD integration tests for {@link WebhookDataService} against a real Postgres
+ * database.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The full lifecycle of a webhook registration through the service layer: create with
+ * auto-generated id, update (URL change and active-flag toggle), delete, single-row fetch by id,
+ * list-all, paginated listing, and the {@code findAllActive()} filter that the {@code
+ * WebhookSender} relies on to fan out events only to live endpoints. Negative cases (update /
+ * delete with an unknown {@code UUID}) are pinned to {@link IllegalArgumentException} — the
+ * contract surface that REST controllers translate to HTTP 404.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>{@link SpringBootTest} loads {@link TestApplication}; {@link PostgresTestConfiguration}
+ * spins up a real Postgres via Testcontainers. {@link WebhookDataService} and {@link
+ * WebhookRepository} are real beans; the per-test {@code @BeforeEach} truncates the {@code
+ * webhook} table to keep scenarios independent.
+ *
+ * <p><b>Mock-Audit.</b> One {@code @MockBean} of {@link AuthService}. The service inherits from
+ * {@code AbstractDbBackedDataService}, whose audit hooks consult {@code AuthService} for the
+ * acting principal — outside a real HTTP request there is no JWT to resolve, so the bean is
+ * mocked to default-stub behaviour. No other collaborator is mocked: every assertion is made
+ * against rows actually persisted to Postgres.
+ */
 @SpringBootTest(classes = TestApplication.class)
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
@@ -46,6 +71,7 @@ class WebhookDataServiceIntegrationTest {
   class SaveTest {
 
     @Test
+    @DisplayName("save(...) with a null id persists a new webhook and returns a DTO with a generated UUID.")
     void shouldCreateNewWebhook() {
       // GIVEN
       final WebhookDto dto = new WebhookDto(null, "https://example.com/hook", true, null, null);
@@ -65,6 +91,7 @@ class WebhookDataServiceIntegrationTest {
   class FindAllActiveTest {
 
     @Test
+    @DisplayName("findAllActive() returns only rows with active=true — the filter WebhookSender relies on to skip disabled endpoints.")
     void shouldReturnOnlyActiveWebhooks() {
       // GIVEN
       webhookDataService.save(new WebhookDto(null, "https://active1.com/hook", true, null, null));
@@ -83,6 +110,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("findAllActive() returns an empty list when every persisted webhook has active=false.")
     void shouldReturnEmptyListWhenNoActiveWebhooks() {
       // GIVEN
       webhookDataService.save(new WebhookDto(null, "https://inactive.com/hook", false, null, null));
@@ -100,6 +128,7 @@ class WebhookDataServiceIntegrationTest {
   class GetAllTest {
 
     @Test
+    @DisplayName("getAll() returns every persisted webhook regardless of the active flag.")
     void shouldReturnAllWebhooks() {
       // GIVEN
       webhookDataService.save(new WebhookDto(null, "https://hook1.com", true, null, null));
@@ -118,6 +147,7 @@ class WebhookDataServiceIntegrationTest {
   class SaveUpdateTest {
 
     @Test
+    @DisplayName("save(...) with a known id updates the URL in place — id is preserved.")
     void shouldUpdateExistingWebhookUrl() {
       // GIVEN
       final WebhookDto saved =
@@ -134,6 +164,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Toggling active=false through save(...) persists the change — findAllActive() will subsequently exclude this row.")
     void shouldDeactivateWebhook() {
       // GIVEN
       final WebhookDto saved =
@@ -150,6 +181,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("save(...) with an unknown id raises IllegalArgumentException — no row is silently inserted with the caller-supplied UUID.")
     void shouldThrowForNonExistentId() {
       final WebhookDto dto =
           new WebhookDto(UUID.randomUUID(), "https://example.com/hook", true, null, null);
@@ -163,6 +195,7 @@ class WebhookDataServiceIntegrationTest {
   class DeleteTest {
 
     @Test
+    @DisplayName("delete(...) removes the row — a subsequent findById returns Optional.empty().")
     void shouldDeleteExistingWebhook() {
       // GIVEN
       final WebhookDto saved =
@@ -177,6 +210,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("delete(...) with an unknown id raises IllegalArgumentException — a stale REST DELETE never silently no-ops.")
     void shouldThrowWhenDeletingNonExistentWebhook() {
       final WebhookDto dto =
           new WebhookDto(UUID.randomUUID(), "https://example.com/hook", true, null, null);
@@ -190,6 +224,7 @@ class WebhookDataServiceIntegrationTest {
   class FindAllPaginatedTest {
 
     @Test
+    @DisplayName("findAll(PageRequest.of(0, 20)) over 25 rows returns 20 items, totalElements=25, totalPages=2.")
     void shouldReturnPaginatedResults() {
       // GIVEN
       for (int i = 0; i < 25; i++) {
@@ -207,6 +242,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("findAll(...) on an empty table returns an empty Page with totalElements=0.")
     void shouldReturnEmptyPageWhenNoWebhooks() {
       // WHEN
       final Page<WebhookDto> page = webhookDataService.findAll(PageRequest.of(0, 20));
@@ -222,6 +258,7 @@ class WebhookDataServiceIntegrationTest {
   class FindByIdTest {
 
     @Test
+    @DisplayName("findById(existingId) returns an Optional with the matching DTO.")
     void shouldFindExistingWebhook() {
       // GIVEN
       final WebhookDto saved =
@@ -237,6 +274,7 @@ class WebhookDataServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("findById(unknownId) returns Optional.empty() — no exception, the caller gets a clean miss.")
     void shouldReturnEmptyForNonExistentId() {
       // WHEN
       final Optional<WebhookDto> found = webhookDataService.findById(UUID.randomUUID());

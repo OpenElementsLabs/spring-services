@@ -14,6 +14,31 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
+/**
+ * Unit tests for the {@link JwtAuthenticationConverter} produced by {@link SecurityConfig}.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>The mapping from a JWT's {@code roles} claim onto Spring Security {@code GrantedAuthority}
+ * objects: each entry in the claim becomes a {@code ROLE_<value>} authority, the claim's absence
+ * or emptiness yields no role authorities, and the default scope-to-authority conversion
+ * ({@code SCOPE_<scope>}) is preserved alongside the role mapping. These properties are what
+ * {@code @PreAuthorize("hasRole('ADMIN')")} and {@code hasAuthority('SCOPE_openid')} depend on,
+ * so any drift here silently widens or breaks authorization.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 unit tests, no Spring context. The {@link JwtAuthenticationConverter} is
+ * pulled directly off a real {@link SecurityConfig} instance and exercised against
+ * hand-constructed {@link Jwt} instances built via {@code Jwt.withTokenValue(...)} — the
+ * production converter is invoked verbatim.
+ *
+ * <p><b>Mock-Audit.</b> One mock: {@link ApiKeyDataService} is mocked because the
+ * {@link SecurityConfig} constructor requires it but the role-mapping path under test never
+ * touches it. A real {@code ApiKeyDataService} would pull in a {@code JpaRepository} and a
+ * datasource for no added coverage. The mock has no stubbed methods — it serves only as a
+ * non-null constructor argument.
+ */
 @DisplayName("SecurityConfig JWT Role Mapping")
 class SecurityConfigRoleTest {
 
@@ -35,7 +60,7 @@ class SecurityConfigRoleTest {
   }
 
   @Test
-  @DisplayName("Single role is mapped to ROLE_ authority")
+  @DisplayName("A single entry in the JWT roles claim becomes a ROLE_<name> GrantedAuthority.")
   void singleRoleMapped() {
     final var auth = jwtAuthenticationConverter.convert(buildJwt(List.of("ADMIN")));
     final Set<String> authorities = authorityStrings(auth.getAuthorities());
@@ -43,7 +68,7 @@ class SecurityConfigRoleTest {
   }
 
   @Test
-  @DisplayName("Multiple roles are mapped to multiple authorities")
+  @DisplayName("Multiple entries in the roles claim all become distinct ROLE_ authorities.")
   void multipleRolesMapped() {
     final var auth = jwtAuthenticationConverter.convert(buildJwt(List.of("ADMIN", "READONLY")));
     final Set<String> authorities = authorityStrings(auth.getAuthorities());
@@ -51,7 +76,7 @@ class SecurityConfigRoleTest {
   }
 
   @Test
-  @DisplayName("Missing roles claim results in no ROLE_ authorities")
+  @DisplayName("A JWT without a roles claim produces zero ROLE_ authorities — no default role is granted.")
   void missingRolesClaimNoAuthorities() {
     final var auth = jwtAuthenticationConverter.convert(buildJwt(null));
     final Set<String> authorities = authorityStrings(auth.getAuthorities());
@@ -59,15 +84,22 @@ class SecurityConfigRoleTest {
   }
 
   @Test
-  @DisplayName("Empty roles array results in no ROLE_ authorities")
+  @DisplayName("An empty roles array produces zero ROLE_ authorities — empty array is treated like a missing claim.")
   void emptyRolesNoAuthorities() {
     final var auth = jwtAuthenticationConverter.convert(buildJwt(List.of()));
     final Set<String> authorities = authorityStrings(auth.getAuthorities());
     assertThat(authorities).noneMatch(a -> a.startsWith("ROLE_"));
   }
 
+  /**
+   * The custom role-mapping does not replace the default {@code scope}-based authority
+   * extraction — both run, so a JWT with {@code scope="openid profile"} and {@code roles=[ADMIN]}
+   * yields {@code SCOPE_openid}, {@code SCOPE_profile}, and {@code ROLE_ADMIN} side-by-side.
+   * Pins this so that switching to a role-only converter would break {@code hasAuthority('SCOPE_*')}
+   * checks elsewhere.
+   */
   @Test
-  @DisplayName("Scope-based authorities are preserved alongside role authorities")
+  @DisplayName("Scope-based authorities (SCOPE_*) and role-based authorities (ROLE_*) coexist on the same JWT.")
   void scopeAuthoritiesPreserved() {
     final Jwt jwt =
         Jwt.withTokenValue("mock-token")

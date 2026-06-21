@@ -15,6 +15,40 @@ import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+/**
+ * Unit tests for {@link AuthService} — the thin wrapper around {@link SecurityContextHolder} that
+ * extracts authentication details and JWT claims for the rest of the security stack.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>Three concerns are verified:
+ *
+ * <ol>
+ *   <li><b>Accessors against the SecurityContext.</b> {@code getAuthentication()} returns the
+ *       bound {@link org.springframework.security.core.Authentication} or fails fast with
+ *       {@link IllegalStateException} when none is present; {@code getPrincipalObject()} and
+ *       {@code getPrincipalJwt()} narrow to the expected principal type or reject mismatches.
+ *   <li><b>JWT claim extraction into {@link UserInformation}.</b> The {@code preferred_username
+ *       → email → sub} fallback chain for {@code userName}, the {@code picture}-to-{@code
+ *       avatarUrl} mapping with blank-claim normalisation to {@code null}, and the
+ *       {@code externalId == sub} identity that downstream code relies on.
+ *   <li><b>Non-JWT principals.</b> {@code getUserInformation()} returns
+ *       {@link java.util.Optional#empty()} for {@link ApiKeyEntity} and {@link String} principals
+ *       rather than throwing — this lets {@code UserService} treat API-key requests as
+ *       "no JWT bound" without special-casing.
+ * </ol>
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 unit tests. A real {@link AuthService} is constructed; the
+ * {@link SecurityContextHolder} is populated per-test with a {@link TestingAuthenticationToken}
+ * carrying the principal under test, then cleared in {@code @AfterEach} so context state does
+ * not leak between tests.
+ *
+ * <p><b>Mock-Audit.</b> Zero mocks. Real {@link Jwt} instances are built via {@code
+ * Jwt.withTokenValue(...)} and a real {@link TestingAuthenticationToken} carries them through
+ * the real {@link SecurityContextHolder} — the production code path is exercised verbatim.
+ */
 @DisplayName("AuthService")
 class AuthServiceTest {
 
@@ -30,6 +64,7 @@ class AuthServiceTest {
   class GetAuthenticationTest {
 
     @Test
+    @DisplayName("getAuthentication() returns the Authentication bound to the SecurityContextHolder.")
     void shouldReturnAuthenticationWhenPresent() {
       // GIVEN
       final TestingAuthenticationToken auth = new TestingAuthenticationToken("user", "pass");
@@ -40,6 +75,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("getAuthentication() fails fast with IllegalStateException when no Authentication is bound.")
     void shouldThrowWhenNoAuthentication() {
       // GIVEN
       SecurityContextHolder.clearContext();
@@ -56,6 +92,7 @@ class AuthServiceTest {
   class GetPrincipalObjectTest {
 
     @Test
+    @DisplayName("getPrincipalObject() returns the raw principal stored on the Authentication.")
     void shouldReturnPrincipal() {
       // GIVEN
       final TestingAuthenticationToken auth = new TestingAuthenticationToken("user123", "pass");
@@ -74,6 +111,7 @@ class AuthServiceTest {
   class GetPrincipalJwtTest {
 
     @Test
+    @DisplayName("getPrincipalJwt() narrows to the Jwt instance when the principal is a JWT.")
     void shouldReturnJwtWhenPrincipalIsJwt() {
       // GIVEN
       final Jwt jwt =
@@ -96,6 +134,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("getPrincipalJwt() throws IllegalStateException when the principal is not a JWT — caller must not assume JWT semantics.")
     void shouldThrowWhenPrincipalIsNotJwt() {
       // GIVEN
       final TestingAuthenticationToken auth =
@@ -114,6 +153,7 @@ class AuthServiceTest {
   class GetUserInformationTest {
 
     @Test
+    @DisplayName("All standard OIDC claims (sub, name, email, picture, preferred_username) flow into UserInformation fields.")
     void shouldExtractUserInformationFromJwt() {
       // GIVEN
       final Jwt jwt =
@@ -142,7 +182,13 @@ class AuthServiceTest {
       assertThat(info.externalId()).isEqualTo("auth0|456");
     }
 
+    /**
+     * Documents tier two of the {@code userName} fallback chain: when an IdP omits {@code
+     * preferred_username} (Auth0's default for some social providers does this), {@code email}
+     * takes its place so downstream code always has a non-blank handle.
+     */
     @Test
+    @DisplayName("Missing preferred_username falls back to email — tier two of the userName chain.")
     void userNameFallsBackToEmailWhenPreferredUsernameMissing() {
       final Jwt jwt =
           Jwt.withTokenValue("token")
@@ -160,7 +206,13 @@ class AuthServiceTest {
       assertThat(info.userName()).isEqualTo("bob@example.com");
     }
 
+    /**
+     * Documents tier three of the {@code userName} fallback chain: service-account tokens
+     * frequently carry neither {@code preferred_username} nor {@code email}, so the final
+     * fallback is the JWT subject itself — guaranteeing a non-blank handle for every principal.
+     */
     @Test
+    @DisplayName("Missing preferred_username and email fall back to sub — tier three, the last resort.")
     void userNameFallsBackToSubWhenPreferredUsernameAndEmailMissing() {
       final Jwt jwt =
           Jwt.withTokenValue("token")
@@ -178,7 +230,13 @@ class AuthServiceTest {
       assertThat(info.userName()).isEqualTo("svc-123");
     }
 
+    /**
+     * A whitespace-only {@code preferred_username} is treated as missing — otherwise a single
+     * space would be persisted as the canonical handle. Normalising blanks to "absent" forces
+     * the fallback to the next tier.
+     */
     @Test
+    @DisplayName("A blank (whitespace-only) preferred_username is treated as missing and falls back to email.")
     void userNameFallsBackToEmailWhenPreferredUsernameIsBlank() {
       final Jwt jwt =
           Jwt.withTokenValue("token")
@@ -197,7 +255,13 @@ class AuthServiceTest {
       assertThat(info.userName()).isEqualTo("blank@example.com");
     }
 
+    /**
+     * Pins the {@code externalId == sub == id} invariant. {@code UserService} relies on this to
+     * use the JWT subject as the SCIM-side external identifier when issuing the second-tier
+     * lookup; a divergence would break SCIM-pre-provisioned row adoption.
+     */
     @Test
+    @DisplayName("externalId mirrors the JWT subject — same value flows into both UserInformation.id and externalId.")
     void externalIdMirrorsSubject() {
       final Jwt jwt =
           Jwt.withTokenValue("token")
@@ -217,6 +281,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("A missing picture claim normalises to a null avatarUrl on UserInformation.")
     void shouldReturnNullAvatarUrlWhenAvatarClaimMissing() {
       // GIVEN
       final Jwt jwt =
@@ -237,7 +302,13 @@ class AuthServiceTest {
       assertThat(info.avatarUrl()).isNull();
     }
 
+    /**
+     * Symmetric to the blank-{@code preferred_username} normalisation: a whitespace-only
+     * {@code picture} claim is treated as absent, so {@code avatarUrl} is {@code null} rather
+     * than a string of spaces — saves a JPA drift-sync flap on next login.
+     */
     @Test
+    @DisplayName("A blank (whitespace-only) picture claim normalises to a null avatarUrl, not a string of spaces.")
     void shouldReturnNullAvatarUrlWhenAvatarClaimIsBlank() {
       // GIVEN
       final Jwt jwt =
@@ -259,6 +330,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("A blank JWT subject throws IllegalStateException — sub is the one claim that must never be empty.")
     void shouldThrowWhenSubjectIsBlank() {
       // GIVEN
       final Jwt jwt =
@@ -277,8 +349,13 @@ class AuthServiceTest {
           .hasMessageContaining("No sub found");
     }
 
+    /**
+     * Key contract: API-key principals carry no JWT claims, so {@code getUserInformation()}
+     * returns {@code Optional.empty()} rather than throwing. This lets {@code UserService}
+     * treat API-key requests as "no JWT bound" without special-casing the principal type.
+     */
     @Test
-    @DisplayName("returns empty Optional when principal is an ApiKeyEntity")
+    @DisplayName("getUserInformation() returns Optional.empty() when the principal is an ApiKeyEntity — no JWT claims to extract.")
     void shouldReturnEmptyForApiKeyPrincipal() {
       // GIVEN
       final ApiKeyEntity entity = new ApiKeyEntity();
@@ -299,7 +376,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("returns empty Optional when principal is a String")
+    @DisplayName("getUserInformation() returns Optional.empty() when the principal is a bare String (e.g. anonymous, test stubs).")
     void shouldReturnEmptyForStringPrincipal() {
       // GIVEN
       final TestingAuthenticationToken auth =
@@ -319,6 +396,7 @@ class AuthServiceTest {
   class GetPrincipalTest {
 
     @Test
+    @DisplayName("getPrincipal() returns an AuthenticatedPrincipal whose name is the JWT subject when the principal is a Jwt.")
     void shouldReturnAuthenticatedPrincipalForJwt() {
       // GIVEN
       final Jwt jwt =
@@ -339,6 +417,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("getPrincipal() wraps a String principal into an AuthenticatedPrincipal whose name is the string itself.")
     void shouldReturnAuthenticatedPrincipalForStringPrincipal() {
       // GIVEN
       final TestingAuthenticationToken auth = new TestingAuthenticationToken("string-user", "pass");
@@ -352,6 +431,7 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("getPrincipal() passes through an existing AuthenticatedPrincipal without re-wrapping.")
     void shouldReturnAuthenticatedPrincipalDirectly() {
       // GIVEN
       final AuthenticatedPrincipal directPrincipal = () -> "direct-name";

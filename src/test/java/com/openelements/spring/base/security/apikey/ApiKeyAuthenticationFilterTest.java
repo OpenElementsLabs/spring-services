@@ -29,6 +29,55 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+/**
+ * Unit tests for {@link ApiKeyAuthenticationFilter} — the Spring Security filter that
+ * authenticates external requests via the {@code X-API-Key} header.
+ *
+ * <h2>What is tested</h2>
+ *
+ * <p>Three filter behaviours are verified:
+ *
+ * <ol>
+ *   <li><b>Header-driven activation.</b> Requests without an {@code X-API-Key} header pass
+ *       straight to the next filter without touching {@link ApiKeyDataService} and leave the
+ *       {@link SecurityContextHolder} untouched — the filter must never block JWT-authenticated
+ *       traffic.
+ *   <li><b>Invalid key rejection.</b> A presented but unrecognised key produces a uniform JSON
+ *       401 body via {@link JsonAuthenticationEntryPoint} with a {@code WWW-Authenticate} header,
+ *       and the filter chain is short-circuited before the controller runs.
+ *   <li><b>Valid key authentication.</b> A recognised key installs an {@link ApiKeyEntity} as the
+ *       principal with the {@code ROLE_API_KEY} authority and lets the request proceed —
+ *       regardless of HTTP method (GET, HEAD, OPTIONS, POST). Method-level enforcement is
+ *       deliberately a separate concern handled by {@code @PreAuthorize}.
+ * </ol>
+ *
+ * <p>Constructor null-rejection is also pinned: both collaborators must be non-null at
+ * construction so a misconfigured Spring context fails fast.
+ *
+ * <h2>How it is tested</h2>
+ *
+ * <p>Pure JUnit 5 unit tests, no Spring context. {@link MockHttpServletRequest} and
+ * {@link MockHttpServletResponse} drive the filter directly via {@code doFilterInternal}; the
+ * {@link SecurityContextHolder} is reset in {@code @AfterEach}.
+ *
+ * <p><b>Mock-Audit.</b> Two mocks:
+ *
+ * <ul>
+ *   <li>{@link ApiKeyDataService} — mocked so we can stub {@code authenticate(...)} to return
+ *       {@code Optional.empty()} or {@code Optional.of(entity)} on demand. A real service would
+ *       require a {@code JpaRepository}, a datasource, and seeded rows for every permutation;
+ *       the filter under test only cares about the return value of {@code authenticate(...)},
+ *       so mocking is the right granularity.
+ *   <li>{@link FilterChain} — mocked because the filter's job <em>is</em> to call (or not call)
+ *       {@code doFilter(...)} on the next link in the chain; the assertions are
+ *       {@code verify(filterChain).doFilter(...)} and {@code verify(filterChain, never())...},
+ *       which is exactly what a mock is for. A real chain would require wiring a downstream
+ *       servlet, which adds no coverage.
+ * </ul>
+ *
+ * <p>The {@link JsonAuthenticationEntryPoint} is constructed for real (no mock) so the actual
+ * JSON shape and the {@code WWW-Authenticate} header value are pinned by the test.
+ */
 @DisplayName("ApiKeyAuthenticationFilter")
 class ApiKeyAuthenticationFilterTest {
 
@@ -59,6 +108,7 @@ class ApiKeyAuthenticationFilterTest {
   class NoApiKeyHeaderTest {
 
     @Test
+    @DisplayName("Without an X-API-Key header the filter passes through silently — ApiKeyDataService is never called and the SecurityContext is untouched.")
     void shouldPassThroughToNextFilter() throws ServletException, IOException {
       // GIVEN
       final MockHttpServletRequest request =
@@ -79,7 +129,15 @@ class ApiKeyAuthenticationFilterTest {
   @DisplayName("when API key header is present but invalid")
   class InvalidApiKeyTest {
 
+    /**
+     * Pins the rejected-key response shape: status 401, content-type {@code application/json},
+     * a {@code WWW-Authenticate: ApiKey realm="external"} header, and a JSON body with
+     * {@code status}, {@code error}, and {@code message} fields. The filter chain is short-
+     * circuited — {@code doFilter} is never invoked. External clients depend on this exact
+     * shape; widening it (e.g. plain text) would break their error handlers.
+     */
     @Test
+    @DisplayName("An unrecognised X-API-Key produces a 401 JSON body with a WWW-Authenticate header and short-circuits the filter chain.")
     void shouldReturn401WithUniformJsonBody() throws ServletException, IOException {
       // GIVEN
       final MockHttpServletRequest request =
@@ -109,6 +167,7 @@ class ApiKeyAuthenticationFilterTest {
   class ValidApiKeyTest {
 
     @Test
+    @DisplayName("A valid X-API-Key on a GET request installs the ApiKeyEntity as the SecurityContext principal and lets the chain proceed.")
     void shouldAuthenticateForGetRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
@@ -131,6 +190,7 @@ class ApiKeyAuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("A valid X-API-Key on a HEAD request authenticates and proceeds — HEAD is a read-only method.")
     void shouldAuthenticateForHeadRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
@@ -149,6 +209,7 @@ class ApiKeyAuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("A valid X-API-Key on an OPTIONS request authenticates and proceeds — CORS preflight is accepted.")
     void shouldAuthenticateForOptionsRequest() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
@@ -166,8 +227,14 @@ class ApiKeyAuthenticationFilterTest {
       verify(filterChain).doFilter(request, response);
     }
 
+    /**
+     * The filter authenticates POST requests too — it does not police HTTP methods. Method-level
+     * authorization is the chain's job (e.g. {@code @PreAuthorize} or a request matcher) so a
+     * 403 for a forbidden write surface comes from later in the chain, not from this filter.
+     * Pins the separation of concerns.
+     */
     @Test
-    @DisplayName("authenticates POST request without enforcing method (chain handles 403)")
+    @DisplayName("A valid X-API-Key on a POST request authenticates without enforcing the method — chain decides write access.")
     void shouldAuthenticatePostRequestWithoutEnforcingMethod()
         throws ServletException, IOException {
       // GIVEN
@@ -191,6 +258,7 @@ class ApiKeyAuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("An authenticated API-key request carries the ROLE_API_KEY GrantedAuthority — distinguishable from JWT principals.")
     void shouldHaveApiKeyRole() throws ServletException, IOException {
       // GIVEN
       final ApiKeyEntity entity = createValidEntity();
@@ -210,12 +278,14 @@ class ApiKeyAuthenticationFilterTest {
   }
 
   @Test
+  @DisplayName("Constructor rejects a null ApiKeyDataService with NullPointerException — misconfigured context fails fast.")
   void shouldRejectNullApiKeyService() {
     assertThatThrownBy(() -> new ApiKeyAuthenticationFilter(null, entryPoint))
         .isInstanceOf(NullPointerException.class);
   }
 
   @Test
+  @DisplayName("Constructor rejects a null JsonAuthenticationEntryPoint with NullPointerException — misconfigured context fails fast.")
   void shouldRejectNullEntryPoint() {
     assertThatThrownBy(() -> new ApiKeyAuthenticationFilter(apiKeyService, null))
         .isInstanceOf(NullPointerException.class);
