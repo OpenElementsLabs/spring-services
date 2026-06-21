@@ -57,21 +57,21 @@ echo "Releasing version $NEW_VERSION"
 
 # Build and test locally so we never push a tag that fails CI.
 #
-# Use the SAME profile the release workflow uses (-Ppublication) and run through
-# the `package` phase via `verify`. That triggers the publication-only executions
-# — Javadoc jar, sources jar and the CycloneDX SBOM — so a broken @link, a missing
-# source attachment, or an SBOM failure breaks HERE, locally, instead of after the
-# tag is already pushed and the release workflow is running.
+# Use the SAME profile the release workflow's build step uses (-Pfull-build) and
+# run through the `package` phase via `verify`. That triggers the full-build
+# executions — Javadoc jar, sources jar and the CycloneDX SBOM — so a broken @link,
+# a missing source attachment, or an SBOM failure breaks HERE, locally, instead of
+# after the tag is already pushed and the release workflow is running.
 #
-# Safe to run without release secrets: the GPG signing and JReleaser deploy steps
-# are only *configured* in the publication profile, not bound to a Maven phase, so
-# `verify` does not sign or deploy anything — it just builds the artifacts the
-# release will later sign and publish.
+# Safe to run without release secrets: GPG signing and the JReleaser deploy live in
+# the separate deploy-release profile (not activated here), so `verify` does not
+# sign or deploy anything — it just builds the artifacts the release will later
+# sign and publish.
 #
 # This runs BEFORE the release doc is generated on purpose: if the build fails,
 # `set -e` aborts the script here and we never spend AI tokens documenting a
 # release that was never cut.
-./mvnw -Ppublication clean verify
+./mvnw -Pfull-build clean verify
 
 # Generate the release doc only after a green build, but still before committing
 # so it ships inside the release commit (and therefore the v$NEW_VERSION tag).
