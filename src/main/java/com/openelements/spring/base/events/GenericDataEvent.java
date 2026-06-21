@@ -34,7 +34,11 @@ public abstract class GenericDataEvent<T extends WithId> extends ApplicationEven
    */
   public GenericDataEvent(@NonNull final T source) {
     super(Objects.requireNonNull(source, "source must not be null"));
-    this.type = (Class<T>) source.getClass();
+    // getClass() erases to Class<? extends WithId>; the runtime class of a T value is a Class<T>
+    // (or a subtype), so this cast is safe — it only ever narrows to the actual DTO type.
+    @SuppressWarnings("unchecked")
+    final Class<T> runtimeType = (Class<T>) source.getClass();
+    this.type = runtimeType;
   }
 
   /**
@@ -47,7 +51,11 @@ public abstract class GenericDataEvent<T extends WithId> extends ApplicationEven
    */
   @Nullable
   public T getSource() {
-    return (T) super.getSource();
+    // ApplicationEvent stores the source as Object, but we passed a T into the constructor,
+    // so the runtime value is always a T (or null).
+    @SuppressWarnings("unchecked")
+    final T typedSource = (T) super.getSource();
+    return typedSource;
   }
 
   /**

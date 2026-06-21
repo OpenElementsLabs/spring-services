@@ -37,6 +37,10 @@ public record WebhookDataEventPayload<T extends WithId>(
   public static <T extends WithId> WebhookDataEventPayload<T> of(
       WebhookDataEventType eventType, T data) {
     Objects.requireNonNull(data, "data must not be null");
-    return of(eventType, (Class<T>) data.getClass(), data);
+    // getClass() erases to Class<? extends WithId>; the runtime class of a T value is a Class<T>
+    // (or a subtype), so this cast is safe — it only ever narrows to the actual DTO type.
+    @SuppressWarnings("unchecked")
+    final Class<T> dataClass = (Class<T>) data.getClass();
+    return of(eventType, dataClass, data);
   }
 }
