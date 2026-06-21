@@ -3,21 +3,50 @@
  * provider.
  *
  * <p>The platform deliberately does not own credentials — authentication is handled entirely by an
- * external OAuth2 provider via JWT. This package only persists the subset of information about a
- * user that the application itself needs to attach to domain data (display name, email, avatar
- * image), keyed by the JWT's {@code sub} claim.
+ * external OAuth2 provider via JWT. This package persists the subset of information about a user
+ * that the application itself needs to attach to domain data (display name, email, avatar image)
+ * plus the three identifiers required for SCIM 2.0 alignment: {@code sub} (OIDC subject,
+ * nullable to allow SCIM-pre-provisioning), {@code externalId} (stable IdP-side id), and
+ * {@code userName} (RFC 7643 unique business key).
  *
  * <h2>Lifecycle</h2>
  *
  * <ul>
- *   <li>The {@link com.openelements.spring.base.services.user.UserEntity} for a given JWT subject
- *       is created lazily on first access by {@link
- *       com.openelements.spring.base.services.user.UserService#getCurrentUser()}.
+ *   <li>The {@link com.openelements.spring.base.services.user.UserEntity} for a given user is
+ *       resolved on first access by {@link
+ *       com.openelements.spring.base.services.user.UserService#getCurrentUser()} via a three-tier
+ *       lookup: {@code findBySub → findByExternalId → findByUserName → provision}. The chain
+ *       lets a JIT-login adopt a row that SCIM provisioned ahead of time (with {@code
+ *       externalId} or {@code userName} but no {@code sub} yet).
  *   <li>If the JWT's {@code name}, {@code email} or {@code avatar} claim has changed since the last
- *       call, the local entity is updated transparently inside the same request transaction.
+ *       call, the local entity is drift-synced (overwrite). {@code sub}, {@code externalId} and
+ *       {@code userName} are opportunistically <em>backfilled</em> only when currently
+ *       {@code null} — they are stable identifiers and never overwritten by later JWTs.
  *   <li>The avatar URL is stored as-is and points directly at the identity provider's image
  *       endpoint — the library never proxies, caches or downloads it.
+ *   <li>{@link com.openelements.spring.base.services.user.UserEntity#isActive()} gates every
+ *       authentication path. A deactivated user triggers {@code AccessDeniedException} on the
+ *       JWT chain and {@code BadOpaqueTokenException} via the {@link
+ *       com.openelements.spring.base.services.apitoken.PrincipalDirectory} on the opaque-token
+ *       chain.
  * </ul>
+ *
+ * <h2>Disambiguation guard</h2>
+ *
+ * <p>The {@code findByUserName} fallback step can mis-correlate when two distinct users share
+ * the same email-as-userName fallback (because the IdP omitted {@code preferred_username}).
+ * {@code UserService} guards against silent identity merger: if the matched row's {@code sub}
+ * differs from the JWT's {@code sub}, an {@link IllegalStateException} is thrown loudly with a
+ * remediation hint pointing at the IdP's {@code preferred_username} configuration.
+ *
+ * <h2>{@code PrincipalDirectory} bridge</h2>
+ *
+ * <p>{@link com.openelements.spring.base.services.user.UserEntityPrincipalDirectory} adapts the
+ * local {@code UserEntity} to the {@link
+ * com.openelements.spring.base.services.apitoken.PrincipalDirectory} port consumed by the
+ * upcoming opaque-token validation layer (spec 010). It queries by {@code externalId} and
+ * returns the live {@code active} flag plus the display name. Roles and groups currently come
+ * back empty — group/role modelling lands with the SCIM-Provider follow-up spec.
  *
  * <h2 id="concurrency">Concurrency and first-login race recovery</h2>
  *

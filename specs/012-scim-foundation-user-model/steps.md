@@ -246,7 +246,7 @@ change.
 
 **Changes:**
 
-- [ ] `README.md`:
+- [x] `README.md`:
   - Extend the "User Service" feature bullet to mention `externalId`, `userName`, and `active`.
   - Add a new "User Account Deactivation" bullet describing the `active=false` gate on the
     JWT chain (`AccessDeniedException → 403`) and, when spec 010 is present, on the

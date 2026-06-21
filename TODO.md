@@ -9,15 +9,8 @@
 - Eigenes DB Schema mit Flyway für jedes Modul.
   Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
 - ApiKeyDataService.KEY_PREFIX soll konfigurierbar sein (je app)
-- SCIM 2.0 Foundation (Schritt 1, vorgelagert — Spec 012): User-Modell auf SCIM vorbereiten, ohne SCIM-Endpoints
-  zu bauen. Konkret: `UserEntity.sub` nullable machen, neue Felder `externalId` (unique, indexed), `userName`
-  (unique) und `active` (boolean) ergänzen; JIT-Login so erweitern, dass `externalId`/`userName` mitgepflegt
-  werden und ein evtl. vorab angelegter User per `externalId`/`userName` korreliert wird; Deactivation-Pfad
-  (`active=false`) blockt JIT-Provisioning + JWT-Auth (via AccessDeniedException → 403) und Opaque-Token-Auth
-  (via PrincipalDirectory.active() → BadOpaqueTokenException → 401). Plus: Default `PrincipalDirectory`-Bean
-  (`UserEntityPrincipalDirectory`) bridges 010's port zu 012's UserEntity — damit werden USER-Tokens validierbar.
-  Groups + Role-Modellierung kommen erst mit dem SCIM-Provider; bis dahin liefert die Bridge leere Sets, USER-Tokens
-  funktionieren nur mit Scope-basiertem @PreAuthorize.
+- ~~SCIM 2.0 Foundation (Schritt 1)~~ — **implementiert via Spec 012** (`UserEntity` erweitert, JIT-Korrelation,
+  Active-Gate, `UserEntityPrincipalDirectory`). Folge-Arbeiten siehe TODO-Punkte zum SCIM-Provider unten.
 
 - SCIM 2.0 Provider (Schritt 2, nach Foundation): Server-Endpoints `/scim/v2/Users`, `/scim/v2/Groups` und Discovery
   (ServiceProviderConfig, Schemas, ResourceTypes) für Push-Provisioning aus Authentik/IdP. Library-Basis:

@@ -58,12 +58,27 @@ meta-annotation.
   `WWW-Authenticate` header (`Bearer` on the JWT chain, `ApiKey realm="external"` on the
   external chain).
 - **User Service** — Lazily provisions a local user row from the JWT subject (`sub`) and keeps
-  `name`, `email` and `avatarUrl` in sync with the matching JWT claims. The avatar URL points
-  directly at the identity provider; clients render it without any proxying by this library.
-  Concurrent first-logins for the same `sub` are coordinated through the database's unique
-  constraint + a `REQUIRES_NEW`-transactional `UserProvisioner` helper that lets the outer
-  transaction recover from the race without poisoning. See the
-  `services.user` package documentation for the full design.
+  `name`, `email` and `avatarUrl` in sync with the matching JWT claims. Carries three SCIM-
+  aligned identifying fields — `sub` (OIDC subject, nullable for SCIM-pre-provisioned rows),
+  `externalId` (stable IdP-side id), and `userName` (RFC 7643 unique business key, with
+  `preferred_username → email → sub → "user-<UUID>"` fallback chain) — with a tiered JIT-login
+  lookup (`findBySub → findByExternalId → findByUserName → provision`) that opportunistically
+  backfills the new identifiers on existing rows. The avatar URL points directly at the
+  identity provider; clients render it without any proxying by this library. Concurrent
+  first-logins for the same `sub` are coordinated through the database's unique constraint + a
+  `REQUIRES_NEW`-transactional `UserProvisioner` helper that lets the outer transaction
+  recover from the race without poisoning. See the `services.user` package documentation for
+  the full design.
+- **User Account Deactivation** — `UserEntity.active` is the canonical deactivation flag,
+  honored uniformly across all authentication paths. JWT chain: `UserService.getCurrentUserEntity()`
+  throws `AccessDeniedException` for `active = false` → HTTP `403 Forbidden`. Opaque-token chain
+  (planned for spec 010): `PrincipalDirectory.resolveUser(...)` returns `active = false` →
+  `BadOpaqueTokenException` → HTTP `401 Unauthorized`. JIT provisioning of a SCIM-pre-provisioned
+  inactive user is also blocked — no `sub` is ever written onto a deactivated row.
+- **`PrincipalDirectory` port** — Bridge between the (planned) opaque-token validation layer
+  and the local user mirror. Default implementation `UserEntityPrincipalDirectory` queries by
+  `externalId` and returns the live `active` flag. Role/group population deferred to the
+  SCIM-Provider spec.
 - **Typed Authentication Surface** — `AuthService.getUserInformation()` returns
   `Optional<UserInformation>`: present for JWT-authenticated requests, empty for non-JWT
   principals (API keys, primitive auth). Callers must explicitly handle the empty case rather
@@ -137,6 +152,57 @@ changes are visible to consumers; everything else is internal cleanup.
   connection is only held during the brief provisioning window for a previously-unknown user.
 
 No schema migration, no property rename, no API path change.
+
+### From 1.1.x to 1.2.x — SCIM Foundation user-model refactor
+
+`spring-services` 1.2.0 extends `UserEntity` with three new identifying fields and an active
+flag to prepare for SCIM 2.0 provisioning (the SCIM endpoints themselves will follow in a
+later release). Consumers must run one Flyway migration when upgrading.
+
+- **`UserInformation` record gained two fields**: `userName` and `externalId`. Direct callers
+  that construct the record themselves (test factories, ad-hoc instantiations) need to pass
+  the two new fields. The default value mapping `AuthService` applies on JIT login is
+  `userName = preferred_username` (with `email → sub → "user-<UUID>"` fallback) and
+  `externalId = sub`. The library is at `1.2.0-SNAPSHOT`; record extensions are tolerated.
+
+- **`UserEntity` schema change.** Consuming apps' Flyway timeline gains one migration:
+
+  ```sql
+  -- Vx__scim_foundation_user_model.sql
+  ALTER TABLE users ALTER COLUMN sub DROP NOT NULL;
+
+  ALTER TABLE users ADD COLUMN external_id VARCHAR(255);
+  ALTER TABLE users ADD CONSTRAINT users_external_id_uk UNIQUE (external_id);
+
+  ALTER TABLE users ADD COLUMN user_name VARCHAR(255);
+  UPDATE users
+     SET user_name = COALESCE(email, sub, 'user-' || id::text)
+   WHERE user_name IS NULL;
+  ALTER TABLE users ALTER COLUMN user_name SET NOT NULL;
+  ALTER TABLE users ADD CONSTRAINT users_user_name_uk UNIQUE (user_name);
+
+  ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+  ```
+
+  Existing rows: `active` defaults to `TRUE`, `external_id` and `user_name` are backfilled
+  on next interactive login (`external_id ← jwt.sub`, `user_name ← preferred_username` with
+  fallback). The Flyway script above also seeds `user_name` from `email` / `sub` to satisfy
+  the `NOT NULL` constraint at migration time.
+
+- **Deactivation surface.** `UserEntity.setActive(false)` blocks the user across all
+  authentication paths from the very next request — no logout / token re-issue needed when
+  flipped back. Use it from your SCIM deprovisioning handler.
+
+- **`AuthService.getUserInformation()` now requires `preferred_username` for unambiguous
+  user-name correlation.** If two users share the same email and the IdP omits
+  `preferred_username`, both fall back to `userName = email` and the second JIT login fails
+  with `IllegalStateException` (the library refuses to silently merge two identities). Resolution:
+  configure the IdP to assert `preferred_username` for every user.
+
+- **New `PrincipalDirectory` port** in `services.apitoken` (temporarily owned by this spec,
+  superseded by the upcoming API Token Module spec). Default implementation
+  `UserEntityPrincipalDirectory` resolves users live from `UserEntity` by `external_id`.
+  Consumers can override the bean to plug in a custom source (e.g. cache, IdP live-call).
 
 ## Building
 

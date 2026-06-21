@@ -18,7 +18,10 @@ spring-services/
 │   │   └── user/                      — Local user mirror (entity, DTO, repo, service, ImageData)
 │   ├── services/
 │   │   ├── apikey/                    — API key data layer (entity, DTOs, repo, data service)
-│   │   ├── user/                      — UserEntity, UserService, UserProvisioner (REQUIRES_NEW)
+│   │   ├── apitoken/                  — PrincipalDirectory port (scaffolding for upcoming spec 010)
+│   │   ├── user/                      — UserEntity (+externalId/userName/active), UserService
+│   │   │                                (tiered lookup), UserProvisioner (REQUIRES_NEW),
+│   │   │                                UserEntityPrincipalDirectory
 │   │   ├── settings/                  — Key/value SettingsDataService + entity/repo
 │   │   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
 │   │   └── webhook/
