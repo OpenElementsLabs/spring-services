@@ -197,9 +197,13 @@ the `findBySub` happy path.
 
 ## Step 5: `PrincipalDirectory` port + `UserEntityPrincipalDirectory` bean
 
+**Status:** spec 010 has not landed — Step 5 shipped the port too. Spec 010 will take ownership
+of `services/apitoken/PrincipalDirectory.java` when it merges; the interface shape will not
+change.
+
 **Changes:**
 
-- [ ] **If spec 010 has not landed:** ship the port declaration in this spec. Create
+- [x] **Spec 010 has not landed:** shipped the port declaration in this spec. Created
   `src/main/java/com/openelements/spring/base/services/apitoken/PrincipalDirectory.java`
   (new package): interface with `Optional<ResolvedPrincipal> resolveUser(String subjectRef)`,
   nested record `ResolvedPrincipal(String subjectRef, boolean active, Set<String> roles,
