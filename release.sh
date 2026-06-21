@@ -61,7 +61,18 @@ echo "Releasing version $NEW_VERSION"
 generate_release_doc
 
 # Build and test locally so we never push a tag that fails CI.
-./mvnw clean verify
+#
+# Use the SAME profile the release workflow uses (-Ppublication) and run through
+# the `package` phase via `verify`. That triggers the publication-only executions
+# — Javadoc jar, sources jar and the CycloneDX SBOM — so a broken @link, a missing
+# source attachment, or an SBOM failure breaks HERE, locally, instead of after the
+# tag is already pushed and the release workflow is running.
+#
+# Safe to run without release secrets: the GPG signing and JReleaser deploy steps
+# are only *configured* in the publication profile, not bound to a Maven phase, so
+# `verify` does not sign or deploy anything — it just builds the artifacts the
+# release will later sign and publish.
+./mvnw -Ppublication clean verify
 # `commit -am` only stages modified tracked files; the new doc is untracked,
 # so add docs/releases/ explicitly (guarded — the dir may not exist if the
 # doc step was skipped or failed).

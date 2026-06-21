@@ -25,20 +25,20 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Auto-configuration that wires Spring Security for the {@code spring-services} platform.
+ * Configuration that wires Spring Security for the {@code spring-services} platform.
  *
  * <p>For a high-level description of the security model see the {@linkplain
  * com.openelements.spring.base.security package documentation}. This configuration contributes two
  * strictly isolated {@link SecurityFilterChain} beans plus a {@link JwtAuthenticationConverter}:
  *
  * <ul>
- *   <li>{@link #externalApiFilterChain(HttpSecurity, ApiKeyAuthenticationFilter)}
- *       ({@code @Order(1)}) — matches {@code /api/external/**} and uses API-key authentication
- *       only. Read-only access (GET/HEAD/OPTIONS) is enforced declaratively at the chain level; all
- *       other HTTP methods are denied.
- *   <li>{@link #defaultFilterChain(HttpSecurity)} ({@code @Order(2)}) — matches everything else and
- *       uses OAuth2/JWT authentication only. The {@code X-API-Key} header is silently ignored on
- *       this chain.
+ *   <li>{@link #externalApiFilterChain(HttpSecurity, ApiKeyAuthenticationFilter,
+ *       JsonAuthenticationEntryPoint)} ({@code @Order(1)}) — matches {@code /api/external/**} and
+ *       uses API-key authentication only. Read-only access (GET/HEAD/OPTIONS) is enforced
+ *       declaratively at the chain level; all other HTTP methods are denied.
+ *   <li>{@link #defaultFilterChain(HttpSecurity, JsonAuthenticationEntryPoint)} ({@code @Order(2)})
+ *       — matches everything else and uses OAuth2/JWT authentication only. The {@code X-API-Key}
+ *       header is silently ignored on this chain.
  *   <li>{@link #jwtAuthenticationConverter()} — extends the default scope-to-authority mapping so
  *       that values from the JWT's {@code roles} claim are exposed as {@code ROLE_<x>} authorities,
  *       in addition to the {@code SCOPE_<x>} authorities derived from the standard {@code
@@ -81,10 +81,8 @@ public class SecurityConfig {
 
   /**
    * Entry point for the external API-key chain — issues a {@code WWW-Authenticate: ApiKey} header
-   * alongside the uniform JSON {@code 401} body. Used by
-   * {@link ApiKeyAuthenticationFilter#commence(jakarta.servlet.http.HttpServletRequest,
-   * jakarta.servlet.http.HttpServletResponse,
-   * org.springframework.security.core.AuthenticationException)} and by Spring Security's
+   * alongside the uniform JSON {@code 401} body. Invoked by {@link ApiKeyAuthenticationFilter} on
+   * an invalid API key, and by Spring Security's
    * {@code exceptionHandling.authenticationEntryPoint(...)} hook on the external chain.
    *
    * @param objectMapper the application's Jackson mapper
@@ -187,11 +185,13 @@ public class SecurityConfig {
    * Defines the default filter chain.
    *
    * <p>Matches every request not handled by {@link #externalApiFilterChain(HttpSecurity,
-   * ApiKeyAuthenticationFilter)}. Uses OAuth2/JWT authentication exclusively; the {@code X-API-Key}
-   * header is not evaluated on this chain. Health-check and Swagger UI/OpenAPI documentation
-   * endpoints remain anonymously accessible.
+   * ApiKeyAuthenticationFilter, JsonAuthenticationEntryPoint)}. Uses OAuth2/JWT authentication
+   * exclusively; the {@code X-API-Key} header is not evaluated on this chain. Health-check and
+   * Swagger UI/OpenAPI documentation endpoints remain anonymously accessible.
    *
    * @param http the HTTP security builder
+   * @param jwtAuthenticationEntryPoint the entry point that produces the JSON {@code 401} on the
+   *     JWT chain
    * @return the configured default filter chain
    * @throws Exception if Spring Security fails to build the chain
    */
