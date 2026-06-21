@@ -11,12 +11,17 @@ description: Background information about the Eclipse Foundation and its key pro
 
 ## Overview
 
-The Eclipse Foundation is an international non-profit association (AISBL, based in Brussels) providing a vendor-neutral environment for open-source software collaboration and innovation. It is Europe's largest open-source foundation.
+The Eclipse Foundation is an international non-profit association (AISBL, based in **Brussels** — directly where EU legislation is shaped). It is **Europe's largest open-source foundation** and the closest functional equivalent to **DIN for industrial norms**: it defines and curates the software standards that an entire industry orients itself around.
 
 - Founded: Eclipse Project created by IBM in November 2001, Eclipse Foundation established as independent entity in January 2004
-- Hosts 400+ open-source projects
-- Supported by 300+ member organizations globally
+- Hosts **400+ open-source projects**
+- Supported by **360+ member organizations** globally — mainstream enterprise infrastructure, not an underground movement. Members include Bosch, SAP, IBM, Mercedes-Benz, Microsoft, Red Hat, Oracle, Huawei, and many more.
 - Domains: enterprise, cloud, edge computing, automotive, AI, IoT, embedded systems
+
+Two of the foundation's projects together form the technical foundation of a large share of European enterprise IT:
+
+- **Jakarta EE** — the open standard for business-critical Java applications in banks, insurers, and industry.
+- **Eclipse Temurin** — the Java runtime on which exactly these applications run.
 
 **Website:** https://www.eclipse.org
 
@@ -136,21 +141,35 @@ Enable developers to develop, run, and scale enterprise Java applications anywhe
 
 ## Open Regulatory Compliance Working Group (ORC WG)
 
-The ORC WG is a Working Group under the Eclipse Foundation focused on developing practical implementations of the Cyber Resilience Act (CRA) rules for open-source software and industry.
+The ORC WG is the Working Group under the Eclipse Foundation in which the **practical rules for how enterprises will implement the EU Cyber Resilience Act (CRA)** are currently being defined.
 
 **Website:** https://orcwg.org
+
+### Regulatory Positioning
+
+The ORC WG holds **official liaison status** with the European standardization bodies (**CEN, CENELEC, ETSI**) and with the **CRA Expert Group of the European Commission**. What is worked out in the ORC WG flows directly into the EU standards that enterprises will later be audited against.
 
 ### Purpose
 
 The CRA introduces new regulatory requirements for software products in the EU, with significant implications for open-source software. The ORC WG works on concrete, implementable approaches to comply with these rules — bridging the gap between regulation and the realities of open-source development.
 
+### Members at the Table
+
+The ORC WG brings together the parties whose decisions shape European software regulation:
+
+- **Major open-source foundations:** Eclipse, Apache, Python, Rust, PHP, OpenInfra
+- **Large technology companies:** Microsoft, Red Hat, Google, Nokia, Siemens, and others
+- **European policy organizations:** OpenForum Europe
+
 ### Key Workstreams
 
-- **CRA Attestation Working Group** — Develops attestation standards and processes for CRA compliance. Repository: https://github.com/orcwg/cra-attestations
+- **CRA Attestation Working Group** — Develops attestation standards and processes for CRA compliance. Attestation is the mechanism by which enterprises will prove CRA conformity to auditors. Repository: https://github.com/orcwg/cra-attestations
 
 ### Open Elements' Involvement
 
-Open Elements is a Founding Member and Participant Member of the ORC WG. Initially Hendrik Ebbers was a regular participant in the WG meetings. Sebastian Tiemann has since taken over and is especially active in the CRA Attestation Working Group.
+Open Elements is a **Founding Member** and Participant Member of the ORC WG. Initially Hendrik Ebbers was a regular participant in the WG meetings; Sebastian Tiemann has since taken over and is especially active in the CRA Attestation Working Group.
+
+In short: Open Elements helps define the CRA implementation rules in Brussels in a way that lets German enterprises later work with them in practice — and helps its customers implement those same rules concretely. **"We know the CRA rules because we are writing them."**
 
 ## Open Elements' Role in the Eclipse Foundation
 

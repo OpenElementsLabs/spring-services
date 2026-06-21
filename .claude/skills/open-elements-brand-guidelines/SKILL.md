@@ -13,6 +13,16 @@ description: Applies the official brand colors and typography of Open Elements t
 
 To access the official brand identity and style resources of Open Elements, use this skill.
 
+## Online Design Reference
+
+The canonical Open Elements corporate design reference is published online at:
+
+- **https://design.production.open-elements.cloud** — Main entry point for the corporate design system
+- **https://design.production.open-elements.cloud/color.html** — Authoritative color palette reference
+- **https://design.production.open-elements.cloud/components.html** — UI components and their usage
+
+When working on web projects or UI artifacts, treat this website as the source of truth. If the values in this skill ever diverge from the online reference, the online reference wins — fetch it to verify before applying styles to production artifacts.
+
 ## Brand Guidelines
 
 ### Colors
@@ -164,8 +174,15 @@ The following style parameters are derived from the Open Elements SVG illustrati
 - **Body Text**: Lato
 - **Source Code**: Source_Code_Pro
 - In diagrams notes can be written in Permanent_Marker
-- **Note**: Fonts should be pre-installed in your environment for best results.
-  All fonts are available in the [Google Fonts](https://fonts.google.com/) library.
+
+The TTF font files are shipped with this skill in the `fonts/` subfolder and should be used directly whenever an artifact needs to embed or reference the brand fonts (PDF generation, image rendering, slide decks, offline diagram tools). Prefer the bundled files over re-downloading from Google Fonts.
+
+- **fonts/Montserrat/** — Variable font (`Montserrat-VariableFont_wght.ttf`, `Montserrat-Italic-VariableFont_wght.ttf`) plus static weights in `fonts/Montserrat/static/` (Thin → Black, including italics)
+- **fonts/Lato/** — Static weights: Thin, Light, Regular, Bold, Black (each with italic variants)
+- **fonts/Source_Code_Pro/** — Variable font plus static weights in `fonts/Source_Code_Pro/static/` (ExtraLight → Black, including italics)
+- **fonts/Permanent_Marker/** — Single regular weight (`PermanentMarker-Regular.ttf`)
+
+All fonts are licensed under the SIL Open Font License (OFL); the license files (`OFL.txt` / `LICENSE.txt`) live alongside the font files in each subfolder. The same families are also available on [Google Fonts](https://fonts.google.com/) for web embedding.
 
 ### Logo
 
@@ -186,7 +203,34 @@ On a light background only the *-light-background.* logos must be used.
 
 Next to that the graphic part of the logo without the "Open Elements" text is available (for example for use as fav-icon)
 - **open-elements-logo/logo-icon.png**: 1024x1024 PNG file
-- **open-elements-logo/logo-icon@0,5x.png**: 0,5x PNG file
-- **open-elements-logo/logo-icon@0,25x.png**: 0,25x PNG file
-- **open-elements-logo/logo-icon@0,33x.png**: 0,33x PNG file
-- **open-elements-logo/logo-icon@0,75x.png**: 0,75x PNG file
+- **open-elements-logo/logo-icon-0.5x.png**: 0.5x PNG file
+- **open-elements-logo/logo-icon-0.25x.png**: 0.25x PNG file
+- **open-elements-logo/logo-icon-0.33x.png**: 0.33x PNG file
+- **open-elements-logo/logo-icon-0.75x.png**: 0.75x PNG file
+
+### Sample Artifacts
+
+The `samples/` folder contains reference artifacts produced by Open Elements. Use them as **templates** when generating similar deliverables (layout, tone, structure, color usage) and as **placeholders** when a real artifact is not yet available (e.g. embedding a sample illustration into a draft slide deck before the final asset is provided).
+
+These samples are not meant to be redistributed as-is — they exist to seed new work in the correct visual language.
+
+**Document templates:**
+
+- **samples/pitch-deck-sample.pdf** — Reference pitch deck. Use as a template for slide structure, typography rhythm, illustration placement, and overall layout when generating new decks.
+- **samples/flyer-example.pdf** — Reference flyer. Use as a template for printed/PDF one-pagers (proportions, headline treatment, color blocking).
+- **samples/colors.png** — Visual color swatch reference matching the palette defined in the [Colors](#colors) section above.
+
+**Illustration samples (`samples/illustrations/`):**
+
+Flat-design vector illustrations that follow the [Illustration Style Guide](#illustration-style-guide). Use these as placeholders or as the stylistic reference when generating new illustrations.
+
+- **sample-illustration-1.svg** through **sample-illustration-5.svg** — General-purpose illustration samples
+- **sample-illustration-open-source-universe.svg** — Themed illustration (open-source universe)
+
+**Pictogram samples (`samples/pictograms/`):**
+
+Single-concept icon-style graphics in the Open Elements visual language. Use as placeholders for concept icons in slides, diagrams, or web content.
+
+- **sample-pictogram-1.svg** through **sample-pictogram-10.svg** — Pictogram samples
+
+When inserting a sample as a placeholder, mark it clearly in the surrounding artifact (e.g. a comment, alt text, or a TODO note) so the final asset is swapped in before publication.

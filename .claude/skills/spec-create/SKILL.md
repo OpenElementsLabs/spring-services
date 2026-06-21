@@ -11,7 +11,7 @@ description: Plan a feature or bug fix by creating a structured specification. S
 
 Plan a feature or bug fix collaboratively. Produces a `design.md` (technical design) and a `behaviors.md` (behavioral scenarios in given-when-then format) in a dedicated spec folder.
 
-Before starting, read `../../conventions/spec-driven-development.md` for the full spec folder structure, file formats, and conventions.
+Before starting, read `../_workflow-shared/spec-driven-development.md` for the full spec folder structure, file formats, and conventions.
 
 ## Instructions
 
@@ -58,6 +58,8 @@ Assess whether the task is realistically completable in a few hours of focused w
 
 If the scope is too large, **propose splitting** it into smaller, independently deliverable tasks. Each sub-task should be viable on its own.
 
+For sub-tasks or ideas that come up but are deliberately left out of this spec — and are not yet clear enough to become their own spec or issue — capture them with `/todo-capture` so they land in `docs/TODO.md` and are not lost. The same applies to follow-ups surfaced during the grill or recorded under *Open questions* in the design.
+
 For each proposed sub-task, draft a GitHub issue title and description (in Markdown) that the user can copy into GitHub. Include:
 - A clear title
 - A short description of the sub-task
@@ -68,9 +70,9 @@ Present the drafted issues to the user for review and adjustment. **Do not creat
 
 ### 3. Create the spec folder
 
-Determine the next sequential ID by reading `specs/INDEX.md`. If the file does not exist yet, create it with the table header (see spec-driven development doc) and start at `001`. Otherwise, increment from the highest existing ID.
+Determine the next sequential ID by reading `docs/specs/INDEX.md`. If the file does not exist yet, create it with the table header (see spec-driven development doc) and start at `001`. Otherwise, increment from the highest existing ID.
 
-Create the spec folder under `specs/` using the ID as prefix followed by a descriptive kebab-case name (e.g., `001-user-auth-flow`, `002-csv-export-api`). The ID prefix must match the sequential ID in `INDEX.md`.
+Create the spec folder under `docs/specs/` using the ID as prefix followed by a descriptive kebab-case name (e.g., `001-user-auth-flow`, `002-csv-export-api`). The ID prefix must match the sequential ID in `INDEX.md`.
 
 ### 5. Write `design.md` — Interactive planning
 
@@ -117,7 +119,7 @@ Review the scenarios with the user. Ask explicitly: "Are there edge cases or err
 
 After both files are written:
 
-1. **Update `specs/INDEX.md`** — Add a new row with the spec's ID, spec-folder name, name, areas, description, GitHub issue reference (or `—`), and status `open`.
+1. **Update `docs/specs/INDEX.md`** — Add a new row with the spec's ID, spec-folder name, name, areas, description, GitHub issue reference (or `—`), and status `open`.
 2. Provide a short summary:
    - Link to the created spec folder
    - Count of behavioral scenarios

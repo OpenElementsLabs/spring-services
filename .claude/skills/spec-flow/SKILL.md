@@ -11,11 +11,11 @@ description: Implement a completed spec end-to-end using a proper GitHub flow. C
 
 Take a completed specification and turn it into a reviewed, ready-to-merge Pull Request using GitHub flow. This skill orchestrates the full lifecycle: issue tracking, branching, implementation, iterative review, and PR creation.
 
-Before starting, read `../../conventions/spec-driven-development.md` for the spec folder structure and conventions.
+Before starting, read `../_workflow-shared/spec-driven-development.md` for the spec folder structure and conventions.
 
 ## Prerequisites
 
-- A completed spec with `design.md` and `behaviors.md` in the `specs/` directory
+- A completed spec with `design.md` and `behaviors.md` in the `docs/specs/` directory
 - The `gh` CLI must be available and authenticated
 - The working tree must be clean (no uncommitted changes on the current branch)
 
@@ -23,13 +23,13 @@ Before starting, read `../../conventions/spec-driven-development.md` for the spe
 
 ### 1. Identify the spec
 
-Ask the user which spec to implement, or detect it from context. If no spec is specified, check `specs/INDEX.md` for specs with status `open` — these are candidates.
+Ask the user which spec to implement, or detect it from context. If no spec is specified, check `docs/specs/INDEX.md` for specs with status `open` — these are candidates.
 
 Read both `design.md` and `behaviors.md` from the spec folder to confirm it is complete enough to implement. If either file is missing or clearly incomplete, tell the user and suggest running `/spec-create` first.
 
 ### 2. Ensure a GitHub issue exists
 
-Check the spec's entry in `specs/INDEX.md` for a GitHub issue reference.
+Check the spec's entry in `docs/specs/INDEX.md` for a GitHub issue reference.
 
 **If an issue is linked** (e.g., `#42`), verify it exists using `gh issue view <number>`. If it does, continue.
 
@@ -41,7 +41,7 @@ Check the spec's entry in `specs/INDEX.md` for a GitHub issue reference.
    - A link to the spec folder
    - Key behavioral scenarios from `behaviors.md` as acceptance criteria
 3. Create the issue: `gh issue create --title "..." --body "..."`
-4. Update `specs/INDEX.md` to record the new issue number
+4. Update `docs/specs/INDEX.md` to record the new issue number
 
 ### 3. Create a feature branch
 
@@ -55,11 +55,11 @@ If the branch already exists (e.g., from a previous attempt), ask the user wheth
 
 ### 4. Implement the spec
 
-Update the spec's status to `in progress` in `specs/INDEX.md` and commit this change.
+Update the spec's status to `in progress` in `docs/specs/INDEX.md` and commit this change.
 
 Invoke `/spec-implement` to generate the implementation plan and execute it. This means:
 
-1. Read the spec-implement skill at `../../skills/spec-implement/SKILL.md`
+1. Invoke the `spec-implement` skill
 2. Follow its instructions to create `steps.md` and work through the implementation steps
 3. Use automated execution mode — work through steps sequentially, checking off items as they are completed
 4. After each step, verify the project builds and tests pass before moving on
@@ -72,7 +72,7 @@ After implementation is complete, run two review passes. Repeat this cycle until
 
 #### 5a. Spec review
 
-Read the spec-review skill at `../../skills/spec-review/SKILL.md` and follow its instructions to review the implementation against the spec. This checks:
+Invoke the `spec-review` skill and follow its instructions to review the implementation against the spec. This checks:
 
 - Every element in `design.md` is implemented
 - Every scenario in `behaviors.md` has a corresponding test
@@ -80,7 +80,7 @@ Read the spec-review skill at `../../skills/spec-review/SKILL.md` and follow its
 
 #### 5b. Quality review
 
-Read the quality-review skill at `../../skills/quality-review/SKILL.md` and follow its instructions to review the code for quality. This checks:
+Invoke the `quality-review` skill and follow its instructions to review the code for quality. This checks:
 
 - Code quality (DRY, KISS, naming, dead code)
 - Security (no hardcoded secrets, input validation, parameterized queries)
@@ -106,7 +106,7 @@ After each fix cycle, commit the changes with a descriptive message referencing 
 
 ### 6. Final commit and push
 
-Ensure all changes are committed. Update `specs/INDEX.md` to set the spec status to `done` and commit this separately.
+Ensure all changes are committed. Update `docs/specs/INDEX.md` to set the spec status to `done` and commit this separately.
 
 Push the feature branch to the remote:
 
@@ -126,9 +126,9 @@ gh pr create --title "<short title>" --body "$(cat <<'EOF'
 
 ## Spec
 
-- Spec folder: `specs/<spec-folder>/`
-- Design: `specs/<spec-folder>/design.md`
-- Behaviors: `specs/<spec-folder>/behaviors.md`
+- Spec folder: `docs/specs/<spec-folder>/`
+- Design: `docs/specs/<spec-folder>/design.md`
+- Behaviors: `docs/specs/<spec-folder>/behaviors.md`
 
 ## Changes
 

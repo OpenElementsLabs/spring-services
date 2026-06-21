@@ -29,25 +29,29 @@ Before performing any review or setup task, **read all convention documents firs
 
 1. Read all of the following files:
    - `../../conventions/software-quality.md` — API design, technical integrity, namespace, SBOM, CI
-   - `../../conventions/repo-setup.md` — required root files (README, LICENSE, CoC, .gitignore)
-   - `../../conventions/documentation.md` — Markdown, MkDocs, GitHub Pages, ADRs
-   - `../../conventions/java.md` — Java conventions
-   - `../../conventions/typescript.md` — TypeScript conventions
-   - `../../conventions/backend.md` — Backend frameworks, REST/OpenAPI, database, observability
-   - `../../conventions/fullstack-architecture.md` — Frontend/backend separation, Docker, configuration, pinned tool versions
-   - `../../conventions/project-specific/README.md` — Project-specific docs (if any exist)
+   - `references/repo-setup.md` — required root files (README, LICENSE, CoC, `.gitignore`, `.editorconfig`)
+   - `references/editorconfig.md` — standard `.editorconfig` content for Java/TypeScript projects
+   - The **Project Context** section of the project's `CLAUDE.md` — project-specific context (tech stack, features, structure, architecture), if already filled in
+
+   For Java backend conventions (frameworks, REST/OpenAPI, database, GDPR, testing, observability), invoke the `java-backend` skill when the project includes a backend.
+
+   For TypeScript / React / Next.js conventions, invoke the `typescript-best-practices` skill when the project includes a frontend.
+
+   For project documentation (MkDocs, GitHub Pages), invoke the `mkdocs-setup` skill when the project needs technical documentation beyond the README.
+
+   For fullstack architecture (independent backend + frontend, Docker Compose, OIDC, pinned tool versions), invoke the `fullstack-architecture-setup` skill when the project is a fullstack application.
 
 2. Determine the project type (Java library, TypeScript library, Java backend, web frontend, or fullstack application). If the project type is not obvious from the existing codebase, **ask the user** which type they want.
 
 3. If the project includes a backend (Java backend or fullstack application), **ask the user** which backend framework to use: **Spring Boot** or **Helidon SE**. Do not assume a default — the user must make this choice explicitly.
 
 4. Based on the project type, apply only the relevant conventions:
-   - **All projects**: `software-quality.md`, `repo-setup.md`, `documentation.md`
-   - **Java projects**: additionally `java.md`
-   - **TypeScript projects**: additionally `typescript.md`
-   - **Backend projects**: additionally `backend.md`, `java.md`
-   - **Frontend projects**: additionally `typescript.md`
-   - **Fullstack projects**: additionally `fullstack-architecture.md`, `backend.md`, `java.md`, `typescript.md`
+   - **All projects**: `software-quality.md`, plus the bundled `references/repo-setup.md` and `references/editorconfig.md`
+   - **Java projects**: Java conventions are provided via skills (`java-best-practices`, `modern-java`, `java-api-design`)
+   - **TypeScript projects**: invoke the `typescript-best-practices` skill
+   - **Backend projects**: additionally invoke the `java-backend` skill
+   - **Frontend projects**: invoke the `typescript-best-practices` skill
+   - **Fullstack projects**: invoke the `java-backend`, `typescript-best-practices`, and `fullstack-architecture-setup` skills
 
 5. When **reviewing** an existing project: compare the project structure, files, and conventions against the applicable docs. List what matches, what is missing, and what should be changed.
 
@@ -56,7 +60,7 @@ Before performing any review or setup task, **read all convention documents firs
    The skeleton includes:
    - **Root**: `.editorconfig`, `.gitignore`, `LICENSE`, `.env.example`, `docker-compose.yml`, `README.md`
    - **Backend**: `pom.xml` (with all required plugins and dependencies), Maven Wrapper, `Dockerfile`, `.dockerignore`, `.sdkmanrc`, application config, and a single main application class with one health/ping endpoint to verify the backend starts correctly
-   - **Frontend**: `package.json`, `next.config.ts`, `tailwind.config.ts`, `tsconfig.json`, `.nvmrc`, `Dockerfile`, `.dockerignore`, `public/favicon.ico`, and a single landing page that shows the project name and confirms the frontend is running. Apply the Open Elements Brand Guidelines (`../open-elements-brand-guidelines/SKILL.md`) and Frontend Design skill (`../frontend-design/SKILL.md`) for the landing page styling.
+   - **Frontend**: `package.json`, `next.config.ts`, `tailwind.config.ts`, `tsconfig.json`, `.nvmrc`, `Dockerfile`, `.dockerignore`, `public/favicon.ico`, and a single landing page that shows the project name and confirms the frontend is running. Invoke the `open-elements-brand-guidelines` and `frontend-design` skills for the landing page styling.
 
    **Do not create**: entities, DTOs, repositories, services, controllers (beyond the health endpoint), database migrations, multiple pages, or any business-logic code.
 

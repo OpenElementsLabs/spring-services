@@ -25,15 +25,21 @@ Read all changed files completely — diffs alone are not enough to judge qualit
 
 ### 2. Load the relevant conventions
 
-Read the convention documents that apply to the project. Determine which are relevant based on the languages and files in the changeset:
+Read the convention documents that apply to the project. Determine which are relevant based on the languages and files in the changeset. These conventions live in the project's `.claude/conventions/` directory when the Open Elements base configuration is installed — **read each one if it exists; it is the authoritative source and overrides the baseline below**:
 
-- Always read `../../conventions/software-quality.md` — applies to all projects
-- For Java files: read `../../conventions/java.md`
-- For TypeScript files: read `../../conventions/typescript.md`
-- For backend code: read `../../conventions/backend.md`
-- For security-sensitive changes: read `../../conventions/security.md`
+- Always: `../../conventions/software-quality.md` (installed as `.claude/conventions/software-quality.md`) — applies to all projects
+- For Java files: the `java-best-practices` skill provides the conventions
+- For Java backend code (controllers, services, repositories, entities, DTOs, REST): the `java-backend` skill provides the conventions
+- For TypeScript files: the `typescript-best-practices` skill provides the conventions
+- For security-sensitive changes: `../../conventions/security.md` (installed as `.claude/conventions/security.md`)
 
 Also read the project's `CLAUDE.md` for any project-specific rules.
+
+**If the convention documents are not present** (this skill is used standalone, without the base configuration), fall back to this baseline so the review still produces useful results:
+
+- **Quality**: clean minimal public APIs, encapsulation of implementation details, no test-only API surface, sensible defaults (convention over configuration), and adequate test coverage (backend ≥ 80%, frontend ≥ 70%, with each test documenting what it verifies).
+- **Backend**: per-layer tests (DTO/repository/service/controller), input validation, no personal data in logs, and meaningful HTTP status codes.
+- **Security**: no hardcoded secrets, validated and sanitized inputs, least-privilege permissions, and no sensitive data in logs or error messages.
 
 ### 3. Review the code
 
@@ -61,7 +67,7 @@ Check each changed file against the applicable conventions. Focus on these areas
 - Are assertions specific with clear failure messages?
 
 **Language-specific conventions:**
-- Apply the rules from the relevant language doc (java.md, typescript.md)
+- Apply the rules from the relevant language skills (`typescript-best-practices`, `java-best-practices`)
 - Check for language-specific anti-patterns (e.g., wildcard imports in Java, `any` type in TypeScript)
 
 **Architecture:**

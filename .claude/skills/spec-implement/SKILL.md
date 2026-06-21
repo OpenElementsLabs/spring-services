@@ -11,14 +11,14 @@ description: Generate a concrete step-by-step implementation plan from a specifi
 
 Turn a completed specification into an ordered, actionable list of implementation steps.
 
-Before starting, read `../../conventions/spec-driven-development.md` for the full spec folder structure and file
+Before starting, read `../_workflow-shared/spec-driven-development.md` for the full spec folder structure and file
 formats.
 
 ## Instructions
 
 ### 1. Load the spec
 
-Ask the user which spec to use, or detect it from context. If no spec is specified, check `specs/INDEX.md` for specs
+Ask the user which spec to use, or detect it from context. If no spec is specified, check `docs/specs/INDEX.md` for specs
 with status `open` or `in progress` — these are candidates for implementation.
 
 Read both `design.md` and `behaviors.md` from the spec folder.
@@ -26,8 +26,7 @@ Read both `design.md` and `behaviors.md` from the spec folder.
 Also read any relevant existing code that the implementation will modify or extend. Understand the current state of the
 codebase before planning changes.
 
-If the spec involves **frontend or UI work**, also read the **Open Elements Brand Guidelines** skill (
-`../open-elements-brand-guidelines/SKILL.md`) and the **Frontend Design** skill (`../frontend-design/SKILL.md`). All
+If the spec involves **frontend or UI work**, also invoke the `open-elements-brand-guidelines` and `frontend-design` skills. All
 frontend implementation steps must reference and apply the brand colors, typography, and design quality standards.
 
 ### 2. Break down into steps
@@ -65,16 +64,14 @@ A typical ordering is:
     behaviors are not covered by backend tests — they require their own dedicated tests.
 12. Edge case and error handling tests (both backend and frontend)
 10. **Update project documentation** — This step is mandatory, not optional. After all code and tests are complete,
-    update the following files to reflect the changes made by this spec:
-    - `.claude/conventions/project-specific/project-features.md` — Add or update feature descriptions
-    - `.claude/conventions/project-specific/project-tech.md` — Add any new technologies, libraries, or services
-      introduced
-    - `.claude/conventions/project-specific/project-structure.md` — Update if new directories, modules, or significant
-      files were added
-    - `.claude/conventions/project-specific/project-architecture.md` — Update if components, data flows, or integrations
-      changed
+    update the following to reflect the changes made by this spec:
+    - `CLAUDE.md` → **Project Context** section — keep its subsections current with what this spec changed:
+      - `### Features` — Add or update feature descriptions
+      - `### Tech Stack` — Add any new technologies, libraries, or services introduced
+      - `### Structure` — Update if new directories, modules, or significant files were added
+      - `### Architecture` — Update if components, data flows, or integrations changed
+    - `CLAUDE.md` (elsewhere) — Update if new conventions, paths, or project-specific rules were introduced
     - `README.md` — Update if user-facing behavior, setup instructions, or configuration changed
-    - `CLAUDE.md` — Update if new conventions, paths, or project-specific rules were introduced
 
     If any of these files are still empty templates (only HTML comments), generate meaningful content based on the *
     *full project state** — not just the current spec. Read the codebase to understand the complete picture and fill in

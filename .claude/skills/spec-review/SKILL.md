@@ -11,15 +11,15 @@ description: Review an implementation for completeness against its specification
 
 Verify that an implementation fully satisfies its specification by checking the code against the design document and behavioral scenarios.
 
-Before starting, read `../../conventions/spec-driven-development.md` for the full spec folder structure and file formats.
+Before starting, read `../_workflow-shared/spec-driven-development.md` for the full spec folder structure and file formats.
 
 ## Instructions
 
 ### 1. Identify the spec
 
-Ask the user which spec to review, or detect it from context. If no spec is specified, check `specs/INDEX.md` for specs with status `done` or `in progress` — these are candidates for review.
+Ask the user which spec to review, or detect it from context. If no spec is specified, check `docs/specs/INDEX.md` for specs with status `done` or `in progress` — these are candidates for review.
 
-Locate the spec folder under `specs/` and read both `design.md` and `behaviors.md` completely.
+Locate the spec folder under `docs/specs/` and read both `design.md` and `behaviors.md` completely.
 
 ### 2. Review against `design.md`
 
@@ -109,7 +109,7 @@ Classify each as:
 For items classified as **Partially covered** (design) or **Not implemented** / behavior mismatches (behaviors), investigate whether the divergence was caused by a different spec's implementation:
 
 - Use `git log` and `git blame` on the affected code to identify which changes altered the behavior.
-- Check if those changes correspond to another spec folder in `specs/`.
+- Check if those changes correspond to another spec folder in `docs/specs/`.
 - If the reviewed spec has status `done` in `INDEX.md` and the code was changed by a later spec, this is **drift** — not an oversight in the original implementation.
 
 For each confirmed drift item, add an entry to the **Drift Log** section at the end of the affected file (`design.md` or `behaviors.md`). Follow the Drift Log format defined in the spec-driven-development convention. Do not modify the original design or behavior sections — they are historical records.

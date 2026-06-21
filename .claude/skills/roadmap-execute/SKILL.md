@@ -4,16 +4,16 @@ license: Apache-2.0
 metadata:
   source: https://github.com/open-elements/claude-base
   author: Open Elements
-description: Autonomously execute all steps in a ROADMAP.md file using sub-agents. Reads the roadmap, then processes each unchecked step sequentially — creating a spec, implementing it, reviewing it, and committing — by delegating each step to a dedicated sub-agent. The orchestrator stays lean and tracks overall progress. Use this skill when the user has a ROADMAP.md and wants Claude Code to work through it end-to-end without stopping after individual steps.
+description: Autonomously execute all steps in a docs/roadmap.md file using sub-agents. Reads the roadmap, then processes each unchecked step sequentially — creating a spec, implementing it, reviewing it, and committing — by delegating each step to a dedicated sub-agent. The orchestrator stays lean and tracks overall progress. Use this skill when the user has a docs/roadmap.md and wants Claude Code to work through it end-to-end without stopping after individual steps.
 ---
 
 # Execute Roadmap
 
-Autonomously work through all steps in a `ROADMAP.md` by delegating each step to a sub-agent. The orchestrator (this skill) manages sequencing and progress tracking — the sub-agents handle the actual work.
+Autonomously work through all steps in a `docs/roadmap.md` by delegating each step to a sub-agent. The orchestrator (this skill) manages sequencing and progress tracking — the sub-agents handle the actual work.
 
-Before starting, read `../../conventions/spec-driven-development.md` for the spec folder structure and conventions.
+Before starting, read `../_workflow-shared/spec-driven-development.md` for the spec folder structure and conventions.
 
-## Expected ROADMAP.md Format
+## Expected docs/roadmap.md Format
 
 The roadmap must use GitHub-flavored Markdown checkboxes. Each top-level checkbox is one step. Steps may have sub-items for context, but only top-level checkboxes are treated as steps.
 
@@ -32,14 +32,14 @@ Steps marked `[x]` are skipped. Steps are processed top-to-bottom.
 
 ### 1. Read and parse the roadmap
 
-Read `ROADMAP.md` from the project root. If it does not exist, ask the user for the path.
+Read `docs/roadmap.md`. If it does not exist, ask the user for the path.
 
 Parse all top-level checklist items (`- [ ] ...`). Build a numbered list of pending steps (skip any `- [x]` items). Count total steps and pending steps.
 
 Present the plan to the user:
 
 ```
-Found X steps in ROADMAP.md, Y already completed, Z pending:
+Found X steps in docs/roadmap.md, Y already completed, Z pending:
   1. [ ] User authentication with JWT ...
   2. [ ] Dashboard page ...
   ...
@@ -90,10 +90,10 @@ Execute these phases strictly in order:
 
 ### Phase 1 — Create the spec
 
-Read `specs/INDEX.md` to determine the next spec ID (or create the file if it does not exist).
-Read the convention file `.claude/conventions/spec-driven-development.md` for the required format.
+Read `docs/specs/INDEX.md` to determine the next spec ID (or create the file if it does not exist).
+Read the convention file `../_workflow-shared/spec-driven-development.md` for the required format.
 
-Create a spec folder under `specs/` with:
+Create a spec folder under `docs/specs/` with:
 
 1. `design.md` — Technical design for this step. Include:
    - Summary of what is being built and why
@@ -109,7 +109,7 @@ Create a spec folder under `specs/` with:
    - Edge cases
    - Error cases
 
-3. Update `specs/INDEX.md` with the new spec (status: `in progress`).
+3. Update `docs/specs/INDEX.md` with the new spec (status: `in progress`).
 
 ### Phase 2 — Plan the implementation
 
@@ -150,10 +150,10 @@ git add -A
 git commit -m "feat: implement <spec-name> — <one-line summary>"
 ```
 
-Update `specs/INDEX.md` to set the spec status to `done`.
+Update `docs/specs/INDEX.md` to set the spec status to `done`.
 Create a separate commit for the status update:
 ```
-git add specs/INDEX.md
+git add docs/specs/INDEX.md
 git commit -m "docs: mark <spec-name> as done"
 ```
 
@@ -170,7 +170,7 @@ End your work with a brief summary:
 
 **After the sub-agent returns**, read its result and:
 
-1. **Update ROADMAP.md** — Change the step from `- [ ]` to `- [x]`
+1. **Update docs/roadmap.md** — Change the step from `- [ ]` to `- [x]`
 2. **Log the result**:
    ```
    ==> Step N/Z completed: <brief summary from sub-agent>
@@ -206,7 +206,7 @@ Issues encountered:
 - **Fresh sub-agent per step** — Each step gets a new sub-agent with a clean context. This prevents context bloat and ensures each agent sees the latest code state.
 - **Never skip a failing step** — If a sub-agent fails, log the failure and ask the user whether to continue with the next step or abort.
 - **Autonomous spec creation** — Unlike interactive `/spec-create`, the sub-agent creates specs without user interaction. It makes reasonable decisions based on the roadmap description and existing codebase.
-- **Respect existing specs** — If a roadmap step already has a corresponding spec in `specs/INDEX.md` (matching by name/description), reuse it instead of creating a duplicate.
+- **Respect existing specs** — If a roadmap step already has a corresponding spec in `docs/specs/INDEX.md` (matching by name/description), reuse it instead of creating a duplicate.
 - **Git hygiene** — Each roadmap step produces its own commit(s). Do not batch multiple steps into one commit.
 
 ## When NOT to use this skill

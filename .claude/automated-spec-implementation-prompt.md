@@ -1,13 +1,13 @@
 # Automated Spec Implementation Prompt
 
-**Task:** Fully and autonomously implement all specs listed as not yet implemented in `specs/INDEX.md` – without interruptions or requests for confirmation.
+**Task:** Fully and autonomously implement all specs listed as not yet implemented in `docs/specs/INDEX.md` – without interruptions or requests for confirmation.
 
 ---
 
 ## Workflow per Spec (strictly sequential)
 
 **Step 1 – Analysis**
-Read `specs/INDEX.md` and identify all specs with status "not implemented". Process them in the order defined there.
+Read `docs/specs/INDEX.md` and identify all specs with status "not implemented". Process them in the order defined there.
 
 **Step 2 – Implementation**
 Run `/spec-implement <spec-name>`. Wait for completion before moving on.
@@ -44,4 +44,4 @@ Then continue with the next spec from Step 2.
 
 ---
 
-**Start immediately by analyzing `specs/INDEX.md`.**
+**Start immediately by analyzing `docs/specs/INDEX.md`.**

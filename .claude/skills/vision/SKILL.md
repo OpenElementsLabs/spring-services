@@ -4,12 +4,12 @@ license: Apache-2.0
 metadata:
   source: https://github.com/open-elements/claude-base
   author: Open Elements
-description: Clarify the vision and scope of a new application or planned features through structured product discovery. Conducts an interactive interview with the user, stress-tests their thinking with /grill-me, and produces a RESEARCH.md with user stories, personas, scope boundaries, and prioritized feature list. The RESEARCH.md serves as input for /spec-create or /spec-flow. Use this skill when the user wants to plan an app, define a product vision, brainstorm features, figure out what to build next, create a product roadmap, or says things like "I have an idea for an app", "what should we build", "let's plan the next features", or "help me define the scope".
+description: Clarify the vision and scope of a new application or planned features through structured product discovery. Conducts an interactive interview with the user, stress-tests their thinking with /grill-me, and produces a docs/vision.md with user stories, personas, scope boundaries, and prioritized feature list. The docs/vision.md serves as input for /spec-create or /spec-flow. Use this skill when the user wants to plan an app, define a product vision, brainstorm features, figure out what to build next, create a product roadmap, or says things like "I have an idea for an app", "what should we build", "let's plan the next features", or "help me define the scope".
 ---
 
 # Vision — Product Discovery and Scope Definition
 
-Turn a rough idea into a structured product research document through interactive discovery. The output is a `RESEARCH.md` that captures the what and why — user stories, personas, priorities, and scope — so that individual features can later be turned into specs via `/spec-create` or `/spec-flow`.
+Turn a rough idea into a structured product research document through interactive discovery. The output is a `docs/vision.md` that captures the what and why — user stories, personas, priorities, and scope — so that individual features can later be turned into specs via `/spec-create` or `/spec-flow`.
 
 This skill focuses on product thinking, not technical design. The goal is to produce artifacts a project manager would create: who are the users, what do they need, what does success look like, and what is in or out of scope.
 
@@ -103,9 +103,9 @@ Work with the user to draw clear boundaries:
 
 **Open questions** — Unresolved items that need further research, user feedback, or technical investigation before they can be decided.
 
-### 7. Write RESEARCH.md
+### 7. Write docs/vision.md
 
-Write the research document to `RESEARCH.md` in the project root (or in a location the user specifies). Use the following structure:
+Write the research document to `docs/vision.md` (or in a location the user specifies). Use the following structure:
 
 ```markdown
 # Research: <Product/Feature Name>
@@ -190,7 +190,7 @@ Not every section needs to be lengthy. A focused-scope research document might h
 
 ### 8. Review and next steps
 
-Present the completed `RESEARCH.md` to the user. Walk through the key sections and ask:
+Present the completed `docs/vision.md` to the user. Walk through the key sections and ask:
 
 - Does the vision statement capture the essence of what you described?
 - Are the personas accurate? Are any missing?
@@ -199,8 +199,8 @@ Present the completed `RESEARCH.md` to the user. Walk through the key sections a
 
 After the user is satisfied, explain the next steps:
 
-1. **Create individual specs** — Pick features from the "Must Have" list and run `/spec-create` for each one. The user stories and acceptance criteria in `RESEARCH.md` provide the starting point.
-2. **Build a roadmap** — If the project uses a `ROADMAP.md`, the prioritized feature list maps directly to roadmap items.
+1. **Create individual specs** — Pick features from the "Must Have" list and run `/spec-create` for each one. The user stories and acceptance criteria in `docs/vision.md` provide the starting point.
+2. **Build a roadmap** — If the project uses a `docs/roadmap.md`, the prioritized feature list maps directly to roadmap items.
 3. **Implement end-to-end** — For features that already have specs, use `/spec-flow` to go from spec to Pull Request.
 
 The research document is a living artifact — it can be updated as understanding deepens. But the specs created from it are the source of truth for implementation.

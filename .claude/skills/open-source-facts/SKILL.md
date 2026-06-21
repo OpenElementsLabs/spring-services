@@ -107,11 +107,60 @@ Representative survey of 1,100+ German companies and 100 public sector organizat
 
 **Source:** Bitkom Open Source Monitor 2025 (DOI: 10.64022/2025-open-source-monitor)
 
+### OSS Adoption and Strategy by Company Size (German Enterprises)
+
+The likelihood of using OSS scales with company size — but the likelihood of having a formal OSS strategy does **not** keep up. This gap is the practical message of most enterprise OSS talks: companies use OSS broadly but manage it ad-hoc.
+
+| Company size (employees) | Uses OSS | Has OSS strategy | No OSS strategy |
+|--------------------------|----------|------------------|------------------|
+| 100–199 | 65 % | 19 % | 81 % |
+| 200–499 | 71 % | 21 % | 76 % |
+| 500–1,999 | 78 % | 27 % | 70 % |
+| 2,000+ | 86 % | 31 % | 63 % |
+
+When unknowing usage is factored in, effective OSS-usage rates are realistically **above 95 %** even in the smallest companies. Strategy adoption lags consistently by ~40–50 percentage points behind usage.
+
+**Source:** Open Elements "Open Source verstehen" presentation (https://www.youtube.com/watch?v=PbSTdW1jd-A), based on German enterprise surveys.
+
+### Industry Attitudes Toward OSS (Germany)
+
+Cross-industry survey of German enterprises ("interested/open" vs. "undecided" vs. "critical/rejecting"):
+
+| Industry | Interested & open | Undecided | Critical/rejecting |
+|----------|--------------------|-----------|---------------------|
+| Overall | 75 % | 19 % | ~5 % |
+| Retail (Handel) | 80 % | 15 % | small |
+| Automotive | 78 % | 15 % | small |
+| Banking & Insurance | 74 % | 18 % | small |
+| IT & Telecom | 73 % | 16 % | small |
+| Transport & Logistics | 71 % | 20 % | small |
+
+Even traditionally cautious sectors (banking, automotive) show clear majority openness toward OSS.
+
+**Source:** Open Elements "Open Source verstehen" presentation (https://www.youtube.com/watch?v=PbSTdW1jd-A).
+
 ### Enterprise Trends
 
 - Enterprises are shifting from proprietary to open-source solutions across infrastructure, databases, middleware, and application development
 - Open-source adoption is driven by: better security through transparency, faster innovation cycles, avoidance of vendor lock-in, lower total cost of ownership, and access to talent
 - Most enterprises use a mix of community open source and commercial open-source products with enterprise support
+
+### Open Source Program Offices (OSPOs)
+
+An OSPO is the central unit inside a company responsible for the strategic handling of OSS — license compliance, best practices, shared knowledge, community building, and contribution policy. More and more companies are establishing OSPOs as OSS becomes business-critical.
+
+A typical OSPO covers:
+
+- Central point of contact for OSS-related questions inside the organisation
+- License management and compliance
+- Best-practice guidelines for OSS consumption and contribution
+- Coordination of community engagement and upstream contribution
+- (Public-sector and large-enterprise variant) participation in OSPO alliances such as the **OSPO Alliance** or the **Bitkom OSPO Zone**
+
+> **"Without an OSPO, teams across Microsoft would probably have to do a lot more manual compliance work…"**
+> — Stormy Peters, Director of Microsoft's Open Source Programs Office
+
+**Bitkom 2025:** Only 25 % of German public-sector organisations have an OSPO, versus 14 % in the private sector — and OSPO-equipped public organisations average **4 FTEs** for OSS management versus 1.9 FTEs in the private sector.
 
 ## Economic Value
 
@@ -202,7 +251,52 @@ These numbers underscore why professional OSS maintenance (like Support & Care) 
 ### Vulnerability Response
 
 - Average time to fix a critical open-source vulnerability: **50-300 days** (GitHub Octoverse 2025, trend improving)
+- **Every software project has a ~59 % chance of having a security vulnerability in the next 12 months** (GitHub). This number applies to *any* software, including proprietary/closed-source — it is not OSS-specific. The difference is that OSS handles such vulnerabilities transparently while closed-source disclosure varies by vendor.
+- Why the OSS vulnerability count graph is rising: increasing OSS activity, growing number of transparent **CVE Numbering Authorities (CNAs)**, automated scanning/detection/publication. Each of these is a *positive* driver — the rise reflects better visibility, not worse software.
 - The Log4Shell vulnerability (CVE-2021-44228) demonstrated the risk: a single critical flaw in a widely-used base library affected millions of applications worldwide
+
+### Case Study: Lodash CVE (Fast Coordinated Response)
+
+A canonical positive example of how mature the OSS response loop has become. Lodash is a foundational JavaScript utility library embedded in millions of downstream projects.
+
+| Date | Event |
+|------|-------|
+| 23 Apr 2012 | Maintainer accidentally introduces a vulnerability |
+| 02 Jul 2020 | Vulnerability discovered and publicly reported (~8 years later) |
+| 08 Jul 2020 | Fix released (6 days after discovery) |
+| 15 Jul 2020 | **5+ million OSS projects** have been automatically notified / updated (7 days after fix) |
+| 02 Oct 2020 | **>40 %** of all projects depending on Lodash are running the patched version (3 months after fix) |
+
+The remaining ~60 % are mostly unmaintained/abandoned projects and proprietary forks; modern actively-maintained OSS projects were essentially fully patched by then. The key takeaways:
+
+- **Transparency increases security.**
+- **Automation increases security.**
+- **Coordination across the ecosystem increases security.**
+
+### Case Study: XZ Utils Backdoor (CVE-2024-3094, Supply Chain Attack)
+
+The XZ Utils incident (March 2024) is the canonical modern OSS supply-chain attack — and the warning that the more critical an OSS component becomes, the larger the incentive to attack its maintenance process directly.
+
+**The component:** `xz`/`liblzma` is a tiny compression library bundled with every modern Linux distribution. It had been maintained for ~10 years by a **single individual** in their spare time.
+
+**The attack (reconstructed):**
+
+1. Starting ~2.5 years before the attack landed, a group (widely assumed but not confirmed to be a nation-state actor) ran a coordinated social-engineering campaign against the solo maintainer. **AI-assisted email spam** flooded GitHub issues, forums, and direct mail with complaints: "you're too slow", "why isn't this bug fixed yet" — from dozens of seemingly different accounts.
+2. Under that artificial social pressure, the maintainer eventually accepted help from one of the campaign participants — the one actor who had been "supportive" the entire time. That person was granted commit access.
+3. Over **~1.5 years**, the attacker incrementally built a **backdoor** into `xz`. The backdoor would have allowed full remote code execution / system access on any Linux system running the compromised version, via SSH.
+4. The compromised version was released and began being picked up by Linux distributions.
+
+**The save:** Andres Freund, a Microsoft engineer running Azure Linux benchmarks, noticed an unexplained latency anomaly (sshd login taking ~12 ms instead of ~10 ms). He investigated the anomaly out of curiosity and uncovered the backdoor before it reached widespread production Linux.
+
+**Authority reference:** The German **BSI** (Bundesamt für Sicherheit in der Informationstechnik / Nationales IT-Lagezentrum) issued a critical advisory: **"Kritische Backdoor in XZ für Linux"**, CSW-Nr. 2024-223608-1132, Version 1.1.1, dated **03.04.2024**.
+
+**The lesson:** XZ shows that critical OSS infrastructure can be attacked not by exploiting code but by exploiting the **maintenance process** of an under-resourced solo maintainer. As OSS components become more critical, attacks on them will grow accordingly. This is the strongest case for professional OSS stewardship (Open Source Stewards under CRA Article 3(14)) and for managed maintenance offerings like Open Elements' Support & Care.
+
+### The "Nebraska Problem" — Single-Maintainer Risk
+
+A recurring visual framing in OSS-risk talks (echoing xkcd #2347): a corporation's entire digital infrastructure is depicted as a tower of building blocks — and at the very bottom sits one small block representing an OSS library maintained by a single individual in Nebraska (or anywhere) as a free-time hobby for the past decade. Pull that block out and the tower collapses.
+
+**The point:** the problem is **not** that the lone maintainer is doing anything wrong. The problem is **the lack of an OSS strategy on the consuming organisation's side** — most enterprises depend on libraries they cannot name, maintained by people they have never funded, with no contractual fallback if the maintainer steps back, makes a mistake, or is attacked (cf. the XZ Utils case study above).
 
 ## Key Open-Source Projects — Adoption Numbers
 
@@ -364,3 +458,5 @@ All statistics should be verified against the original sources before use in for
 | EU Commission CRA Guidance | Ref. Ares(2026)2319816, March 2026 | Official CRA implementation guidance |
 | Open Source Funding Report 2024 | Harvard/Linux Foundation/GitHub | Global OSS investment, GDP impact |
 | Linux Foundation Research | https://www.linuxfoundation.org/research | Enterprise OSS strategy |
+| Open Elements "Open Source verstehen" presentation | https://www.youtube.com/watch?v=PbSTdW1jd-A | Company-size adoption/strategy split, industry attitudes, Lodash & XZ case studies, Nebraska-problem framing |
+| BSI XZ Backdoor Advisory | CSW-Nr. 2024-223608-1132 (BSI, 03.04.2024) | XZ Utils backdoor (CVE-2024-3094) |

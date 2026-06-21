@@ -13,7 +13,7 @@ Build production-grade web frontend applications using the Open Elements tech st
 
 **Stack**: Next.js + React 18 + TypeScript (strict) + Tailwind CSS + shadcn/ui + pnpm
 
-**IMPORTANT**: All conventions from `../../conventions/typescript.md` apply. When in doubt, defer to that document.
+**IMPORTANT**: All conventions from the `typescript-best-practices` skill apply. When in doubt, defer to that skill.
 
 ## Design Guidelines
 
@@ -33,7 +33,28 @@ pnpm create next-app <project-name> --typescript --tailwind --eslint --app --src
 cd <project-name>
 ```
 
-### Step 2: Configure Next.js
+### Step 2: Pin Tool & Runtime Versions
+
+Pin the Node.js and pnpm versions so they cannot drift between your machine and CI. Keep one source of truth per tool (full rationale in the `typescript-best-practices` skill):
+
+- **`.nvmrc`** — the Node version for development and CI (a pin, e.g. `24`). Activate it locally with `nvm use` (or `fnm use`); CI reads the same file.
+- **`package.json` → `packageManager`** — the exact pnpm version (e.g. `"pnpm@11.3.0"`). Run `corepack enable` once so this version is used automatically; CI reads it too.
+- **`package.json` → `engines.node`** — the supported Node range (e.g. `">=20"`). Use a lower-bound range, not a single pin. (Most relevant for published libraries; for an application it documents the supported range.)
+- **`.npmrc`** — only when publishing or installing from a private registry. Reference `${NPM_TOKEN}`; never commit an actual token.
+
+```jsonc
+// package.json
+{
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
+```
+
+Do not repeat these version numbers anywhere else — the `github-actions-setup` skill reads them from `.nvmrc` and `packageManager` directly instead of hardcoding.
+
+### Step 3: Configure Next.js
 
 Edit `next.config.ts` to set standalone output (required for Docker deployments):
 
@@ -43,13 +64,13 @@ const nextConfig = {
 };
 ```
 
-**IMPORTANT**: Next.js evaluates `next.config.ts` — including `rewrites()` — at **build time**. Any environment variable used in `next.config.ts` (e.g., `BACKEND_URL` for API rewrites) must be available during `pnpm build`. In Docker, this means declaring it as a build argument (`ARG`) and setting it as an environment variable (`ENV`) in the Dockerfile **before** the build step. A runtime-only `environment:` entry in `docker-compose.yml` is too late — the rewrite rules are already baked into the build output. See `fullstack-architecture.md` for the Dockerfile and Docker Compose configuration.
+**IMPORTANT**: Next.js evaluates `next.config.ts` — including `rewrites()` — at **build time**. Any environment variable used in `next.config.ts` (e.g., `BACKEND_URL` for API rewrites) must be available during `pnpm build`. In Docker, this means declaring it as a build argument (`ARG`) and setting it as an environment variable (`ENV`) in the Dockerfile **before** the build step. A runtime-only `environment:` entry in `docker-compose.yml` is too late — the rewrite rules are already baked into the build output. See the `fullstack-architecture-setup` skill for the Dockerfile and Docker Compose configuration.
 
-### Step 3: Enable Strict TypeScript
+### Step 4: Enable Strict TypeScript
 
 Verify `tsconfig.json` has `"strict": true`. This is non-negotiable.
 
-### Step 4: Initialize shadcn/ui
+### Step 5: Initialize shadcn/ui
 
 ```bash
 pnpm dlx shadcn@latest init
@@ -63,7 +84,7 @@ pnpm dlx shadcn@latest add button card input table dialog
 
 Add more components as needed during development.
 
-### Step 5: Configure shadcn MCP Server
+### Step 6: Configure shadcn MCP Server
 
 Add to the project's `.mcp.json`:
 
@@ -78,7 +99,7 @@ Add to the project's `.mcp.json`:
 }
 ```
 
-### Step 6: Set Up Brand Colors and Semantic Tokens
+### Step 7: Set Up Brand Colors and Semantic Tokens
 
 Configure Open Elements brand colors in `tailwind.config.ts` so they are available as utility classes. Use the `open-elements-brand-guidelines` skill to get the exact color values.
 
@@ -102,7 +123,7 @@ Required semantic tokens (each with `-foreground` counterpart where applicable):
 
 See the [shadcn/ui Theming docs](https://ui.shadcn.com/docs/theming) for details. Never hardcode colors in component files — always use semantic tokens.
 
-### Step 7: Verify Setup
+### Step 8: Verify Setup
 
 ```bash
 pnpm dev
@@ -157,11 +178,15 @@ pnpm test
 ```
 
 - Name tests descriptively: `it('should return empty array when no items exist')`
+- Document what each test verifies — the `describe` block names the unit and the `it` description states the scenario and expected outcome, so the test is understandable without reading its body
 - Group related tests with `describe` blocks
 - Avoid excessive mocking — prefer simple stub/dummy implementations
+- New features must reach at least **70% test coverage** on the added or changed code (see [software-quality.md](../../conventions/software-quality.md)); measure with `pnpm test --coverage`
 
 ## Common Commands
 
+- **Activate the pinned Node version**: `nvm use` (reads `.nvmrc`)
+- **Enable the pinned pnpm version (once)**: `corepack enable` (reads `packageManager`)
 - **Install dependencies**: `pnpm install`
 - **Dev server**: `pnpm dev`
 - **Build**: `pnpm build`
