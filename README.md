@@ -52,9 +52,22 @@ meta-annotation.
   characters from `SecureRandom`) are stored as a SHA-256 hash plus a short display prefix; the
   raw key is returned exactly once at creation. API keys grant **read-only** access
   (`GET` / `HEAD` / `OPTIONS`) — mutating operations require a JWT.
+- **Uniform Authentication-Failure Responses** — Both filter chains share a single
+  `JsonAuthenticationEntryPoint`. Every `401 Unauthorized` carries a stable JSON body
+  `{"status":401,"error":"Unauthorized","message":"<reason>"}` and an RFC 7235 §3.1
+  `WWW-Authenticate` header (`Bearer` on the JWT chain, `ApiKey realm="external"` on the
+  external chain).
 - **User Service** — Lazily provisions a local user row from the JWT subject (`sub`) and keeps
   `name`, `email` and `avatarUrl` in sync with the matching JWT claims. The avatar URL points
   directly at the identity provider; clients render it without any proxying by this library.
+  Concurrent first-logins for the same `sub` are coordinated through the database's unique
+  constraint + a `REQUIRES_NEW`-transactional `UserProvisioner` helper that lets the outer
+  transaction recover from the race without poisoning. See the
+  `services.user` package documentation for the full design.
+- **Typed Authentication Surface** — `AuthService.getUserInformation()` returns
+  `Optional<UserInformation>`: present for JWT-authenticated requests, empty for non-JWT
+  principals (API keys, primitive auth). Callers must explicitly handle the empty case rather
+  than receiving a sentinel value that could be silently persisted.
 - **Tags** — CRUD service for color-coded labels. A `PreTagDeleteEvent` is published before
   deletion so other features can detach references — or veto the deletion by throwing.
 - **Settings** — Plain string-key / string-value store via `SettingsDataService`, useful for
@@ -84,6 +97,46 @@ meta-annotation.
 
 For per-package overviews, see the `package-info.java` files under
 `src/main/java/com/openelements/spring/base/`.
+
+## Upgrade Notes
+
+### From 1.0.x to 1.1.x — Security Configuration Hygiene
+
+`spring-services` 1.1.0 tightens the security stack to match Spring Boot best practices. Three
+changes are visible to consumers; everything else is internal cleanup.
+
+- **`AuthService.getUserInformation()` now returns `Optional<UserInformation>`** instead of
+  `UserInformation` with a `"UNKNOWN"` sentinel for non-JWT principals. Migration:
+
+  ```java
+  // Before
+  UserInformation info = authService.getUserInformation();
+
+  // After
+  UserInformation info = authService.getUserInformation()
+      .orElseThrow(() -> new IllegalStateException("Not a JWT request"));
+  // or, when you want to tolerate API-key / primitive auth:
+  Optional<UserInformation> info = authService.getUserInformation();
+  ```
+
+- **`401 Unauthorized` responses changed shape.** Both the JWT and external API-key chains now
+  return:
+
+  ```json
+  { "status": 401, "error": "Unauthorized", "message": "<reason>" }
+  ```
+
+  …with a `WWW-Authenticate` header (`Bearer` or `ApiKey realm="external"`). Consumers that
+  parse the failure body must adapt; consumers that only check status codes are unaffected.
+
+- **Connection pool sizing for first-login concurrency.** The new `UserProvisioner` runs the
+  initial `INSERT` in a `REQUIRES_NEW` inner transaction, which holds two pool connections per
+  thread for the duration of the provisioning hop (outer suspended + inner active). Size the
+  HikariCP pool with the formula `peak_concurrent_first_logins × 2 + steady-state` to avoid
+  deadlock under bulk-onboarding bursts. Steady-state traffic is unaffected — the second
+  connection is only held during the brief provisioning window for a previously-unknown user.
+
+No schema migration, no property rename, no API path change.
 
 ## Building
 

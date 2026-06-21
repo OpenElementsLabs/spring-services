@@ -274,26 +274,31 @@ the integration round-trip can be added as a follow-up once a JWT-issuing test f
 
 **Changes:**
 
-- [ ] Update `README.md`:
-  - Note the new error-body shape on `401` responses under "Features" (a single line in the
-    JWT/API-key bullets is enough).
-  - Note that `AuthService.getUserInformation()` now returns `Optional<UserInformation>` in
-    the same section.
-- [ ] Update or add to `CHANGELOG` (if one exists; otherwise add a brief migration paragraph in
-  README's "Quick Start" section or a new "Upgrade Notes" subsection):
-  - Auth-failure JSON body shape change.
-  - `AuthService.getUserInformation()` signature change.
-- [ ] Cross-check `CLAUDE.md` and the `.claude/conventions/project-specific/*.md` files (if
-  present) — update only if any rule about the security stack has changed. None of the new
-  changes introduce a new convention category, so most files likely require no edit.
-- [ ] No update needed for `TODO.md` — the deferred items (auto-config imports file,
-  `@ConditionalOnProperty` toggles, actuator-health) are tracked in the design's *Open
-  Questions* section.
+- [x] `README.md` — Features section:
+  - Added a new "Uniform Authentication-Failure Responses" bullet describing the JSON body
+    shape and the per-chain `WWW-Authenticate` header.
+  - Extended the "User Service" bullet to mention the `UserProvisioner` + `REQUIRES_NEW`
+    coordination, pointing at the `services.user` package documentation for the full design.
+  - Added a "Typed Authentication Surface" bullet explaining the `Optional<UserInformation>`
+    return type.
+- [x] `README.md` — new "Upgrade Notes" section (between Features and Building) covering the
+  1.0.x → 1.1.x transition: the `Optional` signature change with before/after code, the JSON
+  body-shape change, and the HikariCP pool-sizing guidance for the `REQUIRES_NEW`
+  provisioning path.
+- [x] `.claude/conventions/project-specific/project-structure.md` — added
+  `JsonAuthenticationEntryPoint`, `roles/` sub-package, and `services/user/`
+  (`UserProvisioner`) to the repository layout tree.
+- [x] No CLAUDE.md changes — no new convention or rule category introduced by this spec.
+- [x] No TODO.md changes — deferred items (`AutoConfiguration.imports` file, conditional
+  annotations, `/actuator/health` path) remain tracked in the design's *Open Questions*.
 
 **Acceptance criteria:**
 
-- [ ] README compiles (markdown-lint clean if linter is configured).
-- [ ] Migration paragraph mentions both the JSON-body and the `Optional` signature change.
+- [x] Final full test suite passes: 317 tests, 0 failures, 2 pre-existing skips.
+- [x] Upgrade notes paragraph mentions all three observable changes (`Optional` signature,
+  JSON body shape, pool-size guidance).
+- [x] No stale references to `synchronized`, `UNKNOWN`, or `@AutoConfiguration` /
+  `@EnableAutoConfiguration` left in the convention files (verified by grep).
 
 **Related behaviors:**
 

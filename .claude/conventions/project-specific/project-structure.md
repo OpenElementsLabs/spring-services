@@ -10,12 +10,15 @@ spring-services/
 │   ├── events/                        — OnObjectCreate / OnObjectUpdate / OnObjectDelete
 │   ├── security/
 │   │   ├── SecurityConfig.java        — Spring Security filter chain, JWT converter
-│   │   ├── AuthService.java           — Facade over SecurityContextHolder
+│   │   ├── AuthService.java           — Facade over SecurityContextHolder (Optional-returning)
 │   │   ├── UserInformation.java       — Typed view of the JWT subject
+│   │   ├── JsonAuthenticationEntryPoint — Uniform JSON 401 + WWW-Authenticate for both chains
 │   │   ├── apikey/                    — ApiKeyAuthenticationFilter (X-API-Key header)
+│   │   ├── roles/                     — @Requires* meta-annotations + Roles constants
 │   │   └── user/                      — Local user mirror (entity, DTO, repo, service, ImageData)
 │   ├── services/
 │   │   ├── apikey/                    — API key data layer (entity, DTOs, repo, data service)
+│   │   ├── user/                      — UserEntity, UserService, UserProvisioner (REQUIRES_NEW)
 │   │   ├── settings/                  — Key/value SettingsDataService + entity/repo
 │   │   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
 │   │   └── webhook/
