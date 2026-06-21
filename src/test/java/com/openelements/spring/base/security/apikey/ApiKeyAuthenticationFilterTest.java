@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.openelements.spring.base.security.JsonAuthenticationEntryPoint;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
 import jakarta.servlet.FilterChain;
@@ -20,6 +23,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,7 +33,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class ApiKeyAuthenticationFilterTest {
 
   private final ApiKeyDataService apiKeyService = mock(ApiKeyDataService.class);
-  private final ApiKeyAuthenticationFilter filter = new ApiKeyAuthenticationFilter(apiKeyService);
+  private final JsonAuthenticationEntryPoint entryPoint =
+      new JsonAuthenticationEntryPoint(new ObjectMapper(), "ApiKey realm=\"external\"");
+  private final ApiKeyAuthenticationFilter filter =
+      new ApiKeyAuthenticationFilter(apiKeyService, entryPoint);
   private final FilterChain filterChain = mock(FilterChain.class);
 
   @AfterEach
@@ -72,7 +80,7 @@ class ApiKeyAuthenticationFilterTest {
   class InvalidApiKeyTest {
 
     @Test
-    void shouldReturn401() throws ServletException, IOException {
+    void shouldReturn401WithUniformJsonBody() throws ServletException, IOException {
       // GIVEN
       final MockHttpServletRequest request =
           new MockHttpServletRequest("GET", "/api/external/data");
@@ -85,7 +93,13 @@ class ApiKeyAuthenticationFilterTest {
 
       // THEN
       assertThat(response.getStatus()).isEqualTo(401);
-      assertThat(response.getContentAsString()).contains("Invalid API key");
+      assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+      assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE))
+          .isEqualTo("ApiKey realm=\"external\"");
+      final JsonNode body = new ObjectMapper().readTree(response.getContentAsString());
+      assertThat(body.get("status").asInt()).isEqualTo(401);
+      assertThat(body.get("error").asText()).isEqualTo("Unauthorized");
+      assertThat(body.get("message").asText()).isEqualTo("Invalid API key");
       verify(filterChain, never()).doFilter(any(), any());
     }
   }
@@ -197,7 +211,13 @@ class ApiKeyAuthenticationFilterTest {
 
   @Test
   void shouldRejectNullApiKeyService() {
-    assertThatThrownBy(() -> new ApiKeyAuthenticationFilter(null))
+    assertThatThrownBy(() -> new ApiKeyAuthenticationFilter(null, entryPoint))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldRejectNullEntryPoint() {
+    assertThatThrownBy(() -> new ApiKeyAuthenticationFilter(apiKeyService, null))
         .isInstanceOf(NullPointerException.class);
   }
 }

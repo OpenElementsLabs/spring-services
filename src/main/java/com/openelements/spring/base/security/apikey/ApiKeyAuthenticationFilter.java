@@ -9,12 +9,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -54,6 +55,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
   private final ApiKeyDataService apiKeyService;
 
+  private final AuthenticationEntryPoint authenticationEntryPoint;
+
   /**
    * Holder strategy used to publish the authenticated {@link ApiKeyAuthentication}. Resolved once
    * at construction; honours any custom {@link SecurityContextHolder#setStrategyName(String)}
@@ -64,9 +67,16 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
   /**
    * @param apiKeyService the data service used to validate API keys
+   * @param authenticationEntryPoint the entry point invoked on authentication failure — produces
+   *     the uniform JSON {@code 401} response and the {@code WWW-Authenticate} header
    */
-  public ApiKeyAuthenticationFilter(final ApiKeyDataService apiKeyService) {
+  public ApiKeyAuthenticationFilter(
+      final ApiKeyDataService apiKeyService,
+      final AuthenticationEntryPoint authenticationEntryPoint) {
     this.apiKeyService = Objects.requireNonNull(apiKeyService, "apiKeyService must not be null");
+    this.authenticationEntryPoint =
+        Objects.requireNonNull(
+            authenticationEntryPoint, "authenticationEntryPoint must not be null");
   }
 
   @Override
@@ -85,9 +95,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     final var entity = apiKeyService.authenticate(apiKey);
 
     if (entity.isEmpty()) {
-      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-      response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      response.getWriter().write("{\"error\":\"Invalid API key\"}");
+      authenticationEntryPoint.commence(
+          request, response, new BadCredentialsException("Invalid API key"));
       return;
     }
 

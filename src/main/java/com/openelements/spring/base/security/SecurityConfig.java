@@ -1,5 +1,6 @@
 package com.openelements.spring.base.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.security.apikey.ApiKeyAuthenticationFilter;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
@@ -66,18 +67,51 @@ public class SecurityConfig {
   }
 
   /**
+   * Entry point for the JWT chain — issues a {@code WWW-Authenticate: Bearer} header alongside
+   * the uniform JSON {@code 401} body. Used by Spring Security's
+   * {@code oauth2ResourceServer.authenticationEntryPoint(...)} hook on the default chain.
+   *
+   * @param objectMapper the application's Jackson mapper
+   * @return the entry point bean
+   */
+  @Bean
+  public JsonAuthenticationEntryPoint jwtAuthenticationEntryPoint(final ObjectMapper objectMapper) {
+    return new JsonAuthenticationEntryPoint(objectMapper, "Bearer");
+  }
+
+  /**
+   * Entry point for the external API-key chain — issues a {@code WWW-Authenticate: ApiKey} header
+   * alongside the uniform JSON {@code 401} body. Used by
+   * {@link ApiKeyAuthenticationFilter#commence(jakarta.servlet.http.HttpServletRequest,
+   * jakarta.servlet.http.HttpServletResponse,
+   * org.springframework.security.core.AuthenticationException)} and by Spring Security's
+   * {@code exceptionHandling.authenticationEntryPoint(...)} hook on the external chain.
+   *
+   * @param objectMapper the application's Jackson mapper
+   * @return the entry point bean
+   */
+  @Bean
+  public JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint(
+      final ObjectMapper objectMapper) {
+    return new JsonAuthenticationEntryPoint(objectMapper, "ApiKey realm=\"external\"");
+  }
+
+  /**
    * Constructs the {@link ApiKeyAuthenticationFilter}.
    *
    * <p>Defined as a bean here (rather than annotating the filter class with {@code @Component}) so
    * that Spring Boot does not auto-register it as a servlet-level filter on every chain. The filter
    * must only run on the external API chain.
    *
+   * @param apiKeyAuthenticationEntryPoint the entry point that produces the JSON {@code 401} on
+   *     invalid API keys; same bean wired into the external chain's {@code exceptionHandling}
    * @return the filter instance used by {@link #externalApiFilterChain(HttpSecurity,
-   *     ApiKeyAuthenticationFilter)}
+   *     ApiKeyAuthenticationFilter, JsonAuthenticationEntryPoint)}
    */
   @Bean
-  public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter() {
-    return new ApiKeyAuthenticationFilter(apiKeyDataService);
+  public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
+      final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint) {
+    return new ApiKeyAuthenticationFilter(apiKeyDataService, apiKeyAuthenticationEntryPoint);
   }
 
   /**
@@ -128,7 +162,9 @@ public class SecurityConfig {
   @Bean
   @Order(1)
   public SecurityFilterChain externalApiFilterChain(
-      final HttpSecurity http, final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter)
+      final HttpSecurity http,
+      final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+      final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint)
       throws Exception {
     http.securityMatcher("/api/external/**")
         .authorizeHttpRequests(
@@ -142,6 +178,7 @@ public class SecurityConfig {
                     .anyRequest()
                     .denyAll())
         .addFilterBefore(apiKeyAuthenticationFilter, BearerTokenAuthenticationFilter.class)
+        .exceptionHandling(e -> e.authenticationEntryPoint(apiKeyAuthenticationEntryPoint))
         .csrf(csrf -> csrf.disable());
     return http.build();
   }
@@ -160,7 +197,9 @@ public class SecurityConfig {
    */
   @Bean
   @Order(2)
-  public SecurityFilterChain defaultFilterChain(final HttpSecurity http) throws Exception {
+  public SecurityFilterChain defaultFilterChain(
+      final HttpSecurity http, final JsonAuthenticationEntryPoint jwtAuthenticationEntryPoint)
+      throws Exception {
     http.authorizeHttpRequests(
             auth ->
                 auth.requestMatchers("/api/health/**")
@@ -172,7 +211,9 @@ public class SecurityConfig {
                     .authenticated())
         .oauth2ResourceServer(
             oauth2 ->
-                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                oauth2
+                    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                    .authenticationEntryPoint(jwtAuthenticationEntryPoint))
         .csrf(csrf -> csrf.disable());
     return http.build();
   }
