@@ -8,7 +8,6 @@ import com.openelements.spring.base.services.user.UserEntity;
 import com.openelements.spring.base.services.user.UserRepository;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import com.openelements.spring.base.testcontainers.TestApplication;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -68,13 +68,18 @@ class UserRepositorySchemaTest {
 
   @Autowired private UserRepository userRepository;
 
+  @Autowired private JdbcTemplate jdbcTemplate;
+
+  /**
+   * Deletes dependent {@code audit_log} rows before the {@code users} rows they reference, then
+   * removes every user except the System User. The order matters: {@code audit_log.user_id} has a
+   * {@code NOT NULL} foreign key to {@code users.id}, so deleting users first violates referential
+   * integrity (the pre-spec-011 cleanup did exactly that and failed under CI).
+   */
   @BeforeEach
   void cleanUserRowsExceptSystem() {
-    final List<UserEntity> toDelete =
-        userRepository.findAll().stream()
-            .filter(u -> !SystemUser.ID.equals(u.getId()))
-            .toList();
-    userRepository.deleteAll(toDelete);
+    jdbcTemplate.update("delete from audit_log");
+    jdbcTemplate.update("delete from users where id <> ?", SystemUser.ID);
   }
 
   private UserEntity buildUser(
