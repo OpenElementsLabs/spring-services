@@ -15,8 +15,10 @@ JWT `sub` claim which only exists after the first interactive login.
 This spec relaxes `UserEntity.sub` from required-and-unique to optional-and-unique, adds three new
 identifying fields (`externalId`, `userName`, `active`), wires the JIT-login flow to populate the
 new fields from JWT claims and to correlate against a pre-existing row by `externalId` or
-`userName`, and adds a soft-deactivation gate (`active = false`) that blocks JWT authentication,
-PAT authentication and JIT provisioning consistently across all chains.
+`userName`, and adds a soft-deactivation gate (`active = false`) that blocks JWT authentication
+and JIT provisioning. Opaque-token authentication (spec 010) honours `active` through its own
+`PrincipalDirectory.ResolvedPrincipal.active()` live check — the implementation of which is the
+second deliverable of this spec.
 
 No SCIM endpoints, no `GroupEntity`, no Group→Role mapping. Those land in a follow-up spec on top
 of this foundation, once the data model can carry their semantics safely.
@@ -28,12 +30,13 @@ of this foundation, once the data model can carry their semantics safely.
 - Introduce `externalId` and `userName` as stable IdP-side identifiers that survive across
   pre-provisioning and JIT login, so the same human always lands in the same row.
 - Introduce `active` as the single, canonical deactivation flag — honored consistently by JWT
-  auth (`UserService.getCurrentUserEntity()`), PAT auth (filter, when spec 010 lands), and JIT
+  auth (`UserService.getCurrentUserEntity()`), opaque-token auth (via the
+  `PrincipalDirectory.ResolvedPrincipal.active()` live check defined in spec 010), and JIT
   provisioning.
 - Backfill new fields incrementally via JIT login, without requiring a manual data migration step
   for existing installations.
-- Keep the change cleanly additive on top of spec 010 (Personal Access Tokens): the `roles` field
-  introduced there remains untouched in this spec.
+- Ship the default `PrincipalDirectory` implementation that spec 010 deliberately omitted —
+  backed by the now-extended `UserEntity`. Once 012 lands, USER tokens become validatable.
 
 ## Non-goals
 
@@ -102,18 +105,19 @@ migration job needed.
 
 ### Part C — Activation gate
 
-`UserEntity.getActive()` is checked in three places, all returning HTTP 403 via Spring
-Security's `AccessDeniedException`:
+`UserEntity.getActive()` is checked in three places, gating access on two security chains:
 
-1. **`UserService.getCurrentUserEntity()`** — after the resolve / create step. If the resolved
-   entity has `active = false`, the method throws `AccessDeniedException("User account is
-   disabled")`. This affects every endpoint on the default JWT chain that calls
-   `getCurrentUserEntity()`.
+1. **`UserService.getCurrentUserEntity()`** (JWT chain) — after the resolve / create step. If
+   the resolved entity has `active = false`, the method throws
+   `AccessDeniedException("User account is disabled")`, which Spring Security renders as
+   `403 Forbidden`. This affects every endpoint that calls `getCurrentUserEntity()`.
 
-2. **PAT authentication filter** (introduced in spec 010 — this spec adds the gate to the
-   already-planned filter). After the filter resolves the owner of the PAT, it also verifies
-   `owner.getActive()`. A disabled owner causes the request to be rejected with `403`. The PAT
-   row is **not** auto-revoked: deactivation is reversible and PATs should reactivate cleanly
+2. **`PrincipalDirectory.resolveUser(...)`** (opaque-token chain, from spec 010) — the default
+   implementation introduced in this spec returns `ResolvedPrincipal(active = false, ...)`
+   when the underlying `UserEntity.active` is false. `ApiTokenIntrospector` then throws
+   `BadOpaqueTokenException("User is not active")`, which Spring Security renders as
+   `401 Unauthorized` (semantically correct for a token-validation failure). The token row
+   is **not** auto-revoked: deactivation is reversible and tokens should reactivate cleanly
    when `active = true` is restored.
 
 3. **JIT provisioning** — when the very first JIT login arrives for a user that, in the future,
@@ -121,10 +125,53 @@ Security's `AccessDeniedException`:
    finds the row, sees `active = false`, and throws. The user cannot bootstrap a session against
    a deactivated account.
 
-`AccessDeniedException` is the right Spring Security exception: the JWT is cryptographically
-valid and the principal is known, but they are not authorized to proceed. This results in
-`403 Forbidden`, not `401 Unauthorized`. The default `AccessDeniedHandler` returns the standard
-JSON error body without further configuration.
+`AccessDeniedException` on the JWT path is the right Spring Security exception: the JWT is
+cryptographically valid and the principal is known, but they are not authorized to proceed.
+This results in `403 Forbidden`. The opaque-token path uses `BadOpaqueTokenException` →
+`401 Unauthorized` to match RFC 6750 §3 (an invalid-credentials response for a bearer token).
+Both errors are rendered through the uniform JSON body introduced by spec 011.
+
+### Part D — Default `PrincipalDirectory` implementation
+
+Spec 010 ships the port `PrincipalDirectory.resolveUser(String subjectRef) →
+Optional<ResolvedPrincipal>` but no default implementation. This spec adds one:
+
+```java
+@Component
+public class UserEntityPrincipalDirectory implements PrincipalDirectory {
+
+  private final UserRepository userRepository;
+
+  @Override
+  public Optional<ResolvedPrincipal> resolveUser(final String subjectRef) {
+    // The opaque-token introspector calls this with the user's externalId,
+    // which is what was written into the token's subject_ref at issuance.
+    return userRepository.findByExternalId(subjectRef)
+        .map(user -> new ResolvedPrincipal(
+            user.getExternalId(),
+            user.isActive(),
+            // Roles and groups are currently not modelled on UserEntity in this spec —
+            // the bridge returns empty sets and the SCIM-Provider follow-up extends this.
+            Set.of(),
+            Set.of(),
+            user.getName()));
+  }
+}
+```
+
+The implementation is intentionally minimal in 012:
+
+- **Active status** flows directly from the new column.
+- **Roles and groups** return empty sets — the SCIM-Provider spec is what populates them once
+  groups are part of the data model. Until then, USER tokens authenticate active users with
+  zero role-based authorities; they can only act through scope-based `@PreAuthorize` checks.
+- **`subjectRef` correlation** uses `externalId` because that is what `ApiTokenService`
+  writes into the token at issuance (and what SCIM uses as the canonical IdP identifier).
+
+This minimal implementation closes 010's "USER tokens are unusable without a directory" gap.
+A consumer who needs role-based authorization on USER tokens before SCIM Groups land can
+override the bean via `@Primary` or `@ConditionalOnMissingBean` (once that pattern is
+introduced — TODO).
 
 ### Rationale for the key decisions
 
@@ -148,14 +195,23 @@ JSON error body without further configuration.
   *unknown*. Returning 401 would tell the client "your credentials are bad" and tempt a
   re-login, which would fail in the same place. 403 is honest: the credentials work, the account
   doesn't.
-- **PAT row stays active when user is deactivated.** Reversibility. If an admin toggles a user
-  off and back on, their PATs continue to work. Deleting them on deactivation would force
-  recreation on reactivation, which contradicts the "soft" in soft-deactivation.
-- **Spec 010 is referenced, not modified.** This spec assumes 010 lands (or has landed). The
-  only mention of 010-specific code in the foundation is the `active` gate added inside the PAT
-  filter — a single check, well-isolated. If 010 is implemented after this foundation, the
-  filter gets the check from day one; if 010 is already implemented, the filter is patched in a
-  one-line change.
+- **Token row stays active when user is deactivated.** Reversibility. If an admin toggles a user
+  off and back on, their tokens continue to work — the live `PrincipalDirectory` check flips
+  with the user's status, no row mutation needed. Auto-revoking on deactivation would force
+  recreation on reactivation, which contradicts the "soft" in soft-deactivation. (Operators
+  who *want* hard revocation on deactivation can still call
+  `ApiTokenService.revokeAllForSubject(...)` from their SCIM handler — the library doesn't
+  prescribe.)
+- **`PrincipalDirectory` implementation belongs here.** Spec 010 declared the port; this spec
+  owns the data model the port reads from (`UserEntity` + `active` + group membership in a
+  later spec). Bundling the default implementation with the data-model change keeps a single
+  source of truth and avoids a third spec between 010 and 012.
+- **Spec 010 dependency direction.** This spec assumes 010 lands first (it declares the
+  `PrincipalDirectory` port). The bridge code added here — a `UserEntityPrincipalDirectory`
+  bean that adapts `UserEntity` to `ResolvedPrincipal` — is implementation detail that
+  references but does not modify 010. If 010 has not landed when this spec is implemented,
+  012 ships the port declaration too (a temporary library duplication) and 010 deletes the
+  duplicate when it merges.
 
 ## Data Model
 
@@ -286,6 +342,25 @@ sequenceDiagram
     H-->>C: 403 Forbidden
 ```
 
+### Flow 4 — Opaque-token request for a deactivated user
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant I as ApiTokenIntrospector (from 010)
+    participant PD as UserEntityPrincipalDirectory (this spec)
+    participant DB as DB
+
+    C->>I: GET /api/foo (Bearer oe_pat_...)
+    I->>I: parse, look up api_token row, hash/revoked/expired all ok
+    I->>PD: resolveUser(subjectRef = externalId)
+    PD->>DB: findByExternalId(externalId)
+    DB-->>PD: UserEntity (active=false)
+    PD-->>I: ResolvedPrincipal(active=false, ...)
+    I->>I: throw BadOpaqueTokenException("User is not active")
+    I-->>C: 401 Unauthorized (JsonAuthenticationEntryPoint body)
+```
+
 ## Dependencies
 
 - No new external libraries.
@@ -293,9 +368,12 @@ sequenceDiagram
   `AuthService.getUserInformation()` (which after 011 returns `Optional<UserInformation>`) and
   the `UserInformation` record itself. Implementing 012 on the pre-011 codebase would either
   resurrect the `"UNKNOWN"` sentinel pattern for the two new fields or fork the API surface.
-- Spec 010 (Personal Access Tokens). This spec adds a single `active` check inside the PAT
-  filter introduced by 010. Implementation order between 010 and 012 is flexible: whichever
-  lands second includes the cross-reference.
+- **Spec 010 (API Token Module) is a soft prerequisite.** This spec ships a default
+  `PrincipalDirectory` implementation that bridges 010's port to `UserEntity`. If 010 has not
+  yet landed, the bridge code stays in place but is dormant (no `OpaqueTokenIntrospector`
+  invokes it). If 010 lands second, it simply consumes the directory that 012 provided. The
+  two specs are designed to be order-independent at implementation time, with 010 declaring the
+  port and 012 declaring the implementation.
 
 ## Security Considerations
 

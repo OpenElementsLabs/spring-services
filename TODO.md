@@ -9,24 +9,27 @@
 - Eigenes DB Schema mit Flyway für jedes Modul.
   Siehe https://stackoverflow.com/questions/49303184/how-to-handle-a-modular-spring-project-with-flyway-and-single-db
 - ApiKeyDataService.KEY_PREFIX soll konfigurierbar sein (je app)
-- SCIM 2.0 Foundation (Schritt 1, vorgelagert): User- und Group-Modell auf SCIM vorbereiten, ohne SCIM-Endpoints zu
-  bauen. Konkret: `UserEntity.sub` nullable machen, neue Felder `externalId` (unique, indexed), `userName` (unique)
-  und `active` (boolean) ergänzen; `GroupEntity` mit `externalId`, `displayName` und Membership einführen;
-  Group→Role-Mapping definieren; JIT-Login so erweitern, dass `externalId`/`userName` mitgepflegt werden und ein
-  evtl. vorab angelegter User per `externalId`/`userName` korreliert wird; Deactivation-Pfad (`active=false`) blockt
-  JIT-Provisioning, JWT-Auth und PAT-Auth. Hintergrund: ohne diese Änderungen kann SCIM keine User vor dem ersten
-  Interactive-Login korrelieren (heute ist `sub` der einzige Schlüssel und ist im SCIM-Provisioning-Zeitpunkt
-  unbekannt). Die heutige `UserEntity.roles`-Spalte (aus Spec 010) bleibt physisch, wird aber zukünftig aus
-  Group-Membership gespeist; JWT-`roles`-Claim bleibt als Fallback bestehen.
+- SCIM 2.0 Foundation (Schritt 1, vorgelagert — Spec 012): User-Modell auf SCIM vorbereiten, ohne SCIM-Endpoints
+  zu bauen. Konkret: `UserEntity.sub` nullable machen, neue Felder `externalId` (unique, indexed), `userName`
+  (unique) und `active` (boolean) ergänzen; JIT-Login so erweitern, dass `externalId`/`userName` mitgepflegt
+  werden und ein evtl. vorab angelegter User per `externalId`/`userName` korreliert wird; Deactivation-Pfad
+  (`active=false`) blockt JIT-Provisioning + JWT-Auth (via AccessDeniedException → 403) und Opaque-Token-Auth
+  (via PrincipalDirectory.active() → BadOpaqueTokenException → 401). Plus: Default `PrincipalDirectory`-Bean
+  (`UserEntityPrincipalDirectory`) bridges 010's port zu 012's UserEntity — damit werden USER-Tokens validierbar.
+  Groups + Role-Modellierung kommen erst mit dem SCIM-Provider; bis dahin liefert die Bridge leere Sets, USER-Tokens
+  funktionieren nur mit Scope-basiertem @PreAuthorize.
 
 - SCIM 2.0 Provider (Schritt 2, nach Foundation): Server-Endpoints `/scim/v2/Users`, `/scim/v2/Groups` und Discovery
   (ServiceProviderConfig, Schemas, ResourceTypes) für Push-Provisioning aus Authentik/IdP. Library-Basis:
-  UnboundID/Ping SCIM 2 SDK + eigene Spring-MVC-Controller. Auth: JWT in dediziertem dritten Filter-Chain
-  (analog `/api/external/**`), isoliert von default und external. Soft-Deactivation via `active=false`; DELETE soft.
-  Audit-Log-Eintrag pro SCIM-Write. Offene Designfragen für Schritt 2 (Liste aus Grill-Session): PATCH-Mechanik,
-  Filter-Grammatik-Scope (eq/sw/co/AND/OR), ETag/Optimistic-Concurrency, Pagination, Tenant-Interaktion (eine
-  SCIM-Instance pro Tenant?), Vendor-Extensions von Authentik, Discovery-Ehrlichkeit (ServiceProviderConfig muss
-  exakt das deklarieren, was wir tatsächlich können), Group-Rename/Delete und Auswirkungen auf abgeleitete Rollen.
+  UnboundID/Ping SCIM 2 SDK + eigene Spring-MVC-Controller. Auth: JWT in dediziertem dritten Filter-Chain,
+  isoliert vom default-Chain. Soft-Deactivation via `active=false`; DELETE soft. Audit-Log-Eintrag pro SCIM-Write.
+  **Erweitert `UserEntityPrincipalDirectory`** aus Spec 012: GroupEntity wird hinzugefügt, Group-Membership wird
+  in `ResolvedPrincipal.groups()` ausgeliefert, optional auch in `ResolvedPrincipal.roles()` per
+  Group→Role-Mapping (konfigurierbar). Damit werden USER-Tokens role-aware. Offene Designfragen für Schritt 2
+  (Liste aus Grill-Session): PATCH-Mechanik, Filter-Grammatik-Scope (eq/sw/co/AND/OR), ETag/Optimistic-Concurrency,
+  Pagination, Tenant-Interaktion (eine SCIM-Instance pro Tenant?), Vendor-Extensions von Authentik,
+  Discovery-Ehrlichkeit, Group-Rename/Delete und Auswirkungen auf abgeleitete Rollen, ob `revokeAllForSubject`
+  bei SCIM-Deactivation als hard-revoke-Hook zusätzlich zur live-Resolution gewünscht ist.
 
 - Spec 011 (Security Configuration Hygiene) — Follow-ups aus dem `/spec-review`:
   - **MockMvc-Integration-Test für JWT-Chain-`JsonAuthenticationEntryPoint`** (Bearer-Scheme über echten HTTP-Roundtrip):

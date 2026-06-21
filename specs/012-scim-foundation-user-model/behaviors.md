@@ -121,12 +121,17 @@
 - **Then** the method throws `AccessDeniedException("User account is disabled")` and Spring
   Security translates it to HTTP `403 Forbidden`
 
-### Inactive user is refused on PAT-authenticated request
+### Inactive user is refused on opaque-token-authenticated request
 
-- **Given** a valid, non-revoked, non-expired PAT belonging to a user with `active = false`
-- **When** a request is sent with `Authorization: Bearer pat_…`
-- **Then** the PAT filter rejects the request with `403 Forbidden`; the PAT row is not
-  modified — neither revoked nor flagged
+- **Given** a valid, non-revoked, non-expired opaque token (`oe_pat_…`) for a user with
+  `active = false`, and the default `UserEntityPrincipalDirectory` shipped by this spec
+- **When** a request is sent with `Authorization: Bearer oe_pat_…`
+- **Then** `ApiTokenIntrospector.introspect(...)` calls
+  `principalDirectory.resolveUser(externalId)`, receives
+  `ResolvedPrincipal(active = false, ...)`, and throws
+  `BadOpaqueTokenException("User is not active")`. Spring Security translates that to HTTP
+  `401 Unauthorized` with the uniform `JsonAuthenticationEntryPoint` body. The `api_token`
+  row is not modified — neither revoked nor flagged.
 
 ### Inactive user cannot be JIT-provisioned by their first JWT
 
@@ -144,18 +149,53 @@
 - **When** the user makes a request with the same JWT
 - **Then** `getCurrentUserEntity()` succeeds — no new token, no re-login required
 
-### Reactivation does not un-expire PATs
+### Reactivation does not un-expire opaque tokens
 
-- **Given** a PAT that has already passed its `expiresAt` while the owner was deactivated
-- **When** the owner is reactivated and the same PAT is presented
-- **Then** the PAT filter still rejects the request — `expiresAt` is independent of `active`
+- **Given** an opaque token (`oe_pat_…`) that has already passed its `expiresAt` while the owner
+  was deactivated
+- **When** the owner is reactivated and the same token is presented
+- **Then** `ApiTokenIntrospector` still rejects the request with `"Expired token"` —
+  `expiresAt` is independent of `active`
 
-### Reactivation reinstates a previously-issued, still-valid PAT
+### Reactivation reinstates a previously-issued, still-valid opaque token
 
-- **Given** a PAT that is non-expired and non-revoked, but whose owner was deactivated
-- **When** the owner is reactivated and the same PAT is presented
-- **Then** the PAT filter accepts the request — the PAT was never revoked, only gated by the
-  owner's status
+- **Given** an opaque token that is non-expired and non-revoked, but whose owner was deactivated
+- **When** the owner is reactivated and the same token is presented
+- **Then** the introspector accepts the request — the token row was never revoked, and
+  `PrincipalDirectory.resolveUser(...)` now returns `active = true`, so authorities are granted
+  normally
+
+## `UserEntityPrincipalDirectory`
+
+### Resolves an active user by externalId
+
+- **Given** a `UserEntity` with `externalId = "alice-ext"`, `active = true`, `name = "Alice"`
+- **When** `UserEntityPrincipalDirectory.resolveUser("alice-ext")` is called
+- **Then** the returned `Optional<ResolvedPrincipal>` is present with `active = true`,
+  `subjectRef = "alice-ext"`, `displayName = "Alice"`, and **empty** `roles` and `groups` sets
+  (group/role modelling lands in a later spec)
+
+### Resolves an inactive user as inactive
+
+- **Given** a `UserEntity` with `externalId = "bob-ext"`, `active = false`
+- **When** `UserEntityPrincipalDirectory.resolveUser("bob-ext")` is called
+- **Then** the returned principal has `active = false` — the directory does not filter inactive
+  users out; the introspector decides what to do with the active flag
+
+### Returns empty Optional for an unknown externalId
+
+- **Given** no `UserEntity` matches `externalId = "ghost-ext"`
+- **When** `UserEntityPrincipalDirectory.resolveUser("ghost-ext")` is called
+- **Then** the result is `Optional.empty()` — the introspector throws
+  `BadOpaqueTokenException("Token references an unknown user")`
+
+### Lookup is by externalId, not by sub
+
+- **Given** a `UserEntity` with `sub = "S1"`, `externalId = "X1"`
+- **When** `UserEntityPrincipalDirectory.resolveUser("S1")` is called
+- **Then** the result is `Optional.empty()` — the directory queries `findByExternalId`, not
+  `findBySub`. Token issuance is responsible for writing `externalId` (not `sub`) into the
+  token's `subject_ref` at creation time.
 
 ## Database integrity
 
