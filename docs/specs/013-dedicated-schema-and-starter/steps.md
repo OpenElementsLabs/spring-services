@@ -159,10 +159,6 @@ table; Test cleanups target the schema-qualified tables.
 
 ## Step 8: Migration-SQL integration test (existing tables move correctly)
 
-> **Moved to spec 014 (combined release).** Under Pfad 2 the move SQL becomes library Flyway **V1**
-> (conditional move-or-create), so this test belongs to 014's implementation. Re-derive the combined
-> step list via `/spec-implement` on 014. Kept here for traceability of the move correctness.
-
 - [ ] Add an integration test (Postgres Testcontainers) that: creates the library tables in `public`
   with seed rows + an FK row (`audit_log → users`), executes the documented migration SQL
   (`CREATE SCHEMA oe_spring_services; ALTER TABLE ... SET SCHEMA ...` for the 7 tables), then
@@ -180,17 +176,17 @@ table; Test cleanups target the schema-qualified tables.
 
 ## Step 9: Upgrade documentation (migration guide + mandatory warnings)
 
-> **Combined-release doc (013+014).** The move is automatic (library Flyway V1, spec 014), so the doc
-> no longer lists a *manual* `ALTER … SET SCHEMA` step. It documents: the automatic move, the
-> **"upgrade to the latest 1.x first"** precondition, the Flyway fail-fast requirement + opt-out,
-> downtime/stop-the-world, and required privileges.
+> The library **ships the forward-migration SQL** in this doc; the consumer applies it via their own
+> Flyway/Liquibase, in version order. No library-run migration.
 
 - [ ] Author `docs/upgrade-to-X.Y.md` (version filled at release time; see open question) following
   the project's upgrade-doc convention, containing:
     - [ ] The dependency bump and a statement that this is a DB-breaking (not API-breaking) change.
-    - [ ] Note that the schema move runs automatically via library Flyway V1 (no manual SQL).
-    - [ ] **Hard precondition:** upgrade to the latest 1.x (all columns) before the schema release.
-    - [ ] **Flyway required (fail-fast):** add `org.flywaydb:flyway-core` or set the opt-out.
+    - [ ] The ready-to-apply migration SQL (`CREATE SCHEMA` + `ALTER TABLE ... SET SCHEMA` ×7), to be
+      pasted into the consumer's own migration timeline in version order.
+    - [ ] New-consumer note (create schema first).
+    - [ ] **Warning:** `ddl-auto=update`/`create` causes silent data loss → use Flyway/Liquibase, set
+      `ddl-auto=validate`/`none`.
     - [ ] **Warning:** stop-the-world / not rolling-safe (downtime required).
     - [ ] **Required privileges:** DDL/ownership for the migration role; `USAGE` + `search_path` for
       the runtime role.

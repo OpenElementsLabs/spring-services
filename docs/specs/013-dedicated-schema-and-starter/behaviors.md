@@ -110,12 +110,13 @@
 - **Then** the application starts and Hibernate schema validation (if enabled) passes against the
   schema-qualified entities
 
-### ddl-auto data loss is enforced against (combined release with 014)
+### Upgrade doc warns about ddl-auto data loss
 
-- **Given** the combined 013+014 release, where Flyway is a fail-fast requirement (spec 014)
-- **When** a consumer runs with the library active but without Flyway and without the opt-out
-- **Then** startup fails fast (no silent `ddl-auto` fallback that would orphan `public` data); the
-  upgrade doc additionally advises `ddl-auto=validate`/`none`
+- **Given** the upgrade doc for the releasing version
+- **When** a reader follows it
+- **Then** it explicitly warns that `ddl-auto=update`/`create` causes silent data loss (orphaned
+  `public` tables + fresh empty `oe_spring_services` tables) and instructs applying the shipped
+  migration scripts with a migration tool and `ddl-auto=validate`/`none`
 
 ### Upgrade doc states the upgrade requires downtime
 

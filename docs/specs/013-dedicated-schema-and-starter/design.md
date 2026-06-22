@@ -4,22 +4,17 @@
 
 — (to be created; draft below in *GitHub issue draft*)
 
-## Status note — combined release with spec 014
+## Migration model (consumer-managed; library ships the SQL)
 
-After the design grill of spec 014, 013 and 014 **ship in one release** (Pfad 2). The schema move
-into `oe_spring_services` is **performed automatically by the library's Flyway V1** (spec 014), not
-by a manual consumer migration. This **supersedes** two things originally written below:
+The library does **not** run migrations. Each release ships ready-to-apply PostgreSQL
+forward-migration SQL for `oe_spring_services` in its upgrade doc (`docs/upgrade-to-X.Y.md`); the
+consumer incorporates those scripts into **their own** Flyway/Liquibase timeline, in version order.
+This keeps a single, consumer-controlled migration timeline and avoids a second Flyway instance.
 
-- the non-goal *"Library-owned Flyway/Liquibase / consumer-managed migration"* — the library now owns
-  its schema migrations (see 014);
-- the *Consumer migration (Flyway)* section's **manual `ALTER … SET SCHEMA`** instructions — that
-  move is now library V1's conditional `move-or-create` (see 014).
-
-What stays valid from 013 in the combined release: the dedicated schema + constant, entity schema
-mapping, native-SQL qualification, the starter/auto-config, the convention guard test, the
-single-version (non-major) framing, the **stop-the-world / downtime** requirement, the **required DB
-privileges**, and the **"upgrade to the latest 1.x first"** precondition. The `ddl-auto` data-loss
-warning is now *enforced* by 014's fail-fast Flyway requirement rather than only documented.
+A library-run Flyway instance was explored in spec **014** and **withdrawn** as too complex (two
+Flyway instances, enforced ordering, fail-fast coupling, conditional V1) — the per-release-SQL model
+here is the pragmatic replacement. The cross-entity reference contract that 014 raised is preserved
+below (see *Cross-entity references*), since it is independent of who runs the migrations.
 
 ## Summary
 
@@ -59,10 +54,10 @@ This spec makes two coupled changes:
 
 - **Two `EntityManagerFactory` / two `DataSource`** — explicitly rejected (level 2/3 isolation).
   One persistence unit only.
-- ~~**Library-owned Flyway/Liquibase** — the library does not manage or version the schema.~~
-  **Superseded (see Status note):** the combined release with spec 014 makes the library own its
-  schema migrations via Flyway. The remaining 013-local non-goals (no second EMF/DataSource, fixed
-  schema name, no app-schema management) still hold.
+- **Library-owned/library-run Flyway** — the library does not run or version the schema at runtime.
+  It *does* ship ready-to-apply per-release SQL in the upgrade doc, but the consumer applies it via
+  their own migration tool (see *Migration model*). A library-run Flyway was the subject of the
+  withdrawn spec 014.
 - **Configurable schema name** — `oe_spring_services` is fixed. Externalising it would require a
   Hibernate `PhysicalNamingStrategy` that distinguishes library entities from application entities,
   which is deliberately out of scope.
@@ -246,15 +241,16 @@ No columns, types, or relationships change. Only the **schema namespace** of the
 changes from the default (`public`) to `oe_spring_services`. All existing constraints (PKs, unique
 indexes, FKs) are preserved and move with their tables.
 
-## Consumer migration — automated by library Flyway V1 (see spec 014)
+## Consumer migration (Flyway) — documentation deliverable
 
-**Superseded by Pfad 2 (see Status note).** Consumers no longer hand-write the move. The schema move
-is performed automatically by the library's Flyway **V1** (spec 014), which on first run
-**conditionally** moves existing `public` tables or creates them greenfield. The SQL below is
-retained as the *illustrative content* of that V1 migration and as the basis for the combined-release
-upgrade doc; it is no longer a manual consumer step.
+The library ships no runtime migrations; consumers migrate with their own Flyway/Liquibase. The
+library's responsibility is to **ship the exact forward-migration SQL in each release's upgrade doc**
+(`docs/upgrade-to-X.Y.md`), ready to paste into the consumer's own migration timeline. The version
+that introduces the dedicated schema ships the **move** SQL below; subsequent releases ship the
+forward DDL delta for any entity change. Consumers apply the scripts **in version order** (a skipped
+release means applying each delta in sequence).
 
-**Existing application (tables currently in `public`) — performed by library V1:**
+**Existing application (tables currently in `public`):**
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS oe_spring_services;
@@ -284,12 +280,11 @@ and do not point application entities at `oe_spring_services` — that schema is
 **Mandatory warnings the upgrade doc must contain** (from the design grill — `spring-services` is a
 *public* Maven Central artifact, so it cannot assume the Open Elements Flyway/deploy conventions):
 
-- **`ddl-auto` data loss is now *enforced* against, not just documented.** Originally this was a
-  documentation-only warning. Under the combined release, spec 014 makes Flyway a **fail-fast
-  requirement**: if the library is active without Flyway (and without the explicit opt-out), the
-  context fails to start rather than silently letting `ddl-auto` create empty tables and orphan the
-  `public` data. The upgrade doc still advises `ddl-auto=validate`/`none`, but the dangerous path is
-  now blocked at startup.
+- **`ddl-auto=update` causes silent data loss.** A consumer running `spring.jpa.hibernate.ddl-auto`
+  in `update`/`create` mode gets **no** controlled `ALTER`: Hibernate sees the schema-qualified
+  tables missing and creates fresh empty tables in `oe_spring_services`, orphaning the old data in
+  `public`. The upgrade doc must state plainly: apply the shipped migration scripts with a real
+  migration tool (Flyway/Liquibase) and set `ddl-auto` to `validate` or `none` for this upgrade.
 - **Downtime required — not rolling-safe.** `ALTER TABLE … SET SCHEMA` is a hard cut: the instant it
   runs, `public.<table>` is gone, and any still-running old application instance (which expects
   `public`) breaks. The upgrade is **stop-the-world**: stop the app, migrate, start the new version.
@@ -299,6 +294,29 @@ and do not point application entities at `oe_spring_services` — that schema is
   `USAGE` on `oe_spring_services` (and the schema on its `search_path` for any consumer-side native
   SQL). The doc must not assume "app role = full-privilege DB owner"; it must list the privileges
   for the migration role and the runtime role separately.
+
+## Cross-entity references (app ↔ lib)
+
+Preserved from the withdrawn spec 014 because it is independent of who runs the migrations. With one
+persistence unit (this spec), an application entity may map a JPA association to a library entity;
+the contract:
+
+- **App → lib only.** An application entity may declare `@ManyToOne UserEntity`, yielding a
+  cross-schema FK `app_schema.<table>.<col> → oe_spring_services.<lib_table>.id` (PostgreSQL
+  supports this). **Lib → app is forbidden** — the library must never reference an application table.
+  The convention guard test (see *Binding acceptance gates*) is extended to assert no library entity
+  associates to a non-library type.
+- **Reference stable PKs only.** Applications reference the library `id` primary key (immutable
+  `UUID`), never volatile columns (`sub`, `user_name`, `email`). The library treats `id` as an
+  immutable contract.
+- **Referential actions owned by the app.** The `ON DELETE`/`ON UPDATE` behavior of an app→lib FK is
+  defined by the application's migration; library deletion code must tolerate a constraint violation
+  surfacing from an unknown downstream FK.
+- **Deprecation cycle for destructive library schema changes.** A referenced library table/column to
+  be removed is announced as deprecated in release N and removed no earlier than N+1, so the consumer
+  can drop its FK first. Because the consumer owns a single Flyway timeline, it sequences the library
+  scripts and its own FK changes itself — no cross-instance two-deploy dance is forced by the library
+  (that complication only existed in the withdrawn library-run-Flyway design).
 
 ## Key flows
 

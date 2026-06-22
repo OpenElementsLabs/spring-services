@@ -4,7 +4,27 @@
 
 — (to be created)
 
-## Status note
+## Status: WITHDRAWN
+
+This spec is **withdrawn**. A library-run Flyway instance proved too complex once grilled — it
+required running migrations without a `Flyway` bean (to avoid disabling the app's Flyway), an
+enforced ordering PostProcessor, fail-fast Flyway coupling, a conditional V1, and a deprecation
+two-deploy dance — for marginal benefit over the consumer simply owning their migration timeline.
+
+**Replacement (pragmatic):** the library stays consumer-managed (spec 013) and **ships ready-to-apply
+per-release forward-migration SQL in each release's upgrade doc** (`docs/upgrade-to-X.Y.md`); the
+consumer pastes it into their own Flyway/Liquibase in version order. This is anchored in spec 013's
+*Migration model* and *Consumer migration* sections, and in the `release-doc` process.
+
+The decided **cross-entity reference contract** (app→lib only, reference stable PK `id`, referential
+actions owned by the app, deprecation cycle for destructive library schema changes) was preserved by
+folding it into spec 013's *Cross-entity references* section.
+
+The content below is retained only as a record of the explored design — **do not implement it.**
+
+---
+
+## (Withdrawn) original design note
 
 **Combined release with spec 013.** This spec is *grilled and decided*. Per the grill, 013 and 014
 ship in **one release** (Pfad 2): the library owns its `oe_spring_services` schema via Flyway from
