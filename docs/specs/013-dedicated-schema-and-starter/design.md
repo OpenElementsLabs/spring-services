@@ -4,6 +4,23 @@
 
 — (to be created; draft below in *GitHub issue draft*)
 
+## Status note — combined release with spec 014
+
+After the design grill of spec 014, 013 and 014 **ship in one release** (Pfad 2). The schema move
+into `oe_spring_services` is **performed automatically by the library's Flyway V1** (spec 014), not
+by a manual consumer migration. This **supersedes** two things originally written below:
+
+- the non-goal *"Library-owned Flyway/Liquibase / consumer-managed migration"* — the library now owns
+  its schema migrations (see 014);
+- the *Consumer migration (Flyway)* section's **manual `ALTER … SET SCHEMA`** instructions — that
+  move is now library V1's conditional `move-or-create` (see 014).
+
+What stays valid from 013 in the combined release: the dedicated schema + constant, entity schema
+mapping, native-SQL qualification, the starter/auto-config, the convention guard test, the
+single-version (non-major) framing, the **stop-the-world / downtime** requirement, the **required DB
+privileges**, and the **"upgrade to the latest 1.x first"** precondition. The `ddl-auto` data-loss
+warning is now *enforced* by 014's fail-fast Flyway requirement rather than only documented.
+
 ## Summary
 
 `spring-services` ships JPA entities and Spring Data repositories, but today it relies on the
@@ -42,8 +59,10 @@ This spec makes two coupled changes:
 
 - **Two `EntityManagerFactory` / two `DataSource`** — explicitly rejected (level 2/3 isolation).
   One persistence unit only.
-- **Library-owned Flyway/Liquibase** — the library does not manage or version the schema. Schema
-  creation and migration remain the consumer's responsibility.
+- ~~**Library-owned Flyway/Liquibase** — the library does not manage or version the schema.~~
+  **Superseded (see Status note):** the combined release with spec 014 makes the library own its
+  schema migrations via Flyway. The remaining 013-local non-goals (no second EMF/DataSource, fixed
+  schema name, no app-schema management) still hold.
 - **Configurable schema name** — `oe_spring_services` is fixed. Externalising it would require a
   Hibernate `PhysicalNamingStrategy` that distinguishes library entities from application entities,
   which is deliberately out of scope.
@@ -227,14 +246,15 @@ No columns, types, or relationships change. Only the **schema namespace** of the
 changes from the default (`public`) to `oe_spring_services`. All existing constraints (PKs, unique
 indexes, FKs) are preserved and move with their tables.
 
-## Consumer migration (Flyway) — documentation deliverable
+## Consumer migration — automated by library Flyway V1 (see spec 014)
 
-The library ships no migrations; consumers migrate with their own Flyway. The version bump that
-introduces this change requires a migration that **moves the existing tables** into the new schema.
-This is documented in a new `docs/upgrade-to-X.Y.md` (the exact version is set when released) and
-summarised here.
+**Superseded by Pfad 2 (see Status note).** Consumers no longer hand-write the move. The schema move
+is performed automatically by the library's Flyway **V1** (spec 014), which on first run
+**conditionally** moves existing `public` tables or creates them greenfield. The SQL below is
+retained as the *illustrative content* of that V1 migration and as the basis for the combined-release
+upgrade doc; it is no longer a manual consumer step.
 
-**Existing application (tables currently in `public`):**
+**Existing application (tables currently in `public`) — performed by library V1:**
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS oe_spring_services;
@@ -264,11 +284,12 @@ and do not point application entities at `oe_spring_services` — that schema is
 **Mandatory warnings the upgrade doc must contain** (from the design grill — `spring-services` is a
 *public* Maven Central artifact, so it cannot assume the Open Elements Flyway/deploy conventions):
 
-- **`ddl-auto=update` causes silent data loss.** A consumer running `spring.jpa.hibernate.ddl-auto`
-  in `update`/`create` mode gets **no** controlled `ALTER`: Hibernate sees the schema-qualified
-  tables missing and creates fresh empty tables in `oe_spring_services`, orphaning the old data in
-  `public`. The doc must state plainly: run the migration with a real migration tool
-  (Flyway/Liquibase) and set `ddl-auto` to `validate` or `none` for this upgrade.
+- **`ddl-auto` data loss is now *enforced* against, not just documented.** Originally this was a
+  documentation-only warning. Under the combined release, spec 014 makes Flyway a **fail-fast
+  requirement**: if the library is active without Flyway (and without the explicit opt-out), the
+  context fails to start rather than silently letting `ddl-auto` create empty tables and orphan the
+  `public` data. The upgrade doc still advises `ddl-auto=validate`/`none`, but the dangerous path is
+  now blocked at startup.
 - **Downtime required — not rolling-safe.** `ALTER TABLE … SET SCHEMA` is a hard cut: the instant it
   runs, `public.<table>` is gone, and any still-running old application instance (which expects
   `public`) breaks. The upgrade is **stop-the-world**: stop the app, migrate, start the new version.
