@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.dbbackup;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -16,10 +17,14 @@ import org.springframework.context.annotation.Configuration;
  * {@code @ComponentScan} reliably picks up plain configurations but excludes auto-configurations,
  * so the properties are always registered alongside the client.
  *
- * <p>The feature is inert until the consuming application configures
- * {@code openelements.db-backup.base-url} and {@code openelements.db-backup.api-token}.
+ * <p>The feature is <strong>opt-in and disabled by default</strong>: none of these beans are created
+ * unless {@code openelements.db-backup.enabled=true}. This avoids forcing a db-backup configuration
+ * on consumers that do not use the sidecar. When enabled, {@code openelements.db-backup.base-url} is
+ * required (see {@link DbBackupProperties}) — a missing base URL fails startup rather than defaulting
+ * to {@code localhost}.
  */
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "openelements.db-backup", name = "enabled", havingValue = "true")
 @ComponentScan(basePackageClasses = DbBackupConfig.class)
 @EnableConfigurationProperties(DbBackupProperties.class)
 public class DbBackupConfig {}

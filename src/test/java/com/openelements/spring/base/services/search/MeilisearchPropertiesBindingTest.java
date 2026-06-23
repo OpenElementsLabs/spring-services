@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.search;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -16,9 +17,10 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
  *
  * <p>The {@code @ConfigurationProperties} prefix contract: the {@code openelements.meilisearch.*}
  * prefix populates the record fields, while the pre-rename {@code
- * openelements.search.meilisearch.*} prefix is silently ignored and the record's compact-
- * constructor defaults take over. The legacy-prefix case acts as a regression guard — if a future
- * change reintroduces the longer prefix it must do so deliberately, not by accident.
+ * openelements.search.meilisearch.*} prefix is silently ignored — leaving {@code host} unset
+ * ({@code null}), since the record no longer defaults it. The legacy-prefix case acts as a
+ * regression guard — if a future change reintroduces the longer prefix it must do so deliberately,
+ * not by accident.
  *
  * <h2>How it is tested</h2>
  *
@@ -46,16 +48,15 @@ class MeilisearchPropertiesBindingTest {
 
   /**
    * Regression guard: the legacy {@code openelements.search.meilisearch.*} prefix must not bind.
-   * Verified indirectly by asserting the record's compact-constructor default ({@code
-   * http://localhost:7700}) is returned even though the input map carries a value under the
-   * legacy prefix.
+   * Verified by asserting {@code host} stays {@code null} — the legacy-prefix value is ignored and
+   * the record no longer supplies a default host.
    */
   @Test
   @DisplayName(
-      "The legacy openelements.search.meilisearch.* prefix is ignored — the compact-constructor default wins.")
+      "The legacy openelements.search.meilisearch.* prefix is ignored — host stays unset (null).")
   void legacyPrefixIsNoLongerHonored() {
     final MeilisearchProperties props =
         bind(Map.of("openelements.search.meilisearch.host", "http://example:7700"));
-    assertEquals("http://localhost:7700", props.host());
+    assertNull(props.host());
   }
 }

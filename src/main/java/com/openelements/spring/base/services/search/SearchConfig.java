@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.search;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -20,13 +21,20 @@ import org.springframework.context.annotation.Configuration;
  * (which excludes {@code @AutoConfiguration} classes), so the properties are always registered
  * alongside the components.
  *
- * <p>The feature is inert unless a Meilisearch sidecar is reachable: when it is not, the startup
- * runners log a warning and flip readiness to ready without indexing. The consuming application
- * supplies what the lib indexes — an optional {@link ScopedKeySpec} bean, one {@link IndexSettings}
- * bean per index, and one {@link SearchIndexBootstrapStep} bean per index — plus, for asynchronous
- * bootstrap, {@code @EnableAsync} and a {@code searchIndexExecutor} bean.
+ * <p>The feature is <strong>opt-in and disabled by default</strong>: none of these beans are
+ * created unless {@code openelements.meilisearch.enabled=true}. This avoids forcing a Meilisearch
+ * configuration on consumers that do not use search. When enabled, {@code
+ * openelements.meilisearch.host} is required (see {@link MeilisearchProperties}) — a missing host
+ * fails startup rather than defaulting to {@code localhost}.
+ *
+ * <p>Once enabled, the feature is still inert unless a Meilisearch sidecar is reachable: when it is
+ * not, the startup runners log a warning and flip readiness to ready without indexing. The consuming
+ * application supplies what the lib indexes — an optional {@link ScopedKeySpec} bean, one {@link
+ * IndexSettings} bean per index, and one {@link SearchIndexBootstrapStep} bean per index — plus, for
+ * asynchronous bootstrap, {@code @EnableAsync} and a {@code searchIndexExecutor} bean.
  */
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "openelements.meilisearch", name = "enabled", havingValue = "true")
 @ComponentScan(basePackageClasses = SearchConfig.class)
 @EnableConfigurationProperties(MeilisearchProperties.class)
 public class SearchConfig {}

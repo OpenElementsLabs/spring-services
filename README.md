@@ -41,7 +41,9 @@ come from Maven Central):
 
 ## Quick Start
 
-The simplest way to enable every feature is to import `FullSpringServiceConfig`:
+The simplest way to wire the platform is to import `FullSpringServiceConfig` (this wires every
+feature except the opt-in sidecar features — Search and DB-Backup — which you enable explicitly, see
+below):
 
 ```java
 @SpringBootApplication
@@ -57,6 +59,30 @@ Applications that only need a subset can import the individual feature configura
 for example `SecurityConfig`, `TenantConfig`, `TagConfig`, `WebhookConfig`, `SettingsConfig`,
 `ApiKeyConfig`. Multi-tenancy can also be enabled declaratively via the `@EnableTenant`
 meta-annotation.
+
+### Optional sidecar features (opt-in)
+
+The two features that talk to an external sidecar — **Search** (Meilisearch) and **DB-Backup** — are
+**disabled by default**, even when you import `FullSpringServiceConfig`. Importing the config does not
+activate them; you enable each explicitly. When a feature is enabled, its host is **required** and a
+missing/blank host **fails startup** (no silent `localhost` fallback):
+
+```properties
+# Search (Meilisearch) — off by default
+openelements.meilisearch.enabled=true
+openelements.meilisearch.host=https://meilisearch.internal:7700   # required when enabled
+openelements.meilisearch.master-key=${MEILI_MASTER_KEY}
+openelements.meilisearch.index-prefix=                            # optional, default ""
+
+# DB-Backup sidecar — off by default
+openelements.db-backup.enabled=true
+openelements.db-backup.base-url=https://db-backup.internal:8081   # required when enabled
+openelements.db-backup.api-token=${DB_BACKUP_API_TOKEN}          # required for authenticated calls
+```
+
+If a feature stays disabled, none of its beans are created and no connection settings are needed.
+Secrets (`master-key`, `api-token`) must come from environment variables or secret management, never
+from committed configuration.
 
 ## Features
 
@@ -116,14 +142,19 @@ meta-annotation.
 - **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
   synchronously inside the originating transaction; consumers opt into post-commit behaviour
   with `@TransactionalEventListener`.
-- **Search** — Meilisearch-backed full-text search via a thin `RestClient` wrapper
-  (`MeilisearchClient`). At startup the lib exchanges the master key for a scoped runtime key,
-  applies declarative per-index settings, and runs a full reindex: the application contributes one
-  `SearchIndexBootstrapStep` bean per index (streaming already-mapped documents) and an optional
-  `IndexSettings` / `ScopedKeySpec` bean. The lib never sees domain types. `Highlighter` turns
-  Meilisearch's `_formatted` output into HTML-safe highlighted fragments. An unreachable sidecar is
-  skipped with a warning, so the feature is inert until Meilisearch is available. Connection settings
-  bind from `openelements.meilisearch.*`.
+- **Search** *(opt-in, off by default)* — Meilisearch-backed full-text search via a thin `RestClient`
+  wrapper (`MeilisearchClient`). Enabled with `openelements.meilisearch.enabled=true`; `host` is then
+  required. At startup the lib exchanges the master key for a scoped runtime key, applies declarative
+  per-index settings, and runs a full reindex: the application contributes one `SearchIndexBootstrapStep`
+  bean per index (streaming already-mapped documents) and an optional `IndexSettings` / `ScopedKeySpec`
+  bean. The lib never sees domain types. `Highlighter` turns Meilisearch's `_formatted` output into
+  HTML-safe highlighted fragments. Once enabled, an unreachable sidecar is skipped with a warning, so
+  the feature is inert until Meilisearch is available. Connection settings bind from
+  `openelements.meilisearch.*` (see *Optional sidecar features*).
+- **DB-Backup client** *(opt-in, off by default)* — thin `RestClient` wrapper (`DbBackupClient`) for the
+  db-backup-service sidecar: trigger backups, poll job status, list and stream backup artefacts.
+  Enabled with `openelements.db-backup.enabled=true`; `base-url` is then required. Connection settings
+  bind from `openelements.db-backup.*` (see *Optional sidecar features*).
 
 For per-package overviews, see the `package-info.java` files under
 `src/main/java/com/openelements/spring/base/`.
