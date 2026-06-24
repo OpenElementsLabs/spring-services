@@ -144,8 +144,8 @@ the `findBySub` happy path.
 
 **Acceptance criteria:**
 
-- [ ] Project builds; full test suite passes.
-- [ ] `UserServiceTest` (Mockito unit tests) is extended with:
+- [x] Project builds; full test suite passes.
+- [x] `UserServiceTest` (Mockito unit tests) is extended with:
     - First-login scenario: new user → `userProvisioner.provision(...)` called → entity has all
       four new fields populated.
     - Pre-foundation backfill: existing row with `sub` set, `externalId/userName` null →
@@ -163,15 +163,15 @@ the `findBySub` happy path.
       AccessDeniedException; `sub` is **not** written onto the row.
     - Drift on multiple fields runs as a single `save(user)` call.
     - Brand-new user only inserted after all three lookups miss.
-- [ ] `UserServiceConcurrencyTest` still passes — the concurrency-test from spec 011 keeps
+- [x] `UserServiceConcurrencyTest` still passes — the concurrency-test from spec 011 keeps
   the race-recovery regression covered.
-- [ ] A new integration test in `UserServiceTest` or a new file
+- [x] A new integration test in `UserServiceTest` or a new file
   `UserServiceActiveGateIntegrationTest` (Testcontainers): persists an inactive
   `UserEntity` directly and verifies that the next `getCurrentUserEntity()` for that subject
   throws `AccessDeniedException`.
-- [ ] Reactivation regression test: toggle a user `active=false → active=true` between two
+- [x] Reactivation regression test: toggle a user `active=false → active=true` between two
   calls; the second call succeeds.
-- [ ] Two-users-same-email-no-preferred_username test: create user A with
+- [x] Two-users-same-email-no-preferred_username test: create user A with
   `userName = email`, then attempt to provision user B with the same email and no
   `preferred_username` → expect `DataIntegrityViolationException`/`IllegalStateException`
   (whichever Spring surfaces) → request fails as `500 Internal Server Error`. This test goes in
@@ -210,7 +210,7 @@ change.
   Set<String> groups, String displayName)`. Add Javadoc that describes the contract; mark the
   whole package as a temporary 012-shipped scaffolding that spec 010 supersedes.
   **If spec 010 has landed:** skip the port creation; just consume it from its real location.
-- [ ] Create `src/main/java/com/openelements/spring/base/services/user/UserEntityPrincipalDirectory.java`:
+- [x] Create `src/main/java/com/openelements/spring/base/services/user/UserEntityPrincipalDirectory.java`:
     - `@Component` implementing `PrincipalDirectory`.
     - Constructor takes a `UserRepository` (`@Autowired` constructor injection,
       `Objects.requireNonNull`).
@@ -223,8 +223,8 @@ change.
 
 **Acceptance criteria:**
 
-- [ ] Project builds.
-- [ ] New `UserEntityPrincipalDirectoryTest` (Testcontainers integration test):
+- [x] Project builds.
+- [x] New `UserEntityPrincipalDirectoryTest` (Testcontainers integration test):
     - Active user with `externalId = "alice-ext"` → `Optional.of(ResolvedPrincipal(active=true,
     roles=empty, groups=empty, displayName=user.getName()))`.
     - Inactive user with `externalId = "bob-ext"` → `Optional.of(ResolvedPrincipal(active=false,
@@ -255,23 +255,23 @@ change.
         - The new `UserInformation` record fields (source-level breaking change).
         - The Flyway migration template from `design.md` for consuming apps.
         - The fact that `active` defaults to `true` for all existing rows.
-- [ ] `.claude/conventions/project-specific/project-structure.md`:
+- [x] `.claude/conventions/project-specific/project-structure.md`:
     - Add `UserEntityPrincipalDirectory` to the `services/user/` listing.
     - Add the `services/apitoken/` package (if Step 5 shipped the port here as a temporary
       measure).
-- [ ] `TODO.md`:
+- [x] `TODO.md`:
     - If applicable, mark the "SCIM 2.0 Foundation" entry as superseded (spec 012 is the
       implementation of that entry).
-- [ ] Optional but recommended: a one-paragraph section in
+- [x] Optional but recommended: a one-paragraph section in
   `services/user/package-info.java` describing how `PrincipalDirectory` consumers (the SCIM
   spec's eventual handlers, opaque-token validation in spec 010, etc.) read `UserEntity`.
 
 **Acceptance criteria:**
 
-- [ ] README compiles (markdown-lint clean if linter is configured).
-- [ ] Upgrade-notes paragraph mentions all three observable changes: record fields, schema
+- [x] README compiles (markdown-lint clean if linter is configured).
+- [x] Upgrade-notes paragraph mentions all three observable changes: record fields, schema
   migration template, active default.
-- [ ] No stale references to the old single-`sub` lookup or "JIT-sync of roles" survive in
+- [x] No stale references to the old single-`sub` lookup or "JIT-sync of roles" survive in
   documentation.
 
 **Related behaviors:**
