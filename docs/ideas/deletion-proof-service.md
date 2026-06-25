@@ -133,7 +133,7 @@ deletion_record   (immutable, append-only)
   │     ├─ type         email | phone | customer_no | ust_id | …
   │     └─ hmac         HMAC-SHA256(SERVER_SECRET, normalize(value))
   ├─ method             hard_delete | anonymization | restricted
-  │                     (crypto_shredding später ergänzbar — siehe Abschnitt 11)
+  │                     (crypto_shredding später ergänzbar — siehe Abschnitt 12)
   ├─ restricted_until   <date> | null    (nur bei method = restricted, Art. 18)
   ├─ data_categories[]  WAS gelöscht wurde, nicht die Inhalte
   │                     z. B. ["contact_data", "order_history"]
@@ -239,11 +239,11 @@ entschärft.
 normalisierten Schema *tatsächlich* am häufigsten auf. Der Constraint entscheidet,
 welche Strategie überhaupt möglich ist:
 
-| Spalten-Constraint        | Was geht                                    | Strategie                          |
-|---------------------------|---------------------------------------------|------------------------------------|
-| nullable, nicht unique    | auf `NULL` setzen                           | `DELETE` (Feld nullen) genügt      |
-| `NOT NULL`, nicht unique  | Platzhalter-Konstante                       | `ANONYMIZE` → z. B. `"[gelöscht]"` |
-| `UNIQUE` (± `NOT NULL`)   | eindeutiger, generischer Wert aus tech. ID  | `ANONYMIZE` → ID-abgeleiteter Wert |
+| Spalten-Constraint       | Was geht                                   | Strategie                          |
+|--------------------------|--------------------------------------------|------------------------------------|
+| nullable, nicht unique   | auf `NULL` setzen                          | `DELETE` (Feld nullen) genügt      |
+| `NOT NULL`, nicht unique | Platzhalter-Konstante                      | `ANONYMIZE` → z. B. `"[gelöscht]"` |
+| `UNIQUE` (± `NOT NULL`)  | eindeutiger, generischer Wert aus tech. ID | `ANONYMIZE` → ID-abgeleiteter Wert |
 
 Konkrete Beispiele:
 
@@ -370,7 +370,125 @@ hochgezogen werden können.
 
 ---
 
-## 9. Abfrage-Flow (extern, per WebSocket + PAT)
+## 9. Trigger: wann wird gelöscht/anonymisiert
+
+Löschung wird **nicht nur auf Antrag** ausgelöst. Zwei grundverschiedene Modi:
+
+### A) Reaktiv — die Person verlangt es (Art. 17 Abs. 1)
+
+Das "Recht auf Löschung". Pflicht zur Löschung, wenn einer dieser Gründe vorliegt:
+
+| Grund (Art. 17 Abs. 1)                 | Auslöser                                              |
+|----------------------------------------|-------------------------------------------------------|
+| **a)** Zweck entfallen                 | Daten für den ursprünglichen Zweck nicht mehr nötig   |
+| **b)** Einwilligung widerrufen         | und keine andere Rechtsgrundlage                      |
+| **c)** Widerspruch (Art. 21)           | und keine vorrangigen Gründe; bei Direktwerbung immer |
+| **d)** Unrechtmäßige Verarbeitung      | ohne Rechtsgrundlage verarbeitet                      |
+| **e)** Rechtliche Pflicht zur Löschung | Gesetz schreibt Löschung vor                          |
+| **f)** Daten von Kindern               | erhoben für Online-Dienste (Art. 8)                   |
+
+### B) Proaktiv — auch ohne Antrag (Art. 5 Abs. 1 lit. e)
+
+**Der wichtigere Trigger für ein automatisiertes System.** Die Speicherbegrenzung
+verlangt Löschung, **sobald der Zweck erfüllt ist** — *nicht* erst auf Antrag.
+Über-Speicherung ist ein eigenständiger Verstoß (und zusätzliche Angriffsfläche).
+
+### Gegenkraft: wann NICHT gelöscht werden darf (Art. 17 Abs. 3)
+
+Feuert ein Trigger, **überschreiben** diese Pflichten die Löschung → `restricted`:
+
+- **b)** gesetzliche Aufbewahrungspflicht (HGB/AO) ← der häufigste
+- **e)** Geltendmachung/Verteidigung von Rechtsansprüchen
+- a) Meinungs-/Informationsfreiheit, c) öffentliche Gesundheit, d) Archiv/Forschung
+
+### Aufbewahrungsfrist ≠ Löschfrist
+
+**Häufigste Verwechslung.** Die 10 Jahre aus HGB/AO sind ein **Minimum, das du
+bestimmte Belege behalten *musst*** — **kein** Freibrief, *alle* Daten 10 Jahre zu
+behalten. Die DSGVO will das Gegenteil: löschen, sobald der Zweck erfüllt ist. Eine
+pauschale "10-Jahre-für-alles"-Regel wäre für alle nicht-aufbewahrungspflichtigen
+Daten ein Verstoß. **Es gibt keine universelle Frist** — sie wird je Zweck +
+Rechtsgrundlage abgeleitet:
+
+| Datenart                         | Typische Frist                                                                   |
+|----------------------------------|----------------------------------------------------------------------------------|
+| Rechnungen / Buchungsbelege      | ~8–10 Jahre (je Belegart; zuletzt reformiert — **nachschlagen, nicht annehmen**) |
+| Handelsbriefe                    | ~6 Jahre                                                                         |
+| Vertragsdaten                    | Laufzeit + Verjährung (regelmäßig 3 Jahre, § 195 BGB)                            |
+| Bewerberdaten (Absage)           | ~6 Monate (AGG-Klagefrist)                                                       |
+| Marketing / einwilligungsbasiert | sofort bei Widerruf / wenn ungenutzt                                             |
+| Inaktiver Account                | je nach Zweck, oft Monate                                                        |
+
+→ Jede `DataCategory` bekommt im Löschkonzept (DIN 66398) eine eigene **Löschklasse
+mit eigener Frist** — nicht eine Frist für alles.
+
+### Timing
+
+- **Auf Antrag:** "unverzüglich", spätestens **1 Monat** (Art. 12 Abs. 3), bei
+  Komplexität um 2 Monate verlängerbar.
+- **Proaktiv:** "unverzüglich" nach Fristablauf (Zeitpunkt aus den Löschfristen).
+
+### Drei Trigger-Quellen (speisen denselben `ErasureService`)
+
+Das ist genau der Kontext, den wir bewusst **aus** dem `deletion_record`
+herausgehalten haben — er lebt im aufrufenden System:
+
+| Trigger-Quelle   | Mechanik                                               | DSGVO-Bezug          |
+|------------------|--------------------------------------------------------|----------------------|
+| **On-Request**   | DSAR-Endpoint / Antragsverwaltung ruft Service         | Art. 17 Abs. 1       |
+| **On-Retention** | Scheduler wertet Löschfristen aus, ruft automatisch    | Art. 5 Abs. 1 lit. e |
+| **On-Event**     | Domain-Event (Widerruf, Account gelöscht, Widerspruch) | Art. 17 Abs. 1 b/c   |
+
+### Der Retention-Scheduler
+
+Täglicher Lauf, der fällige Daten löscht/anonymisiert. **Kriterium ist nicht
+"wird noch genutzt", sondern "besteht der Zweck / die Rechtsgrundlage noch".** Ein
+reiner "last access"-Sweep ist über- *und* unter-inklusiv (ruhender Vertrag ist
+ungenutzt aber zulässig; aus Bequemlichkeit weitergenutzte Daten sind trotzdem
+löschpflichtig). Stattdessen pro `DataCategory`:
+
+```
+Anker-Ereignis (Vertragsende / letzter Login / Einwilligung / Account-Löschung)
+   + definierte Frist  →  fällig zur Löschung
+```
+
+Inaktivität ist *ein möglicher* Anker (z. B. "Account 3 Jahre inaktiv"), aber
+kategorienspezifisch — keine globale "nicht angefasst → weg"-Regel. Das Definieren
+der Regeln ist der eigentliche Aufwand (= Löschkonzept); der Scheduler ist trivial.
+Bei tatsächlicher Löschung → ruft `ErasureService` → `deletion_record` entsteht.
+
+### Forecast (Vorschau / Grace-Window)
+
+Eine Übersicht "was würde demnächst gelöscht" als Vorschau. Schreibt **nichts** ins
+`deletion_record` (es ist noch nichts passiert) und ist das Sicherheitsnetz vor
+unwiderruflichen Hard-Deletes.
+
+### Fristverlängerung / Hold — bewusst und auditiert
+
+Eine Löschfrist verschieben darf man **nicht beliebig** — sonst hebelt man die
+Speicherbegrenzung aus ("für immer behalten per Klick auf *Später*"), was selbst
+ein Verstoß wäre. Verlängern ist nur mit **echter Rechtsgrundlage** legitim:
+
+- laufender Rechtsstreit (Art. 17 Abs. 3 lit. e),
+- neu entdeckte Aufbewahrungspflicht,
+- neuer, eigenständiger Zweck mit eigener Rechtsgrundlage.
+
+**"Brauchen wir vielleicht noch" ist *keine* Rechtsgrundlage.** Daher kein
+beiläufiger Snooze, sondern eine **begründete, befristete, auditierte**
+Entscheidung: mit Grund, neuem Datum (nicht "unendlich") und Protokoll (wer, wann,
+warum). Im Modell ein Übergang in `restricted` + `restricted_until` + Grund.
+
+### Zusammenspiel mit dem Service
+
+| Aktion                                    | Schreibt ins `deletion_record`?                                    |
+|-------------------------------------------|--------------------------------------------------------------------|
+| Scheduler löscht/anonymisiert tatsächlich | **Ja** → ruft `ErasureService` → Nachweis entsteht                 |
+| Forecast (Vorschau)                       | Nein — reine Projektion                                            |
+| Fristverlängerung / Hold                  | Nein, aber **eigener Audit-Eintrag** (Grund, neuer Termin, Akteur) |
+
+---
+
+## 10. Abfrage-Flow (extern, per WebSocket + PAT)
 
 1. Externes System authentifiziert sich mit **PAT/API-Token** (passender Scope).
 2. Es liefert einen Identifier (z. B. eine E-Mail), den es bereits kennt.
@@ -384,7 +502,7 @@ E-Mail → Service hasht → Match → Nachweis. Ohne Klartextspeicher.
 
 ---
 
-## 10. Existierende Open-Source-Projekte / Vorbilder
+## 11. Existierende Open-Source-Projekte / Vorbilder
 
 Es gibt Projekte für **Teile** davon, aber keins, das genau dieses Modell
 (immutabler, hash-indizierter, extern abfragbarer Lösch-Nachweis) abbildet.
@@ -416,7 +534,7 @@ Nachweisbarkeit, keine Norm-Anforderung.
 
 ---
 
-## 11. Offene Punkte / noch zu entscheiden
+## 12. Offene Punkte / noch zu entscheiden
 
 - [ ] `deleted_at` vs. `processed_at` (relevant, falls `restricted` häufig vorkommt).
 - [ ] Soll `gdpr_relevant` (oder Trennung natürliche/juristische Person) doch
@@ -441,10 +559,17 @@ Nachweisbarkeit, keine Norm-Anforderung.
 - [ ] ArchUnit-Regeln für PII-Annotationen (siehe Abschnitt 7) umsetzen.
 - [ ] Auskunft/Export (Art. 15/20) als separater Service/Annotation — bewusst
   außerhalb dieses Lösch-Service halten.
+- [ ] Löschfristen-Modell: pro `DataCategory` eine Löschklasse (Anker + Frist)
+  definieren (Löschkonzept nach DIN 66398). Der eigentliche fachliche Aufwand.
+- [ ] Retention-Scheduler: Anker-Ereignisse je Kategorie festlegen (Vertragsende,
+  letzter Login, Einwilligung, Account-Löschung), nicht "last access".
+- [ ] Forecast-/Grace-Window-Ansicht der demnächst fälligen Löschungen.
+- [ ] Hold/Fristverlängerung als auditierter Vorgang (Grund, neuer Termin, Akteur);
+  eigener Audit-Eintrag, nicht im `deletion_record`.
 
 ---
 
-## 12. Nächste Schritte
+## 13. Nächste Schritte
 
 1. **ADR** — die Architekturentscheidung festschreiben:
     - Pseudonymisierung per HMAC statt Klartext
@@ -461,4 +586,6 @@ Nachweisbarkeit, keine Norm-Anforderung.
     - `DeletionService` mit Nachweis-Erzeugung
     - WebSocket-Query-Flow mit PAT-Scope
     - Anonymisierungs-/Löschstrategie inkl. Meilisearch und Backup-Frist
+    - Trigger: On-Request / On-Retention-Scheduler / On-Event (Abschnitt 9),
+      Löschfristen-Modell, Forecast und auditierter Hold
 3. **Juristische Prüfung** vor produktiver Umsetzung.
