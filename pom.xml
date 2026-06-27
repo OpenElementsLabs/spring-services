@@ -43,6 +43,7 @@
         <jspecify.version>1.0.0</jspecify.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <wiremock.version>3.10.0</wiremock.version>
+        <mcp-sdk.version>0.18.3</mcp-sdk.version>
     </properties>
 
     <dependencies>
@@ -85,6 +86,25 @@
             <groupId>com.slack.api</groupId>
             <artifactId>slack-api-client</artifactId>
             <version>${slack-api-client.version}</version>
+        </dependency>
+
+        <!-- Official Java MCP SDK with Spring WebMVC Streamable HTTP transport.
+             The 0.18.x line (mcp-core + mcp-spring-webmvc) carries the WebMVC
+             transport; the separate mcp:2.0.0 track does not. Pinned for
+             reproducible builds. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-spring-webmvc</artifactId>
+            <version>${mcp-sdk.version}</version>
+        </dependency>
+
+        <!-- Jackson 2 provider for the MCP SDK's McpJsonMapper SPI (matches the
+             project's Jackson 2 / Spring Boot 3.5 stack). Not pulled transitively
+             by mcp-spring-webmvc. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-json-jackson2</artifactId>
+            <version>${mcp-sdk.version}</version>
         </dependency>
 
         <!-- Test dependencies -->
