@@ -115,4 +115,13 @@ wie bisher. Zwei OIDC-URLs pro Umgebung zu pflegen.
 
 (b) Indicator auf jwk-set-uri umstellen — pingt direkt den JWKS-Endpoint. Eine Config-URL. Verliert den Check, ob das
 Discovery-Dokument valide ist (für uns als Resource-Server fachlich aber irrelevant — wir brauchen nur JWKS).
+
+- **Spring Modulith für echte Modulgrenzen evaluieren.** Nach dem Multi-Modul-Umbau (Spec 014) sind die
+  Modulgrenzen reine Konvention: plain Maven-Classpath-Module ohne JPMS (bewusst gewählt, da Spring sich schlecht
+  mit JPMS verträgt), d.h. jeder `public` Typ in `spring-services-core` ist modulübergreifend erreichbar. Spring
+  Modulith könnte die fachlichen Spring-Modulgrenzen explizit deklarieren und per `ApplicationModules`-Test
+  verifizieren (erlaubte Abhängigkeiten, keine Zugriffe auf interne Pakete).
+  **Context:** Surfaced in der `/grill-me`-Session zu Spec 014 (Multi-Modul-Umbau), Branch E (API-Oberfläche zwischen
+  Modulen) — JPMS wurde verworfen, Modulith als Alternative geparkt.
+  **Prerequisite:** Spec 014 (Multi-Modul-Umbau) muss zuerst landen.
  
