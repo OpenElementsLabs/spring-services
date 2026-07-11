@@ -12,17 +12,40 @@
 - ~~SCIM 2.0 Foundation (Schritt 1)~~ — **implementiert via Spec 012** (`UserEntity` erweitert, JIT-Korrelation,
   Active-Gate, `UserEntityPrincipalDirectory`). Folge-Arbeiten siehe TODO-Punkte zum SCIM-Provider unten.
 
-- SCIM 2.0 Provider (Schritt 2, nach Foundation): Server-Endpoints `/scim/v2/Users`, `/scim/v2/Groups` und Discovery
-  (ServiceProviderConfig, Schemas, ResourceTypes) für Push-Provisioning aus Authentik/IdP. Library-Basis:
-  UnboundID/Ping SCIM 2 SDK + eigene Spring-MVC-Controller. Auth: JWT in dediziertem dritten Filter-Chain,
-  isoliert vom default-Chain. Soft-Deactivation via `active=false`; DELETE soft. Audit-Log-Eintrag pro SCIM-Write.
-  **Erweitert `UserEntityPrincipalDirectory`** aus Spec 012: GroupEntity wird hinzugefügt, Group-Membership wird
-  in `ResolvedPrincipal.groups()` ausgeliefert, optional auch in `ResolvedPrincipal.roles()` per
-  Group→Role-Mapping (konfigurierbar). Damit werden USER-Tokens role-aware. Offene Designfragen für Schritt 2
-  (Liste aus Grill-Session): PATCH-Mechanik, Filter-Grammatik-Scope (eq/sw/co/AND/OR), ETag/Optimistic-Concurrency,
-  Pagination, Tenant-Interaktion (eine SCIM-Instance pro Tenant?), Vendor-Extensions von Authentik,
-  Discovery-Ehrlichkeit, Group-Rename/Delete und Auswirkungen auf abgeleitete Rollen, ob `revokeAllForSubject`
-  bei SCIM-Deactivation als hard-revoke-Hook zusätzlich zur live-Resolution gewünscht ist.
+- SCIM 2.0 Provider (Schritt 2, nach Foundation) — **in Teil-Specs aufgeteilt** (Grill-Session 2026-07-11):
+  - **Spec 015 — SCIM Users Provider** (in Arbeit): dedizierter dritter Filter-Chain für `/scim/v2/**` mit
+    **statischem Bearer-Token** (`openelements.scim.token`, **nicht** JWT — Authentik sendet ein festes
+    opakes Token), Discovery-Endpoints (ServiceProviderConfig/ResourceTypes/Schemas), Users-Resource
+    (List+Filter, POST, GET, PUT-Replace, DELETE) gemappt auf `UserEntity` aus Spec 012. `POST`-Kollision →
+    `409 uniqueness` (RFC), DELETE → soft (`active=false` + `deleted`/`deleted_at`). Audit-Einträge unter
+    reserviertem **SCIM-Service-Principal**. Vor-Merge-Verifikation der Authentik-`409`-Recovery am
+    #21-Harness (siehe Issue-Kommentar).
+  - **Folge-Issue A — SCIM Groups + Membership**: `GroupEntity` + Membership-Tabelle, `/scim/v2/Groups`
+    (POST/GET/PUT/**PATCH** mit PatchOp add/remove/replace auf `members`, DELETE). Liefert
+    `ResolvedPrincipal.groups()` aus `UserEntityPrincipalDirectory` (heute leer).
+  - **Folge-Issue B — Group→Role-Mapping**: konfigurierbare Ableitung von `ResolvedPrincipal.roles()` aus
+    Gruppen-Mitgliedschaft; macht USER-Tokens role-aware.
+  - Verbleibende offene Designfragen für die Folge-Issues (aus Grill-Sessions): PATCH-Mechanik,
+    Filter-Grammatik jenseits `eq` (sw/co/AND/OR), ETag/Optimistic-Concurrency, Tenant-Interaktion
+    (eine SCIM-Instance pro Tenant?), Authentik-Vendor-Extensions, Discovery-Ehrlichkeit, Group-Rename/Delete
+    und Auswirkungen auf abgeleitete Rollen, ob `revokeAllForSubject` bei SCIM-Deactivation als
+    zusätzlicher Hard-Revoke-Hook gewünscht ist.
+
+- **DSGVO-/Anonymisierungs-Modul muss `UserEntity` abdecken.** Das (noch zu bauende) Anonymisierungs-Modul
+  muss gezielt SCIM-**soft-gelöschte** Nutzer erfassen (`deleted=true` / `deleted_at` gesetzt, aus Spec 015)
+  und deren PII (`name`, `email`, `avatarUrl`, `userName`) nach Retention-Policy scrubben. Spec 015 löscht
+  bewusst *nicht* physisch (FK-Integrität zu Audit-Log/Kommentaren), sondern deaktiviert soft und markiert —
+  das Scrubben ist Aufgabe dieses Moduls.
+  **Context:** Grill-Session 2026-07-11 zu Spec 015 (SCIM Users), Branch D (DELETE-Semantik).
+  **Prerequisite:** Spec 015 (liefert die `deleted`/`deleted_at`-Marker).
+
+- **Feld-Ownership `name`/`email` beobachten (SCIM vs. JWT-JIT).** Spec 015 wählt bewusst *Last-Writer-Wins*
+  für `name`/`email`: sowohl SCIM-`PUT` als auch der JIT-Drift-Sync (Spec 012) schreiben diese Felder. Bei
+  Single-IdP (Authentik ist Quelle für OIDC *und* SCIM) stimmen die Werte überein → kein Konflikt. Falls in
+  Zukunft divergierende Quellen auftreten (Ping-Pong-Churn im Audit-Log sichtbar), muss eine explizite
+  Ownership-Regel („SCIM gewinnt für SCIM-managed Rows") nachgezogen werden.
+  **Context:** Grill-Session 2026-07-11 zu Spec 015, Branch C (PUT-Full-Replace vs. Feld-Ownership).
+  **Prerequisite:** Spec 015.
 
 - Spec 011 (Security Configuration Hygiene) — Follow-ups aus dem `/spec-review`:
   - **MockMvc-Integration-Test für JWT-Chain-`JsonAuthenticationEntryPoint`** (Bearer-Scheme über echten HTTP-Roundtrip):
