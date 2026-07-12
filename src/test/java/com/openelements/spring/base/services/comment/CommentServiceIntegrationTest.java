@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import com.openelements.spring.base.services.audit.AuditAction;
@@ -233,7 +234,9 @@ class CommentServiceIntegrationTest {
 
       final UUID storedAuthorId =
           jdbcTemplate.queryForObject(
-              "SELECT author_id FROM comments WHERE id = ?", UUID.class, saved.id());
+              "SELECT author_id FROM " + DbSchema.NAME + ".comments WHERE id = ?",
+              UUID.class,
+              saved.id());
       assertThat(storedAuthorId).isEqualTo(saved.author().id());
     }
 
@@ -250,7 +253,9 @@ class CommentServiceIntegrationTest {
 
       final Long fkCount =
           jdbcTemplate.queryForObject(
-              "SELECT COUNT(*) FROM comments WHERE author_id = ?", Long.class, provisioned.getId());
+              "SELECT COUNT(*) FROM " + DbSchema.NAME + ".comments WHERE author_id = ?",
+              Long.class,
+              provisioned.getId());
       assertThat(fkCount).isEqualTo(1L);
     }
 

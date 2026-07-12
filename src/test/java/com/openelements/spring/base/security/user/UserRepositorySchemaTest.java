@@ -3,6 +3,7 @@ package com.openelements.spring.base.security.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserEntity;
 import com.openelements.spring.base.services.user.UserRepository;
@@ -78,8 +79,8 @@ class UserRepositorySchemaTest {
    */
   @BeforeEach
   void cleanUserRowsExceptSystem() {
-    jdbcTemplate.update("delete from audit_log");
-    jdbcTemplate.update("delete from users where id <> ?", SystemUser.ID);
+    jdbcTemplate.update("delete from " + DbSchema.NAME + ".audit_log");
+    jdbcTemplate.update("delete from " + DbSchema.NAME + ".users where id <> ?", SystemUser.ID);
   }
 
   private UserEntity buildUser(

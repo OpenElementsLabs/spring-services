@@ -3,6 +3,7 @@ package com.openelements.spring.base.services.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import com.openelements.spring.base.services.tag.TagDataService;
@@ -121,7 +122,9 @@ class AuditLogIntegrationTest {
 
   private void persistSystemUser() {
     jdbcTemplate.update(
-        "INSERT INTO users (id, sub, user_name, name, active, updated_at, created_at) "
+        "INSERT INTO "
+            + DbSchema.NAME
+            + ".users (id, sub, user_name, name, active, updated_at, created_at) "
             + "VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         SystemUser.ID,
         SystemUser.SUB,
@@ -368,7 +371,9 @@ class AuditLogIntegrationTest {
     private void backdate(final UUID id, final Instant when) {
       final int updated =
           jdbcTemplate.update(
-              "UPDATE audit_log SET created_at = ? WHERE id = ?", Timestamp.from(when), id);
+              "UPDATE " + DbSchema.NAME + ".audit_log SET created_at = ? WHERE id = ?",
+              Timestamp.from(when),
+              id);
       if (updated != 1) {
         throw new IllegalStateException("backdate failed for id " + id);
       }

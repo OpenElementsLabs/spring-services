@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.webhook.data;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -9,7 +10,7 @@ import java.util.Objects;
 
 /** JPA entity representing a webhook registration in the CRM system. */
 @Entity
-@Table(name = "webhooks")
+@Table(name = "webhooks", schema = DbSchema.NAME)
 public class WebhookEntity extends AbstractEntity {
 
   @Column(name = "url", nullable = false, length = 2048)

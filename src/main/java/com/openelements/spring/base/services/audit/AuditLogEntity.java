@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.audit;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserEntity;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import java.util.UUID;
  * action timestamp — there is no separate {@code performedAt} column.
  */
 @Entity
-@Table(name = "audit_log")
+@Table(name = "audit_log", schema = DbSchema.NAME)
 public class AuditLogEntity extends AbstractEntity {
 
   @Column(name = "entity_type", nullable = false, length = 255)

@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.settings;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.data.NameSupplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,7 +10,7 @@ import java.util.Objects;
 
 /** JPA entity representing a key-value setting. */
 @Entity
-@Table(name = "settings")
+@Table(name = "settings", schema = DbSchema.NAME)
 public class SettingsEntity extends AbstractEntity {
 
   @Column(name = "`key`", length = 100, nullable = false, unique = true)
