@@ -182,7 +182,7 @@ chosen features; Optional module stays inert when its class is missing.
 
 ## Step 12: Upgrade doc + README + CLAUDE.md
 
-- [ ] Author `docs/releases/upgrade-to-2.0.md` (major, coordinate break): `spring-services` →
+- [ ] Author `docs/releases/upgrade-to-1.4.md` (minor cadence, per 013 precedent; coordinate break): `spring-services` →
   `spring-services-all` migration; à-la-carte option via `-core` + feature modules + BOM; ordering
   note (spec 013 schema migration first, then the coordinate swap).
 - [ ] Update `README.md` install/quick-start for the new coordinates and the à-la-carte model.
