@@ -3,6 +3,7 @@ package com.openelements.spring.base.security.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.security.UserInformation;
 import com.openelements.spring.base.services.user.SystemUser;
@@ -109,8 +110,8 @@ class UserServiceConcurrencyTest {
    */
   @BeforeEach
   void cleanUserRowsExceptSystem() {
-    jdbcTemplate.update("delete from audit_log");
-    jdbcTemplate.update("delete from users where id <> ?", SystemUser.ID);
+    jdbcTemplate.update("delete from " + DbSchema.NAME + ".audit_log");
+    jdbcTemplate.update("delete from " + DbSchema.NAME + ".users where id <> ?", SystemUser.ID);
   }
 
   /**

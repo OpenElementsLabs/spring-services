@@ -41,13 +41,13 @@ come from Maven Central):
 
 ## Quick Start
 
-The simplest way to wire the platform is to import `FullSpringServiceConfig` (this wires every
-feature except the opt-in sidecar features — Search and DB-Backup — which you enable explicitly, see
-below):
+`spring-services` is an auto-configured **Spring Boot starter**: adding the dependency is enough.
+You do **not** need `@Import(FullSpringServiceConfig.class)`, `@EntityScan`, or
+`@EnableJpaRepositories` — the library registers its own package additively, so both your
+application's entities/repositories and the library's are discovered automatically.
 
 ```java
 @SpringBootApplication
-@Import(FullSpringServiceConfig.class)
 public class MyApplication {
     public static void main(String[] args) {
         SpringApplication.run(MyApplication.class, args);
@@ -55,10 +55,22 @@ public class MyApplication {
 }
 ```
 
-Applications that only need a subset can import the individual feature configurations directly —
-for example `SecurityConfig`, `TenantConfig`, `TagConfig`, `WebhookConfig`, `SettingsConfig`,
-`ApiKeyConfig`. Multi-tenancy can also be enabled declaratively via the `@EnableTenant`
-meta-annotation.
+The library's tables live in a dedicated database schema, **`oe_spring_services`** (a single JPA
+persistence unit — one `EntityManagerFactory`/`TransactionManager`, shared with your application's
+entities). The library ships **no** runtime migrations: each release ships ready-to-apply SQL in its
+upgrade guide under [`docs/releases/`](docs/releases), which you apply with your own
+Flyway/Liquibase. See [`upgrade-to-1.3.md`](docs/releases/upgrade-to-1.3.md) for the schema-move
+migration.
+
+> **Note on `@EntityScan`.** If your application declares its own `@EntityScan("com.example…")`, that
+> suppresses the additive fallback for entities — add the library root to it, e.g.
+> `@EntityScan({"com.example…", "com.openelements.spring.base"})`.
+
+Explicit wiring via `@Import(FullSpringServiceConfig.class)` remains supported and is now optional —
+use it if you prefer to opt out of the auto-configuration. Applications that only need a subset can
+import individual feature configurations directly — for example `SecurityConfig`, `TenantConfig`,
+`TagConfig`, `WebhookConfig`, `SettingsConfig`, `ApiKeyConfig`. Multi-tenancy can also be enabled
+declaratively via the `@EnableTenant` meta-annotation.
 
 ### Optional sidecar features (opt-in)
 

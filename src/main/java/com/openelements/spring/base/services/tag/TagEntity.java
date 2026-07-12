@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.tag;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.data.NameSupplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,7 +18,7 @@ import org.hibernate.annotations.UpdateTimestamp;
  * stored as a 7-character string, intended to hold a CSS hex code such as {@code #aabbcc}.
  */
 @Entity
-@Table(name = "tags")
+@Table(name = "tags", schema = DbSchema.NAME)
 public class TagEntity extends AbstractEntity {
 
   @Column(nullable = false, unique = true)

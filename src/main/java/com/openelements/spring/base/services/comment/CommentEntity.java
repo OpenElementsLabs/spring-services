@@ -1,13 +1,14 @@
 package com.openelements.spring.base.services.comment;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.services.user.UserEntity;
 import jakarta.persistence.*;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
 @Entity
-@Table(name = "comments")
+@Table(name = "comments", schema = DbSchema.NAME)
 public class CommentEntity extends AbstractEntity {
 
   @Column(name = "text", nullable = false, columnDefinition = "TEXT")

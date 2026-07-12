@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.apikey;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.data.NameSupplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +13,7 @@ import java.util.Objects;
  * create and delete.
  */
 @Entity
-@Table(name = "api_keys")
+@Table(name = "api_keys", schema = DbSchema.NAME)
 public class ApiKeyEntity extends AbstractEntity {
 
   @Column(name = "name", nullable = false, length = 255)

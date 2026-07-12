@@ -1,6 +1,7 @@
 package com.openelements.spring.base.services.user;
 
 import com.openelements.spring.base.data.AbstractEntity;
+import com.openelements.spring.base.data.DbSchema;
 import com.openelements.spring.base.data.NameSupplier;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,7 +24,7 @@ import org.hibernate.annotations.UpdateTimestamp;
  * reflects the most recent assertions of the identity provider.
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", schema = DbSchema.NAME)
 @BatchSize(size = 50)
 public class UserEntity extends AbstractEntity {
 

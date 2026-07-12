@@ -1,5 +1,6 @@
 package com.openelements.spring.base.services.user;
 
+import com.openelements.spring.base.data.DbSchema;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,9 @@ public class SystemUserInitializer implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(SystemUserInitializer.class);
 
   private static final String INSERT_SQL =
-      "INSERT INTO users (id, sub, user_name, name, active, updated_at, created_at) "
+      "INSERT INTO "
+          + DbSchema.NAME
+          + ".users (id, sub, user_name, name, active, updated_at, created_at) "
           + "VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
 
   private final UserRepository userRepository;
