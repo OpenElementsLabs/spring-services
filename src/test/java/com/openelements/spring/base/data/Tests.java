@@ -12,7 +12,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Pageable;
 
-@SpringBootTest(classes = ForTestConfig.class)
+// This is a focused slice test of AbstractDbBackedDataService using the in-package ForTestConfig
+// fixture. The library's real starter (SpringServicesAutoConfiguration) is excluded: because
+// ForTestConfig lives inside the library root package, the starter's additive
+// AutoConfigurationPackages.register("com.openelements.spring.base") would overlap ForTestConfig's
+// own (.data) package registration — registering ForTestRepository twice — and would also pull the
+// full FullSpringServiceConfig into this minimal context. Real consumers sit outside the library
+// package tree and are unaffected (see StarterAutoConfigurationIntegrationTest).
+@SpringBootTest(
+    classes = ForTestConfig.class,
+    properties =
+        "spring.autoconfigure.exclude=com.openelements.spring.base.SpringServicesAutoConfiguration")
 public class Tests {
 
   @Autowired private ForTestDataService forTestDataService;
