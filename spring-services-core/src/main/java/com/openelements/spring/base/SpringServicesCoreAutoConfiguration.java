@@ -13,7 +13,11 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
 
 /**
- * Auto-configuration that turns spring-services into a real Spring Boot starter.
+ * Core auto-configuration that turns {@code spring-services-core} into a real Spring Boot starter.
+ *
+ * <p>Each optional feature module ({@code -slack}, {@code -search}, {@code -dbbackup}, {@code -email},
+ * {@code -mcp}) ships its own {@code @AutoConfiguration} guarded by {@code @ConditionalOnClass}; this
+ * class configures only the always-present core features.
  *
  * <p>Registered through {@code META-INF/spring/
  * org.springframework.boot.autoconfigure.AutoConfiguration.imports}, so a consuming application only
@@ -43,8 +47,8 @@ import org.springframework.core.type.AnnotationMetadata;
 @AutoConfiguration
 @ConditionalOnClass(EntityManagerFactory.class)
 @AutoConfigureBefore({HibernateJpaAutoConfiguration.class, JpaRepositoriesAutoConfiguration.class})
-@Import({FullSpringServiceConfig.class, SpringServicesAutoConfiguration.PackageRegistrar.class})
-public class SpringServicesAutoConfiguration {
+@Import({FullSpringServiceConfig.class, SpringServicesCoreAutoConfiguration.PackageRegistrar.class})
+public class SpringServicesCoreAutoConfiguration {
 
   /** Root package of the library — scanned for both entities and Spring Data repositories. */
   static final String LIBRARY_ROOT_PACKAGE = "com.openelements.spring.base";

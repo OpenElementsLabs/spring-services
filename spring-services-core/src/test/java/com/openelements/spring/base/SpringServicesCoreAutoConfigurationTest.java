@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
- * Activation-guard test for {@link SpringServicesAutoConfiguration}.
+ * Activation-guard test for {@link SpringServicesCoreAutoConfiguration}.
  *
  * <p>Verifies the {@code @ConditionalOnClass(EntityManagerFactory.class)} guard: in an application
  * without JPA on the classpath the starter must stay inert rather than fail trying to configure
@@ -20,12 +20,12 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  * <p>The positive case (the auto-configuration activating and wiring the full platform when JPA is
  * present) is covered end-to-end by {@code com.example.app.StarterAutoConfigurationIntegrationTest}.
  */
-@DisplayName("SpringServicesAutoConfiguration — activation guard")
-class SpringServicesAutoConfigurationTest {
+@DisplayName("SpringServicesCoreAutoConfiguration — activation guard")
+class SpringServicesCoreAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(SpringServicesAutoConfiguration.class));
+          .withConfiguration(AutoConfigurations.of(SpringServicesCoreAutoConfiguration.class));
 
   @Test
   @DisplayName("Backs off (does not activate) when EntityManagerFactory is absent from the classpath")
@@ -36,6 +36,6 @@ class SpringServicesAutoConfigurationTest {
             context ->
                 assertThat(context)
                     .hasNotFailed()
-                    .doesNotHaveBean(SpringServicesAutoConfiguration.class));
+                    .doesNotHaveBean(SpringServicesCoreAutoConfiguration.class));
   }
 }
