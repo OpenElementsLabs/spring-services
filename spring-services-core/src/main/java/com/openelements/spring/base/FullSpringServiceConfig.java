@@ -4,7 +4,6 @@ import com.openelements.spring.base.security.SecurityConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.comment.CommentConfig;
-import com.openelements.spring.base.services.dbbackup.DbBackupConfig;
 import com.openelements.spring.base.services.email.EmailConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
@@ -39,8 +38,6 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link WebhookConfig} — outbound webhook subscriptions and dispatching.
  *   <li>{@link EmailConfig} — Email sending service for delivering plain-text emails via SMTP.
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
- *   <li>{@link DbBackupConfig} — Client for the db-backup-service sidecar: trigger backups, poll
- *       job status, list and stream backup artefacts.
  * </ul>
  */
 @Import({
@@ -53,8 +50,7 @@ import org.springframework.context.annotation.Import;
         EmailConfig.class,
         AuditConfig.class,
         CommentConfig.class,
-        TranslationConfig.class,
-        DbBackupConfig.class
+        TranslationConfig.class
 })
 public class FullSpringServiceConfig {
 }

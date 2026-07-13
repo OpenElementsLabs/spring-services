@@ -42,6 +42,7 @@
         <module>spring-services-core</module>
         <module>spring-services-slack</module>
         <module>spring-services-search</module>
+        <module>spring-services-dbbackup</module>
     </modules>
 
     <!-- Shared third-party versions for all modules (module-internal concern; not pushed to the org parent). -->
