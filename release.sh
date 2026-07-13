@@ -53,7 +53,9 @@ generate_release_doc() {
 }
 
 echo "Releasing version $NEW_VERSION"
-./mvnw versions:set -DnewVersion=$NEW_VERSION
+# -DprocessAllModules keeps the reactor lockstep: it bumps the parent and every
+# module (each references the parent version explicitly, not ${revision}).
+./mvnw versions:set -DnewVersion=$NEW_VERSION -DprocessAllModules
 
 # Build and test locally so we never push a tag that fails CI.
 #
@@ -96,6 +98,6 @@ git tag "v$NEW_VERSION"
 git push origin "v$NEW_VERSION"
 
 echo "Setting version to $NEXT_VERSION"
-./mvnw versions:set -DnewVersion=$NEXT_VERSION
+./mvnw versions:set -DnewVersion=$NEXT_VERSION -DprocessAllModules
 git commit -am "Version $NEXT_VERSION"
 git push
