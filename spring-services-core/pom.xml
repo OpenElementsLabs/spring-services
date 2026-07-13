@@ -49,12 +49,6 @@
             <version>${jspecify.version}</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>com.slack.api</groupId>
-            <artifactId>slack-api-client</artifactId>
-            <version>${slack-api-client.version}</version>
-        </dependency>
-
         <!-- Official Java MCP SDK with Spring WebMVC Streamable HTTP transport.
              The 0.18.x line (mcp-core + mcp-spring-webmvc) carries the WebMVC
              transport; the separate mcp:2.0.0 track does not. Pinned for
