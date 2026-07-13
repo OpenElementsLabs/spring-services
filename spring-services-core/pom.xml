@@ -94,4 +94,38 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- Guarantees the "core does not pull optional heavy dependencies" contract: the build
+                 fails if any optional feature library leaks into core's dependency tree. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-optional-feature-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.slack.api:slack-api-client</exclude>
+                                        <exclude>io.modelcontextprotocol.sdk:*</exclude>
+                                        <exclude>org.springframework.boot:spring-boot-starter-mail</exclude>
+                                    </excludes>
+                                    <message>spring-services-core must not depend on optional feature
+                                        libraries (slack-api-client, the MCP SDK, or
+                                        spring-boot-starter-mail). Those belong to the feature
+                                        modules.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

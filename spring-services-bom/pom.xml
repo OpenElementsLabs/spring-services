@@ -1,0 +1,58 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.open-elements</groupId>
+        <artifactId>spring-services</artifactId>
+        <version>1.3.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>spring-services-bom</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Spring Services BOM</name>
+    <description>Bill of materials: import once to manage every spring-services module at a single
+        lockstep version, then declare individual modules without versions.</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-slack</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-search</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-dbbackup</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-email</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-mcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-all</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

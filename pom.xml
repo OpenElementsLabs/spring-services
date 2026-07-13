@@ -46,6 +46,7 @@
         <module>spring-services-email</module>
         <module>spring-services-mcp</module>
         <module>spring-services-all</module>
+        <module>spring-services-bom</module>
     </modules>
 
     <!-- Shared third-party versions for all modules (module-internal concern; not pushed to the org parent). -->
