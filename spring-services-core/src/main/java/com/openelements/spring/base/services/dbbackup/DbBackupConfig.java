@@ -13,9 +13,9 @@ import org.springframework.context.annotation.Configuration;
  * part of the full platform setup.
  *
  * <p>This is a plain {@code @Configuration} (not {@code @AutoConfiguration}) for the same reason as
- * {@link com.openelements.spring.base.services.search.SearchConfig}: a host application's
- * {@code @ComponentScan} reliably picks up plain configurations but excludes auto-configurations,
- * so the properties are always registered alongside the client.
+ * the {@code SearchConfig} of the search module: a host application's {@code @ComponentScan}
+ * reliably picks up plain configurations but excludes auto-configurations, so the properties are
+ * always registered alongside the client.
  *
  * <p>The feature is <strong>opt-in and disabled by default</strong>: none of these beans are created
  * unless {@code openelements.db-backup.enabled=true}. This avoids forcing a db-backup configuration

@@ -6,7 +6,6 @@ import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.comment.CommentConfig;
 import com.openelements.spring.base.services.dbbackup.DbBackupConfig;
 import com.openelements.spring.base.services.email.EmailConfig;
-import com.openelements.spring.base.services.search.SearchConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
 import com.openelements.spring.base.services.translation.TranslationConfig;
@@ -40,8 +39,6 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link WebhookConfig} — outbound webhook subscriptions and dispatching.
  *   <li>{@link EmailConfig} — Email sending service for delivering plain-text emails via SMTP.
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
- *   <li>{@link SearchConfig} — Meilisearch-backed full-text search: startup reindex, scoped keys,
- *       and per-index settings.
  *   <li>{@link DbBackupConfig} — Client for the db-backup-service sidecar: trigger backups, poll
  *       job status, list and stream backup artefacts.
  * </ul>
@@ -57,7 +54,6 @@ import org.springframework.context.annotation.Import;
         AuditConfig.class,
         CommentConfig.class,
         TranslationConfig.class,
-        SearchConfig.class,
         DbBackupConfig.class
 })
 public class FullSpringServiceConfig {
