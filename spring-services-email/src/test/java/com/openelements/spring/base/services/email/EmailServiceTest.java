@@ -133,10 +133,9 @@ class EmailServiceTest {
     }
 
     /**
-     * Symmetric to the WARN-on-blank-token check in {@link
-     * com.openelements.spring.base.services.slack.SlackConfigTest}: an environment that exports
-     * {@code OPEN_ELEMENTS_EMAIL_FROM_NAME="   "} must not emit an RFC header containing only
-     * whitespace as the display name.
+     * Symmetric to the WARN-on-blank-token check in {@code SlackConfigTest} (spring-services-slack):
+     * an environment that exports {@code OPEN_ELEMENTS_EMAIL_FROM_NAME="   "} must not emit an RFC
+     * header containing only whitespace as the display name.
      */
     @Test
     @DisplayName("A whitespace-only from-name is treated as missing — the From header is the bare address.")
