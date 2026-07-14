@@ -13,13 +13,19 @@ import java.util.stream.Stream;
  */
 public interface SearchIndexBootstrapStep {
 
-  /** Target index UID (already prefixed). Used for the Meilisearch write and for log identity. */
+  /**
+   * Target index UID (already prefixed). Used for the Meilisearch write and for log identity.
+   *
+   * @return the fully resolved target index UID for this step
+   */
   String indexUid();
 
   /**
    * Lazy stream of documents to push. The lib batches into groups of {@link
    * MeilisearchBootstrapRunner#BATCH_SIZE} and flushes via {@link MeilisearchClient#addDocuments}.
    * The lib closes the stream via try-with-resources.
+   *
+   * @return a lazy, closeable stream of already-mapped documents to index for this step
    */
   Stream<Map<String, Object>> documents();
 }

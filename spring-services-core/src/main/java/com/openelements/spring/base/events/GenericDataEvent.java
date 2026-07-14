@@ -24,6 +24,7 @@ import org.springframework.context.ApplicationEvent;
  */
 public abstract class GenericDataEvent<T extends WithId> extends ApplicationEvent {
 
+  /** The runtime DTO type this event refers to, captured to survive generic type erasure. */
   private final Class<T> type;
 
   /**

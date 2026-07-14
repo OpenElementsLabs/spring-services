@@ -89,6 +89,13 @@ public interface DataService<D extends WithId> {
    */
   @NonNull Optional<D> findById(@NonNull final UUID id);
 
+  /**
+   * Looks up a DTO by its id, failing if none exists.
+   *
+   * @param id the id to look up
+   * @return the matching DTO
+   * @throws IllegalArgumentException if no entity with that id exists
+   */
   default @NonNull D findByIdOrThrow(@NonNull final UUID id) {
     Objects.requireNonNull(id, "id must not be null");
     return findById(id).orElseThrow(() -> new IllegalArgumentException("No such id " + id));

@@ -19,6 +19,12 @@ public class AuditCleanupJob {
 
   private final AuditProperties auditProperties;
 
+  /**
+   * Creates a new cleanup job.
+   *
+   * @param auditLogRepository the repository from which expired audit rows are deleted
+   * @param auditProperties the configuration providing the retention window
+   */
   public AuditCleanupJob(
       final AuditLogRepository auditLogRepository, final AuditProperties auditProperties) {
     this.auditLogRepository =

@@ -19,22 +19,45 @@ public class WebhookEventListener {
 
   private final WebhookSender webhookSender;
 
+  /**
+   * Creates a new listener that dispatches lifecycle events to registered webhooks.
+   *
+   * @param webhookSender the collaborator that performs the HTTP delivery to each active webhook
+   */
   public WebhookEventListener(final WebhookSender webhookSender) {
     this.webhookSender = Objects.requireNonNull(webhookSender, "webhookSender must not be null");
   }
 
+  /**
+   * Handles an entity-creation event by notifying the registered webhooks after commit.
+   *
+   * @param <T> the DTO type that was created
+   * @param event the creation event
+   */
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public <T extends WithId> void handleOnObjectCreate(final OnObjectCreate<T> event) {
     Objects.requireNonNull(event, "event must not be null");
     handle(WebhookDataEventType.CREATED, event.getType(), event.getData());
   }
 
+  /**
+   * Handles an entity-update event by notifying the registered webhooks after commit.
+   *
+   * @param <T> the DTO type that was updated
+   * @param event the update event
+   */
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public <T extends WithId> void handleOnObjectUpdate(final OnObjectUpdate<T> event) {
     Objects.requireNonNull(event, "event must not be null");
     handle(WebhookDataEventType.UPDATED, event.getType(), event.getData());
   }
 
+  /**
+   * Handles an entity-deletion event by notifying the registered webhooks after commit.
+   *
+   * @param <T> the DTO type that was deleted
+   * @param event the deletion event
+   */
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public <T extends WithId> void handleOnObjectDelete(final OnObjectDelete<T> event) {
     Objects.requireNonNull(event, "event must not be null");

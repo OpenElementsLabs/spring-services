@@ -50,4 +50,7 @@ import org.springframework.context.annotation.Import;
         TranslationConfig.class
 })
 public class FullSpringServiceConfig {
+
+  /** Creates the aggregate configuration; all feature configurations are wired via {@code @Import}. */
+  public FullSpringServiceConfig() {}
 }

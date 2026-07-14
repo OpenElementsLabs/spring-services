@@ -29,16 +29,37 @@ import org.jspecify.annotations.Nullable;
  */
 public interface WithId {
 
+  /**
+   * Collects the ids of the given objects into an unmodifiable set.
+   *
+   * @param <T> the type of the objects
+   * @param data the objects whose ids to collect
+   * @return an unmodifiable set of the ids
+   */
   @NonNull
   static <T extends WithId> Set<UUID> toIdSet(@NonNull final Iterable<T> data) {
     return toIdStream(data).collect(Collectors.toUnmodifiableSet());
   }
 
+  /**
+   * Collects the ids of the given objects into a list, preserving iteration order.
+   *
+   * @param <T> the type of the objects
+   * @param data the objects whose ids to collect
+   * @return a list of the ids
+   */
   @NonNull
   static <T extends WithId> List<UUID> toIdList(@NonNull final Iterable<T> data) {
     return toIdStream(data).toList();
   }
 
+  /**
+   * Streams the ids of the given objects, preserving iteration order.
+   *
+   * @param <T> the type of the objects
+   * @param data the objects whose ids to stream
+   * @return a stream of the ids
+   */
   @NonNull
   static <T extends WithId> Stream<UUID> toIdStream(@NonNull final Iterable<T> data) {
     Objects.requireNonNull(data, "data must not be null");

@@ -43,6 +43,13 @@ public class EmailService {
 
   private final EmailProperties properties;
 
+  /**
+   * Creates the service.
+   *
+   * @param mailSenderProvider provider for the optional {@link JavaMailSender}; if none is available
+   *     the service is still created but every send fails fast
+   * @param properties the email configuration properties
+   */
   public EmailService(
       final ObjectProvider<JavaMailSender> mailSenderProvider, final EmailProperties properties) {
     this.mailSender = mailSenderProvider.getIfAvailable();
@@ -73,6 +80,9 @@ public class EmailService {
   /**
    * Sends a plain-text email to the given address.
    *
+   * @param to the recipient email address
+   * @param subject the email subject line
+   * @param body the plain-text email body
    * @throws EmailException if mail sending is not configured, the sender address is missing, or
    *     SMTP delivery fails
    * @throws NullPointerException if any argument is {@code null}
@@ -106,6 +116,9 @@ public class EmailService {
   /**
    * Sends a plain-text email to the address stored on {@code user}.
    *
+   * @param user the recipient whose stored email address is used
+   * @param subject the email subject line
+   * @param body the plain-text email body
    * @throws IllegalArgumentException if the user has no email address
    * @throws EmailException if mail sending is not configured or SMTP delivery fails
    * @throws NullPointerException if any argument is {@code null}

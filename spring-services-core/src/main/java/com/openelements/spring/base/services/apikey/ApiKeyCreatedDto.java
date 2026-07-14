@@ -7,6 +7,13 @@ import java.util.UUID;
 /**
  * One-time response DTO for a newly created API key. Contains the raw key which is shown exactly
  * once and never stored or retrievable again.
+ *
+ * @param id the unique identifier of the API key
+ * @param name the user-given name of the API key
+ * @param keyPrefix the non-secret display prefix of the key
+ * @param key the raw API key value, shown only once and never retrievable again
+ * @param createdBy the name of the user who created the key
+ * @param createdAt the timestamp at which the key was created
  */
 @Schema(description = "Newly created API key (raw key shown only once)")
 public record ApiKeyCreatedDto(

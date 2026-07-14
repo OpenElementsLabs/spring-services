@@ -25,4 +25,8 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnClass(Slack.class)
 @Import(SlackConfig.class)
-public class SlackAutoConfiguration {}
+public class SlackAutoConfiguration {
+
+  /** Creates the auto-configuration. */
+  public SlackAutoConfiguration() {}
+}

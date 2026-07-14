@@ -26,6 +26,12 @@ public class MeilisearchScopedKeyInitializer implements ApplicationRunner {
   private final MeilisearchClient client;
   private final Optional<ScopedKeySpec> scopedKey;
 
+  /**
+   * Creates the scoped-key initializer.
+   *
+   * @param client the Meilisearch client whose API key is swapped on success
+   * @param scopedKey the optional scoped-key specification supplied by the application
+   */
   public MeilisearchScopedKeyInitializer(
       final MeilisearchClient client, final Optional<ScopedKeySpec> scopedKey) {
     this.client = client;

@@ -7,12 +7,29 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+/** Utility methods for converting and resizing images into JPEG form. */
 public class ImageUtilities {
 
+  /** Utility class; not meant to be instantiated. */
+  private ImageUtilities() {}
+
+  /**
+   * Converts the given image to JPEG.
+   *
+   * @param data the source image
+   * @return a new image holding the JPEG-encoded data
+   */
   public static ImageData toJpeg(@NonNull ImageData data) {
     return toJpeg(data.data(), data.contentType());
   }
 
+  /**
+   * Converts the given raw image bytes to JPEG.
+   *
+   * @param data the source image bytes
+   * @param contentType the MIME content type of the source image
+   * @return a new image holding the JPEG-encoded data
+   */
   public static ImageData toJpeg(@NonNull byte[] data, @NonNull String contentType) {
     Objects.requireNonNull(data, "data must not be null");
     Objects.requireNonNull(contentType, "contentType must not be null");
@@ -26,10 +43,27 @@ public class ImageUtilities {
     };
   }
 
+  /**
+   * Converts the given image to JPEG and scales it to fit within the given bounds.
+   *
+   * @param data the source image
+   * @param maxWidth the maximum width in pixels
+   * @param maxHeight the maximum height in pixels
+   * @return a new image holding the scaled JPEG-encoded data
+   */
   public static ImageData toJpeg(@NonNull ImageData data, int maxWidth, int maxHeight) {
     return toJpeg(data.data(), data.contentType(), maxWidth, maxHeight);
   }
 
+  /**
+   * Converts the given raw image bytes to JPEG and scales the result to fit within the given bounds.
+   *
+   * @param data the source image bytes
+   * @param contentType the MIME content type of the source image
+   * @param maxWidth the maximum width in pixels
+   * @param maxHeight the maximum height in pixels
+   * @return a new image holding the scaled JPEG-encoded data
+   */
   public static ImageData toJpeg(
       @NonNull byte[] data, @NonNull String contentType, int maxWidth, int maxHeight) {
     Objects.requireNonNull(data, "data must not be null");

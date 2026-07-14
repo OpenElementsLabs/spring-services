@@ -14,11 +14,15 @@ public final class Roles {
   /** Predefined role for IT administrators. */
   public static final String ROLE_IT_ADMIN = "IT-ADMIN";
 
+  /** Predefined role for internal employees. */
   public static final String ROLE_EMPLOYEE = "EMPLOYEE";
 
+  /** Predefined role for external, non-employee users. */
   public static final String ROLE_EXTERNAL = "EXTERNAL";
 
+  /** Predefined role for back-office staff. */
   public static final String ROLE_BACKOFFICE = "BACKOFFICE";
 
+  /** Predefined role for management users. */
   public static final String ROLE_MANAGEMENT = "MANAGEMENT";
 }

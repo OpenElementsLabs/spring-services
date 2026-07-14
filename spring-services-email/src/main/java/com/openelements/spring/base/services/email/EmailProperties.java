@@ -15,18 +15,41 @@ public class EmailProperties {
 
   private String fromName;
 
+  /** Creates the properties holder with unset values. */
+  public EmailProperties() {}
+
+  /**
+   * Returns the configured sender email address.
+   *
+   * @return the sender email address, or {@code null} if not configured
+   */
   public String getFrom() {
     return from;
   }
 
+  /**
+   * Sets the sender email address.
+   *
+   * @param from the sender email address
+   */
   public void setFrom(final String from) {
     this.from = from;
   }
 
+  /**
+   * Returns the optional display name used for the sender address.
+   *
+   * @return the sender display name, or {@code null} if not configured
+   */
   public String getFromName() {
     return fromName;
   }
 
+  /**
+   * Sets the optional display name used for the sender address.
+   *
+   * @param fromName the sender display name
+   */
   public void setFromName(final String fromName) {
     this.fromName = fromName;
   }

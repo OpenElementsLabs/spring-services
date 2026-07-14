@@ -14,6 +14,9 @@ public class WebhookConfig {
 
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
+  /** Creates the configuration; webhook beans are declared via the annotated factory methods. */
+  public WebhookConfig() {}
+
   @Bean
   RestClient webhookRestClient() {
     final SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();

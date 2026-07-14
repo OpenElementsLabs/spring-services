@@ -21,6 +21,11 @@ public class McpPaging {
 
     private final McpProperties properties;
 
+    /**
+     * Creates the paging helper.
+     *
+     * @param properties the MCP properties supplying the default and maximum page sizes
+     */
     public McpPaging(final McpProperties properties) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }

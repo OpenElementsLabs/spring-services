@@ -6,4 +6,8 @@ import org.springframework.context.annotation.Configuration;
 /** Configuration for email sending beans. */
 @Configuration(proxyBeanMethods = false)
 @ComponentScan(basePackageClasses = EmailConfig.class)
-public class EmailConfig {}
+public class EmailConfig {
+
+  /** Creates the configuration. */
+  public EmailConfig() {}
+}

@@ -34,6 +34,7 @@ import org.springframework.validation.annotation.Validated;
 public record DbBackupProperties(
     @NotBlank String baseUrl, String apiToken, Duration requestTimeout) {
 
+  /** Applies the default request timeout of 30 seconds when none is configured. */
   public DbBackupProperties {
     if (requestTimeout == null) {
       requestTimeout = Duration.ofSeconds(30);

@@ -89,6 +89,8 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
   private final boolean publishEvents;
 
   /**
+   * Constructs a new service that publishes lifecycle events for every create, update and delete.
+   *
    * @param eventPublisher Spring's event publisher, used to broadcast lifecycle events
    */
   public AbstractDbBackedDataService(@NonNull final ApplicationEventPublisher eventPublisher) {

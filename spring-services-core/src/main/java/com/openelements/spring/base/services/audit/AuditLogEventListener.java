@@ -38,6 +38,13 @@ public class AuditLogEventListener {
 
   private final UserRepository userRepository;
 
+  /**
+   * Creates a new listener that turns data-lifecycle events into audit entries.
+   *
+   * @param auditLogDataService the service used to persist audit entries
+   * @param authService the service used to resolve the current authenticated user
+   * @param userRepository the repository used to resolve the acting user entity
+   */
   public AuditLogEventListener(
       final AuditLogDataService auditLogDataService,
       final AuthService authService,

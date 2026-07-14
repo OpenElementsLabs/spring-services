@@ -40,6 +40,11 @@ public class UserProvisioner {
 
   private final UserRepository userRepository;
 
+  /**
+   * Creates a new provisioner backed by the user repository.
+   *
+   * @param userRepository the repository used to insert newly provisioned users
+   */
   public UserProvisioner(final UserRepository userRepository) {
     this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
   }

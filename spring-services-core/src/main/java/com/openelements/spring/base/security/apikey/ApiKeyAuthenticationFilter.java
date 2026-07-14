@@ -66,6 +66,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
       SecurityContextHolder.getContextHolderStrategy();
 
   /**
+   * Creates a new filter that authenticates requests using their API key.
+   *
    * @param apiKeyService the data service used to validate API keys
    * @param authenticationEntryPoint the entry point invoked on authentication failure — produces
    *     the uniform JSON {@code 401} response and the {@code WWW-Authenticate} header

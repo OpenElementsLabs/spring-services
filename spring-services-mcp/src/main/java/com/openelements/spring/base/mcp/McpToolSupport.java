@@ -34,6 +34,12 @@ public class McpToolSupport {
     private final McpPaging paging;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Creates the tool support.
+     *
+     * @param paging       the paging helper used to resolve and clamp page requests
+     * @param objectMapper the Jackson mapper used to serialize tool payloads to JSON
+     */
     public McpToolSupport(final McpPaging paging, final ObjectMapper objectMapper) {
         this.paging = Objects.requireNonNull(paging, "paging must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");

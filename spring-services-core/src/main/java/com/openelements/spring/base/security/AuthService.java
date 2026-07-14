@@ -49,6 +49,9 @@ public class AuthService {
   private final SecurityContextHolderStrategy securityContextHolderStrategy =
       SecurityContextHolder.getContextHolderStrategy();
 
+  /** Creates a new service that reads authentication state from the Spring Security context. */
+  public AuthService() {}
+
   /**
    * Returns the {@link Authentication} of the current request.
    *

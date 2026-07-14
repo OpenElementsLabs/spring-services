@@ -32,6 +32,14 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
 
   private final UserRepository userRepository;
 
+  /**
+   * Creates a new audit-log service that persists audit entries without publishing lifecycle
+   * events, to avoid recursively auditing its own writes.
+   *
+   * @param auditLogRepository the repository used to persist and query audit entries
+   * @param userRepository the repository used to resolve the acting user
+   * @param eventPublisher Spring's event publisher, passed to the superclass
+   */
   public AuditLogDataService(
       @NonNull final AuditLogRepository auditLogRepository,
       @NonNull final UserRepository userRepository,
@@ -200,6 +208,7 @@ public class AuditLogDataService extends AbstractDbBackedDataService<AuditLogEnt
    *
    * @param entityType the simple class name of the audited DTO
    * @param entityId the id of the audited entity
+   * @param name the human readable name of the audited entity
    * @param action the kind of lifecycle event
    * @param user the user that performed the action
    * @return the persisted DTO

@@ -36,6 +36,14 @@ public class MeilisearchBootstrapRunner implements ApplicationRunner {
   private final SearchReadinessState state;
   private final BootstrapInvoker invoker;
 
+  /**
+   * Creates the bootstrap runner.
+   *
+   * @param steps all registered reindex steps, in {@code @Order} sequence
+   * @param client the Meilisearch client used to check health and write documents
+   * @param state the shared readiness flag flipped around the reindex
+   * @param invoker the indirection that runs the reindex on the async executor pool
+   */
   public MeilisearchBootstrapRunner(
       final List<SearchIndexBootstrapStep> steps,
       final MeilisearchClient client,

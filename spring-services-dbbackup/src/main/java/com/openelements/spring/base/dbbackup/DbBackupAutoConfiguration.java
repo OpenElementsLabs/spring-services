@@ -20,4 +20,8 @@ import org.springframework.context.annotation.Import;
  */
 @AutoConfiguration
 @Import(DbBackupConfig.class)
-public class DbBackupAutoConfiguration {}
+public class DbBackupAutoConfiguration {
+
+  /** Creates the auto-configuration. */
+  public DbBackupAutoConfiguration() {}
+}

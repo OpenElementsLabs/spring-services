@@ -41,6 +41,14 @@ public class UserService extends AbstractDbBackedDataService<UserEntity, UserDto
 
     private final UserProvisioner userProvisioner;
 
+    /**
+     * Creates a new user service.
+     *
+     * @param userRepository the repository used to persist and look up users
+     * @param eventPublisher Spring's event publisher, used to broadcast lifecycle events
+     * @param authService the service used to resolve the current authenticated user
+     * @param userProvisioner the collaborator that inserts new users in a fresh transaction
+     */
     public UserService(
             final UserRepository userRepository,
             final ApplicationEventPublisher eventPublisher,

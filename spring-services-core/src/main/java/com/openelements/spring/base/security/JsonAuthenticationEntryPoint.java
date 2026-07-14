@@ -38,6 +38,8 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
   private final String wwwAuthenticateHeader;
 
   /**
+   * Creates a new entry point that writes authentication failures as a JSON response.
+   *
    * @param objectMapper the application's Jackson mapper, used to write the JSON body
    * @param wwwAuthenticateHeader the value to send in the {@code WWW-Authenticate} response
    *     header — typically {@code "Bearer"} for the JWT chain or

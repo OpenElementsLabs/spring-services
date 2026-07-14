@@ -35,6 +35,10 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "openelements.mcp", name = "enabled", havingValue = "true")
 public class McpServerConfig {
 
+    /** Creates the configuration. */
+    public McpServerConfig() {
+    }
+
     /**
      * The MCP endpoint path; kept in sync with {@link McpSecurityConfig#MCP_PATHS}.
      */
@@ -44,6 +48,11 @@ public class McpServerConfig {
      * The Streamable HTTP transport provider. Uses the application's Jackson
      * {@link ObjectMapper} (so date/time and other modules match the REST API)
      * wrapped as the SDK's {@code McpJsonMapper}.
+     *
+     * @param objectMapper       the application's Jackson mapper used to (de)serialize MCP payloads
+     * @param apiKeyDataService  the key store used to resolve the authenticated actor from the
+     *                           {@code X-API-Key} header for the transport context
+     * @return the configured Streamable HTTP transport provider serving {@code /mcp}
      */
     @Bean
     public WebMvcStreamableServerTransportProvider mcpTransportProvider(

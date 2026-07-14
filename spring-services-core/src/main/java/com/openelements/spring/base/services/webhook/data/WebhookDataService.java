@@ -12,6 +12,12 @@ public class WebhookDataService extends AbstractDbBackedDataService<WebhookEntit
 
   private final WebhookRepository webhookRepository;
 
+  /**
+   * Creates a new webhook service.
+   *
+   * @param webhookRepository the repository used to persist and query webhook registrations
+   * @param eventPublisher Spring's event publisher, used to broadcast lifecycle events
+   */
   public WebhookDataService(
       final WebhookRepository webhookRepository, final ApplicationEventPublisher eventPublisher) {
     super(eventPublisher);
@@ -47,6 +53,11 @@ public class WebhookDataService extends AbstractDbBackedDataService<WebhookEntit
         entity.getLastCalledAt());
   }
 
+  /**
+   * Returns all currently active webhook registrations.
+   *
+   * @return the active webhooks as DTOs
+   */
   public List<WebhookDto> findAllActive() {
     return getRepository().findAllByActiveTrue().stream().map(this::toData).toList();
   }

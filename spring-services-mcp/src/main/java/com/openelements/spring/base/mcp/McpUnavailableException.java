@@ -7,6 +7,11 @@ package com.openelements.spring.base.mcp;
  */
 public class McpUnavailableException extends RuntimeException {
 
+    /**
+     * Creates the exception.
+     *
+     * @param message the detail message describing why the subsystem is unavailable
+     */
     public McpUnavailableException(final String message) {
         super(message);
     }

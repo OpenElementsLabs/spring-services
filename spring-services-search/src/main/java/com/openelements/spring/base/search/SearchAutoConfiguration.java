@@ -20,4 +20,8 @@ import org.springframework.context.annotation.Import;
  */
 @AutoConfiguration
 @Import(SearchConfig.class)
-public class SearchAutoConfiguration {}
+public class SearchAutoConfiguration {
+
+  /** Creates the auto-configuration. */
+  public SearchAutoConfiguration() {}
+}

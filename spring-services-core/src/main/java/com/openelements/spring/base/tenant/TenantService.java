@@ -17,6 +17,11 @@ public class TenantService {
 
   private final AuthService authService;
 
+  /**
+   * Creates a new tenant service.
+   *
+   * @param authService the service used to resolve the authenticated principal
+   */
   @Autowired
   public TenantService(final AuthService authService) {
     this.authService = Objects.requireNonNull(authService, "authService must not be null");

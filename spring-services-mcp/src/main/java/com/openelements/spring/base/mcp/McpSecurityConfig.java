@@ -40,6 +40,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @ConditionalOnProperty(prefix = "openelements.mcp", name = "enabled", havingValue = "true")
 public class McpSecurityConfig {
 
+    /** Creates the configuration. */
+    public McpSecurityConfig() {
+    }
+
     /** Path patterns covered by the MCP security chain: the endpoint itself and any sub-path. */
     static final String[] MCP_PATHS = {"/mcp", "/mcp/**"};
 

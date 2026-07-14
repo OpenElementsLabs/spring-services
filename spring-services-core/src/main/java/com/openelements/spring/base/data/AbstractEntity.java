@@ -42,18 +42,24 @@ import org.hibernate.annotations.UpdateTimestamp;
 @MappedSuperclass
 public abstract class AbstractEntity implements DbEntity {
 
+  /** The generated UUID primary key, assigned by JPA on persist. */
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id", updatable = false, nullable = false)
   private UUID id;
 
+  /** The creation timestamp, set once when the entity is first persisted. */
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  /** The last-update timestamp, refreshed on every update. */
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  /** Creates a new entity; the id and audit timestamps are assigned by JPA on persist. */
+  protected AbstractEntity() {}
 
   /**
    * {@inheritDoc}

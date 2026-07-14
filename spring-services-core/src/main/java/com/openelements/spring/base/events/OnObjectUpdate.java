@@ -15,6 +15,8 @@ import org.jspecify.annotations.NonNull;
 public class OnObjectUpdate<T extends WithId> extends GenericDataEvent<T> {
 
   /**
+   * Creates a new update event for the given DTO.
+   *
    * @param source the updated DTO in its post-update state
    */
   public OnObjectUpdate(@NonNull T source) {

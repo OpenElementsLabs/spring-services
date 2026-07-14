@@ -24,4 +24,8 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnClass(MimeMessage.class)
 @Import(EmailConfig.class)
-public class EmailAutoConfiguration {}
+public class EmailAutoConfiguration {
+
+  /** Creates the auto-configuration. */
+  public EmailAutoConfiguration() {}
+}
