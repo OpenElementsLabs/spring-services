@@ -61,7 +61,14 @@ jobs:
         # distributionManagement points at GitHub Packages, so we override
         # the deploy target to the local staging directory configured in the
         # JReleaser <stagingRepositories> block (target/staging-deploy).
-        run: ./mvnw -B -Pfull-build clean deploy -DaltDeploymentRepository=local::file:./target/staging-deploy
+        #
+        # The path is ABSOLUTE (github.workspace) on purpose: in the multi-module
+        # reactor a relative ./target/staging-deploy would resolve per-module and
+        # scatter each module's artifacts under its own target/, so JReleaser
+        # (running once at the root) would not find them. An absolute path stages
+        # every module — core, the feature modules, spring-services-all and the BOM —
+        # into the single root staging directory JReleaser reads.
+        run: ./mvnw -B -Pfull-build clean deploy -DaltDeploymentRepository=local::file:${{ github.workspace }}/target/staging-deploy
 
       - name: Publish with JReleaser
         run: ./mvnw -B -Pdeploy-release jreleaser:full-release -N

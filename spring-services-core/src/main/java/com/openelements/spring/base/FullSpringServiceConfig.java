@@ -4,11 +4,7 @@ import com.openelements.spring.base.security.SecurityConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.audit.AuditConfig;
 import com.openelements.spring.base.services.comment.CommentConfig;
-import com.openelements.spring.base.services.dbbackup.DbBackupConfig;
-import com.openelements.spring.base.services.email.EmailConfig;
-import com.openelements.spring.base.services.search.SearchConfig;
 import com.openelements.spring.base.services.settings.SettingsConfig;
-import com.openelements.spring.base.services.slack.SlackConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
 import com.openelements.spring.base.services.translation.TranslationConfig;
 import com.openelements.spring.base.services.webhook.WebhookConfig;
@@ -39,13 +35,7 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link SettingsConfig} — generic key/value settings store.
  *   <li>{@link TagConfig} — taggable-entity support.
  *   <li>{@link WebhookConfig} — outbound webhook subscriptions and dispatching.
- *   <li>{@link SlackConfig} — Slack messaging service for posting plain-text messages to channels.
- *   <li>{@link EmailConfig} — Email sending service for delivering plain-text emails via SMTP.
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
- *   <li>{@link SearchConfig} — Meilisearch-backed full-text search: startup reindex, scoped keys,
- *       and per-index settings.
- *   <li>{@link DbBackupConfig} — Client for the db-backup-service sidecar: trigger backups, poll
- *       job status, list and stream backup artefacts.
  * </ul>
  */
 @Import({
@@ -55,13 +45,9 @@ import org.springframework.context.annotation.Import;
         SettingsConfig.class,
         TagConfig.class,
         WebhookConfig.class,
-        SlackConfig.class,
-        EmailConfig.class,
         AuditConfig.class,
         CommentConfig.class,
-        TranslationConfig.class,
-        SearchConfig.class,
-        DbBackupConfig.class
+        TranslationConfig.class
 })
 public class FullSpringServiceConfig {
 }

@@ -16,13 +16,51 @@ into the full stack with a single import or pick the parts they need.
 Releases are published to Maven Central; SNAPSHOTs are published to the Sonatype Central Portal
 snapshot repository on every push to `main`.
 
+`spring-services` is a **Maven multi-module reactor**. The bare `com.open-elements:spring-services`
+coordinate is the reactor parent (a `pom`, no classes) — depend on one of the modules instead.
+
+**Everything (drop-in):** `spring-services-all` bundles the core plus every optional feature module.
+
 ```xml
 <dependency>
     <groupId>com.open-elements</groupId>
-    <artifactId>spring-services</artifactId>
+    <artifactId>spring-services-all</artifactId>
     <version><!-- latest released version --></version>
 </dependency>
 ```
+
+**À la carte:** import the BOM once, then declare `spring-services-core` plus only the feature
+modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-services-email`,
+`spring-services-search`, `spring-services-dbbackup`) without versions:
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.open-elements</groupId>
+            <artifactId>spring-services-bom</artifactId>
+            <version><!-- latest released version --></version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>com.open-elements</groupId>
+        <artifactId>spring-services-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.open-elements</groupId>
+        <artifactId>spring-services-slack</artifactId>
+    </dependency>
+</dependencies>
+```
+
+Each feature module self-activates when present on the classpath, so consumers pull only the
+dependencies they use. Migrating from the pre-split `spring-services` artifact? See
+[`docs/releases/upgrade-to-1.4.md`](docs/releases/upgrade-to-1.4.md).
 
 To consume a `-SNAPSHOT` build, also declare the Central Portal snapshot repository (releases still
 come from Maven Central):
@@ -272,22 +310,32 @@ later release). Consumers must run one Flyway migration when upgrading.
 
 ## Project Layout
 
+A Maven reactor: `spring-services` (parent, `pom`) aggregates the modules below. All classes stay
+under `com.openelements.spring.base.*` regardless of the module that ships them.
+
 ```
-src/main/java/com/openelements/spring/base/
-├── FullSpringServiceConfig.java   — Aggregate @Import of every feature config
-├── data/                          — Generic CRUD abstractions
-├── events/                        — Lifecycle events
-├── security/                      — Filter chain, JWT converter, AuthService
-│   ├── apikey/                    — X-API-Key authentication filter
-│   └── user/                      — Local user mirror
-├── services/
-│   ├── apikey/                    — API key data layer
-│   ├── search/                    — Meilisearch client, startup reindex, highlighter
-│   ├── settings/                  — Key/value settings
-│   ├── tag/                       — Tag CRUD + PreTagDeleteEvent
-│   └── webhook/                   — Outbound webhook delivery
-└── tenant/                        — Multi-tenancy primitives
+spring-services/                    — reactor parent (packaging=pom)
+├── spring-services-core            — all 7 @Entity + single persistence unit, the core
+│                                      auto-configuration (SpringServicesCoreAutoConfiguration) and
+│                                      the always-present features:
+│                                        data/       — generic CRUD abstractions
+│                                        events/     — lifecycle events
+│                                        security/   — filter chains, JWT converter, AuthService
+│                                          apikey/, user/
+│                                        services/   — apikey, settings, tag, comment, audit,
+│                                                      webhook, translation, system
+│                                        tenant/, apitoken/
+├── spring-services-slack           — Slack messaging (→ slack-api-client)
+├── spring-services-mcp             — MCP server (→ MCP SDK)
+├── spring-services-email           — SMTP email (→ spring-boot-starter-mail)
+├── spring-services-search          — Meilisearch full-text search (RestClient, no extra dep)
+├── spring-services-dbbackup        — db-backup sidecar client (RestClient, no extra dep)
+├── spring-services-all             — everything bundle (depends on all modules; no config of its own)
+└── spring-services-bom             — bill of materials for lockstep versioning
 ```
+
+Each optional feature module ships its own `@AutoConfiguration` guarded by `@ConditionalOnClass`, so
+it self-activates when present and never pulls its heavy dependency into a consumer that skips it.
 
 ## Release Process
 

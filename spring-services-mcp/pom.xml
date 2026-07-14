@@ -1,0 +1,50 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.open-elements</groupId>
+        <artifactId>spring-services</artifactId>
+        <version>1.3.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>spring-services-mcp</artifactId>
+
+    <name>Spring Services MCP</name>
+    <description>Optional Model Context Protocol (MCP) server feature module for spring-services</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.open-elements</groupId>
+            <artifactId>spring-services-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Official Java MCP SDK with Spring WebMVC Streamable HTTP transport.
+             The 0.18.x line (mcp-core + mcp-spring-webmvc) carries the WebMVC
+             transport; the separate mcp:2.0.0 track does not. Pinned for
+             reproducible builds. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-spring-webmvc</artifactId>
+            <version>${mcp-sdk.version}</version>
+        </dependency>
+
+        <!-- Jackson 2 provider for the MCP SDK's McpJsonMapper SPI (matches the
+             project's Jackson 2 / Spring Boot 3.5 stack). Not pulled transitively
+             by mcp-spring-webmvc. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-json-jackson2</artifactId>
+            <version>${mcp-sdk.version}</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
