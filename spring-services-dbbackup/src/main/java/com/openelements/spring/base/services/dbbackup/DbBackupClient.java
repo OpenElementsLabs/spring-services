@@ -30,6 +30,11 @@ public class DbBackupClient {
   private final RestClient restClient;
   private final DbBackupProperties props;
 
+  /**
+   * Creates a client bound to the sidecar described by the given properties.
+   *
+   * @param props the db-backup-service connection settings; must not be {@code null}
+   */
   public DbBackupClient(final DbBackupProperties props) {
     this.props = Objects.requireNonNull(props, "props must not be null");
     this.restClient =
@@ -39,7 +44,11 @@ public class DbBackupClient {
             .build();
   }
 
-  /** Returns {@code true} when the sidecar's {@code /health} probe answers {@code 2xx}. */
+  /**
+   * Returns {@code true} when the sidecar's {@code /health} probe answers {@code 2xx}.
+   *
+   * @return {@code true} if the sidecar reports healthy, {@code false} otherwise
+   */
   public boolean isHealthy() {
     try {
       return restClient
@@ -51,7 +60,11 @@ public class DbBackupClient {
     }
   }
 
-  /** Reads the sidecar's {@code /info} metadata. Unauthenticated. */
+  /**
+   * Reads the sidecar's {@code /info} metadata. Unauthenticated.
+   *
+   * @return the service metadata reported by the sidecar
+   */
   public BackupServiceInfo getInfo() {
     return restClient
         .get()
@@ -71,6 +84,8 @@ public class DbBackupClient {
    * to run at a time; if a backup is already in flight the returned
    * {@link BackupTriggerResult#alreadyRunning()} is {@code true} and {@link
    * BackupTriggerResult#job()} refers to the still-running job.
+   *
+   * @return the result describing the enqueued or already-running backup job
    */
   public BackupTriggerResult triggerBackup() {
     return restClient
@@ -91,7 +106,12 @@ public class DbBackupClient {
             });
   }
 
-  /** Returns the current state of a backup job, or empty if the sidecar doesn't know it (404). */
+  /**
+   * Returns the current state of a backup job, or empty if the sidecar doesn't know it (404).
+   *
+   * @param jobId the identifier of the backup job to look up
+   * @return the job snapshot, or empty if no job with that id exists
+   */
   public Optional<BackupJob> getJob(final String jobId) {
     Objects.requireNonNull(jobId, "jobId must not be null");
     return restClient
@@ -113,7 +133,11 @@ public class DbBackupClient {
             });
   }
 
-  /** Lists every available backup, newest first. */
+  /**
+   * Lists every available backup, newest first.
+   *
+   * @return the metadata of all available backups, ordered newest first
+   */
   public List<BackupMetadata> listBackups() {
     return restClient
         .get()
@@ -132,7 +156,11 @@ public class DbBackupClient {
             });
   }
 
-  /** Returns metadata for the newest successful backup, or empty if there isn't one yet (404). */
+  /**
+   * Returns metadata for the newest successful backup, or empty if there isn't one yet (404).
+   *
+   * @return the metadata of the latest backup, or empty if none exists yet
+   */
   public Optional<BackupMetadata> getLatestBackup() {
     return restClient
         .get()
@@ -156,6 +184,9 @@ public class DbBackupClient {
   /**
    * Streams the gzip body of a specific backup. The returned {@link BackupDownload} owns the HTTP
    * connection — always consume it in a try-with-resources.
+   *
+   * @param id the identifier of the backup to download
+   * @return a handle over the open download stream
    */
   public BackupDownload downloadBackup(final String id) {
     Objects.requireNonNull(id, "id must not be null");
@@ -166,7 +197,11 @@ public class DbBackupClient {
         .exchange((req, res) -> openDownload(id, res), false);
   }
 
-  /** Streams the gzip body of the newest successful backup. See {@link #downloadBackup(String)}. */
+  /**
+   * Streams the gzip body of the newest successful backup. See {@link #downloadBackup(String)}.
+   *
+   * @return a handle over the open download stream for the latest backup
+   */
   public BackupDownload downloadLatestBackup() {
     return restClient
         .get()

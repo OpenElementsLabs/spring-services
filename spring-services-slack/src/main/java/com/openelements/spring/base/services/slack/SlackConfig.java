@@ -14,6 +14,9 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(SlackProperties.class)
 public class SlackConfig {
 
+  /** Creates the configuration. */
+  public SlackConfig() {}
+
   @Bean
   @Nullable MethodsClient slackMethodsClient(final SlackProperties properties) {
     final String token = properties.getToken();

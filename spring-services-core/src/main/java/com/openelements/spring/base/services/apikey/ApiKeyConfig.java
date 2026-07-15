@@ -13,4 +13,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ComponentScan(basePackageClasses = ApiKeyConfig.class)
-public class ApiKeyConfig {}
+public class ApiKeyConfig {
+
+  /** Creates the configuration; the API key beans are registered via component scanning. */
+  public ApiKeyConfig() {}
+}

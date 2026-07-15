@@ -37,4 +37,8 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "openelements.meilisearch", name = "enabled", havingValue = "true")
 @ComponentScan(basePackageClasses = SearchConfig.class)
 @EnableConfigurationProperties(MeilisearchProperties.class)
-public class SearchConfig {}
+public class SearchConfig {
+
+  /** Creates the configuration. */
+  public SearchConfig() {}
+}

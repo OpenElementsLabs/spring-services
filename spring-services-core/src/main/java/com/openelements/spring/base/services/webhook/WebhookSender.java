@@ -33,6 +33,12 @@ public class WebhookSender {
 
   private final WebhookDataService webhookDataService;
 
+  /**
+   * Creates a new webhook sender.
+   *
+   * @param webhookRestClient the pre-configured {@link RestClient} used to deliver webhook calls
+   * @param webhookDataService the service used to look up webhooks and record delivery results
+   */
   public WebhookSender(
       final RestClient webhookRestClient, final WebhookDataService webhookDataService) {
     this.restClient =
@@ -41,6 +47,12 @@ public class WebhookSender {
         Objects.requireNonNull(webhookDataService, "webhookDataService must not be null");
   }
 
+  /**
+   * Delivers a payload to a single webhook and records the resulting HTTP status asynchronously.
+   *
+   * @param webhook the target webhook
+   * @param payload the payload to deliver
+   */
   @Async
   protected void sendAndTrack(final WebhookDto webhook, final WebhookEventPayload payload) {
     int status;
@@ -79,10 +91,21 @@ public class WebhookSender {
     return e.getCause() instanceof SocketTimeoutException;
   }
 
+  /**
+   * Delivers a data-event payload to every currently active webhook.
+   *
+   * @param payload the payload to deliver
+   */
   public void sendAndTrack(WebhookDataEventPayload payload) {
     webhookDataService.findAllActive().forEach(webhook -> sendAndTrack(webhook, payload));
   }
 
+  /**
+   * Sends a ping payload to a single webhook to verify that its endpoint is reachable.
+   *
+   * @param id the id of the webhook to ping
+   * @throws IllegalArgumentException if no webhook with that id exists
+   */
   public void ping(final UUID id) {
     Objects.requireNonNull(id, "id must not be null");
     final WebhookDto dto =

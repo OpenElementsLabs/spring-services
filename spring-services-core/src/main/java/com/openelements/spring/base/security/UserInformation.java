@@ -26,6 +26,14 @@ package com.openelements.spring.base.security;
  *       {@code externalId} — which covers Authentik, Okta, Entra ID, and Keycloak in default
  *       configurations.
  * </ul>
+ *
+ * @param id the JWT {@code sub} claim, the stable subject identifier of the user
+ * @param name the {@code name} claim, typically the user's display name, or {@code null} if absent
+ * @param email the {@code email} claim, or {@code null} if not asserted by the identity provider
+ * @param avatarUrl an absolute URL to the identity provider's avatar image, or {@code null} if absent
+ * @param userName the resolved preferred username, guaranteed non-null and non-blank for
+ *     {@code AuthService}-produced records
+ * @param externalId the stable IdP-side identifier, mirroring {@code id} for common IdPs
  */
 public record UserInformation(
     String id,

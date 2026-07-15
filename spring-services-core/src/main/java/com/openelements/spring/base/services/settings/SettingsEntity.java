@@ -13,27 +13,50 @@ import java.util.Objects;
 @Table(name = "settings", schema = DbSchema.NAME)
 public class SettingsEntity extends AbstractEntity {
 
+  /** The unique key of the setting. */
   @Column(name = "`key`", length = 100, nullable = false, unique = true)
   private String key;
 
+  /** The value of the setting. */
   @Column(name = "`value`", nullable = false, columnDefinition = "TEXT")
   private String value;
 
+  /** Creates a new, empty settings entity for use by JPA and the owning service. */
   protected SettingsEntity() {}
 
+  /**
+   * Returns the key of this setting.
+   *
+   * @return the setting key
+   */
   @NameSupplier
   public String getKey() {
     return key;
   }
 
+  /**
+   * Sets the key of this setting.
+   *
+   * @param key the setting key
+   */
   public void setKey(final String key) {
     this.key = Objects.requireNonNull(key, "key must not be null");
   }
 
+  /**
+   * Returns the value of this setting.
+   *
+   * @return the setting value
+   */
   public String getValue() {
     return value;
   }
 
+  /**
+   * Sets the value of this setting.
+   *
+   * @param value the setting value
+   */
   public void setValue(final String value) {
     this.value = Objects.requireNonNull(value, "value must not be null");
   }

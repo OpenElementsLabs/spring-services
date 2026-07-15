@@ -22,6 +22,11 @@ public record ImageData(@NonNull byte[] data, @NonNull ImageType imageType) {
    */
   public static final int MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
+  /**
+   * Validates the components, rejecting {@code null}, empty, and oversized image data.
+   *
+   * @throws IllegalArgumentException if {@code data} is empty or larger than {@link #MAX_IMAGE_SIZE}
+   */
   public ImageData {
     Objects.requireNonNull(data, "data must not be null");
     Objects.requireNonNull(imageType, "imageType must not be null");
@@ -33,32 +38,73 @@ public record ImageData(@NonNull byte[] data, @NonNull ImageType imageType) {
     }
   }
 
+  /**
+   * Creates an instance from raw bytes and a MIME content type string.
+   *
+   * @param data the image bytes
+   * @param contentType the MIME content type (e.g. "image/png")
+   * @return the image data
+   */
   public static ImageData of(@NonNull byte[] data, @NonNull String contentType) {
     Objects.requireNonNull(contentType, "contentType must not be null");
     return new ImageData(data, ImageType.fromContentType(contentType));
   }
 
+  /**
+   * Creates an instance from an uploaded multipart file.
+   *
+   * @param file the uploaded file
+   * @return the image data
+   * @throws IOException if the file bytes cannot be read
+   */
   public static ImageData of(@NonNull MultipartFile file) throws IOException {
     Objects.requireNonNull(file, "file must not be null");
     return of(file.getBytes(), file.getContentType());
   }
 
+  /**
+   * Returns the MIME content type of this image.
+   *
+   * @return the content type (e.g. "image/png")
+   */
   public String contentType() {
     return imageType.getContentType();
   }
 
+  /**
+   * Returns the content type of this image as a Spring {@link MediaType}.
+   *
+   * @return the media type of this image
+   */
   public MediaType mediaType() {
     return imageType.toMediaType();
   }
 
+  /**
+   * Wraps this image in a {@code 200 OK} HTTP response with the appropriate content type.
+   *
+   * @return an HTTP response carrying the image bytes
+   */
   public ResponseEntity<byte[]> toHttpResponse() {
     return ResponseEntity.ok().contentType(MediaType.parseMediaType(contentType())).body(data());
   }
 
+  /**
+   * Converts this image to JPEG.
+   *
+   * @return a new instance holding the JPEG-encoded image
+   */
   public ImageData asJpeg() {
     return ImageUtilities.toJpeg(this);
   }
 
+  /**
+   * Converts this image to JPEG, scaling it to fit within the given bounds.
+   *
+   * @param maxWidth the maximum width in pixels
+   * @param maxHeight the maximum height in pixels
+   * @return a new instance holding the scaled JPEG-encoded image
+   */
   public ImageData asJpeg(int maxWidth, int maxHeight) {
     return ImageUtilities.toJpeg(this, maxWidth, maxHeight);
   }

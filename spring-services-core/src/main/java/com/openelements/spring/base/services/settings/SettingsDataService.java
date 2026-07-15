@@ -12,6 +12,11 @@ public class SettingsDataService {
 
   private final SettingsRepository settingsRepository;
 
+  /**
+   * Creates a new settings service.
+   *
+   * @param settingsRepository the repository used to persist and look up settings
+   */
   public SettingsDataService(final SettingsRepository settingsRepository) {
     this.settingsRepository =
         Objects.requireNonNull(settingsRepository, "settingsRepository must not be null");

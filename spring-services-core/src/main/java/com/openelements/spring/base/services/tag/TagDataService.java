@@ -23,6 +23,12 @@ public class TagDataService extends AbstractDbBackedDataService<TagEntity, TagDt
   private final TagRepository tagRepository;
   private final ApplicationEventPublisher eventPublisher;
 
+  /**
+   * Creates a new tag service.
+   *
+   * @param tagRepository the repository used to persist and query tags
+   * @param eventPublisher Spring's event publisher, used to broadcast lifecycle events
+   */
   public TagDataService(
       final TagRepository tagRepository, final ApplicationEventPublisher eventPublisher) {
     super(eventPublisher);

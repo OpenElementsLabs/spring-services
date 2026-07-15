@@ -33,17 +33,29 @@ public final class BackupDownload implements AutoCloseable {
     this.httpResponse = Objects.requireNonNull(httpResponse, "httpResponse must not be null");
   }
 
-  /** Identifier of the backup being downloaded (e.g. {@code backup_20260510T010000Z.sql.gz}). */
+  /**
+   * Identifier of the backup being downloaded (e.g. {@code backup_20260510T010000Z.sql.gz}).
+   *
+   * @return the backup identifier
+   */
   public String id() {
     return id;
   }
 
-  /** Content length advertised by the sidecar, or {@code -1} if not known. */
+  /**
+   * Content length advertised by the sidecar, or {@code -1} if not known.
+   *
+   * @return the size of the download in bytes, or {@code -1} if unknown
+   */
   public long sizeBytes() {
     return sizeBytes;
   }
 
-  /** Gzipped SQL dump as a stream. Caller is responsible for closing via {@link #close()}. */
+  /**
+   * Gzipped SQL dump as a stream. Caller is responsible for closing via {@link #close()}.
+   *
+   * @return the gzipped SQL dump stream
+   */
   public InputStream stream() {
     return stream;
   }

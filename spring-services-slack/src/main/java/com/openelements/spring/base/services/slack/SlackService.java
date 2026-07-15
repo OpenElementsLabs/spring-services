@@ -30,6 +30,12 @@ public class SlackService {
 
   @Nullable private final MethodsClient methodsClient;
 
+  /**
+   * Creates the service, resolving the Slack client if one is available.
+   *
+   * @param slackMethodsClientProvider provider for the Slack {@link MethodsClient}; the client is
+   *     absent when no Slack token is configured
+   */
   public SlackService(final ObjectProvider<MethodsClient> slackMethodsClientProvider) {
     this.methodsClient = slackMethodsClientProvider.getIfAvailable();
   }

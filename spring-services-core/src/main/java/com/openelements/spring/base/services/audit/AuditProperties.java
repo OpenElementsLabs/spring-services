@@ -21,6 +21,8 @@ public record AuditProperties(int retentionDays) {
   public static final int DEFAULT_RETENTION_DAYS = 1460;
 
   /**
+   * Creates the properties, binding the retention window from configuration and validating it.
+   *
    * @param retentionDays bound from the {@code audit.retention-days} property
    */
   public AuditProperties(@Value("${audit.retention-days:1460}") final int retentionDays) {

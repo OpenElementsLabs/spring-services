@@ -17,4 +17,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ComponentScan(basePackageClasses = AuditConfig.class)
 @EnableScheduling
 @Import(UserConfig.class)
-public class AuditConfig {}
+public class AuditConfig {
+
+  /** Creates the configuration; the audit-log beans are registered via component scanning. */
+  public AuditConfig() {}
+}

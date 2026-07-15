@@ -59,6 +59,8 @@ public class SecurityConfig {
   private final ApiKeyDataService apiKeyDataService;
 
   /**
+   * Creates the security configuration.
+   *
    * @param apiKeyDataService the data service used to validate API keys; injected into the {@link
    *     ApiKeyAuthenticationFilter} that is registered on the external API chain
    */
@@ -154,6 +156,8 @@ public class SecurityConfig {
    * @param http the HTTP security builder
    * @param apiKeyAuthenticationFilter the filter that extracts and validates the {@code X-API-Key}
    *     header
+   * @param apiKeyAuthenticationEntryPoint the entry point that renders authentication failures on
+   *     this chain as a JSON {@code 401} response
    * @return the configured external API filter chain
    * @throws Exception if Spring Security fails to build the chain
    */

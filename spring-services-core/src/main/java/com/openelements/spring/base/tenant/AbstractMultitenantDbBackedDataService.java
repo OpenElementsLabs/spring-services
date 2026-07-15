@@ -42,6 +42,8 @@ public abstract class AbstractMultitenantDbBackedDataService<
   private final ApplicationEventPublisher eventPublisher;
 
   /**
+   * Constructs a new tenant-scoped service that broadcasts lifecycle events via the given publisher.
+   *
    * @param eventPublisher Spring's event publisher, used to broadcast lifecycle events
    */
   protected AbstractMultitenantDbBackedDataService(final ApplicationEventPublisher eventPublisher) {

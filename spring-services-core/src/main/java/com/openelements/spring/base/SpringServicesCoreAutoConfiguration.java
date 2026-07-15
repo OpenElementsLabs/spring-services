@@ -50,6 +50,11 @@ import org.springframework.core.type.AnnotationMetadata;
 @Import({FullSpringServiceConfig.class, SpringServicesCoreAutoConfiguration.PackageRegistrar.class})
 public class SpringServicesCoreAutoConfiguration {
 
+  /**
+   * Creates the auto-configuration; all beans are contributed via the imported configurations.
+   */
+  public SpringServicesCoreAutoConfiguration() {}
+
   /** Root package of the library — scanned for both entities and Spring Data repositories. */
   static final String LIBRARY_ROOT_PACKAGE = "com.openelements.spring.base";
 

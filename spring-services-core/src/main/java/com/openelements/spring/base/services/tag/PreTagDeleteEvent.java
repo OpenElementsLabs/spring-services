@@ -21,6 +21,8 @@ import org.springframework.context.ApplicationEvent;
 public class PreTagDeleteEvent extends ApplicationEvent {
 
   /**
+   * Creates a new pre-delete event for the given tag.
+   *
    * @param tag the tag that is about to be deleted
    * @throws NullPointerException if {@code tag} is {@code null}
    */

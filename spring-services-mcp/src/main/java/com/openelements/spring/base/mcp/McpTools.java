@@ -40,6 +40,8 @@ public final class McpTools {
     }
 
     /**
+     * Builds the standard pagination input properties.
+     *
      * @return a mutable property map pre-populated with the standard {@code page}
      * and {@code size} pagination properties
      */
@@ -51,6 +53,8 @@ public final class McpTools {
     }
 
     /**
+     * Builds a schema fragment for a single typed property.
+     *
      * @param type        the JSON-schema type (e.g. {@code "string"}, {@code "integer"})
      * @param description the property description
      * @return a single-property schema fragment
@@ -60,6 +64,8 @@ public final class McpTools {
     }
 
     /**
+     * Builds a schema fragment for a UUID-formatted string property.
+     *
      * @param description the property description
      * @return a schema fragment for a UUID-formatted string property
      */
@@ -68,6 +74,8 @@ public final class McpTools {
     }
 
     /**
+     * Builds a schema fragment for an array of UUID-formatted strings.
+     *
      * @param description the property description
      * @return a schema fragment for an array of UUID-formatted strings
      */
@@ -79,6 +87,10 @@ public final class McpTools {
     // -- Argument parsing ---------------------------------------------------
 
     /**
+     * Reads an optional string argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the argument as a string, or {@code null} if absent
      */
     public static String string(final Map<String, Object> args, final String key) {
@@ -87,6 +99,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads a required, non-blank string argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the non-blank argument as a string
      * @throws IllegalArgumentException if absent or blank
      */
@@ -99,6 +115,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads an optional integer argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the argument as an integer, or {@code null} if absent
      * @throws IllegalArgumentException if present but not a valid integer
      */
@@ -118,6 +138,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads an optional boolean argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the argument as a boolean, or {@code null} if absent
      */
     public static Boolean bool(final Map<String, Object> args, final String key) {
@@ -132,6 +156,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads an optional UUID argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the argument as a UUID, or {@code null} if absent or blank
      * @throws IllegalArgumentException if present but not a valid UUID
      */
@@ -148,6 +176,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads a required UUID argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the required argument as a UUID
      * @throws IllegalArgumentException if absent, blank, or not a valid UUID
      */
@@ -160,6 +192,10 @@ public final class McpTools {
     }
 
     /**
+     * Reads an optional array-of-UUIDs argument.
+     *
+     * @param args the tool argument map
+     * @param key  the argument name
      * @return the argument as a list of UUIDs, or {@code null} if absent
      * @throws IllegalArgumentException if present but not an array of valid UUIDs
      */

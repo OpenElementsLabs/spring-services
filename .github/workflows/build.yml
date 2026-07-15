@@ -20,4 +20,10 @@ jobs:
           key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: maven-
       - name: Build and test
-        run: ./mvnw clean verify
+        # -Pfull-build is the release-equivalent build: besides tests it generates
+        # the Javadoc jar, sources jar and CycloneDX SBOM, so CI catches Javadoc/
+        # doclint problems (and a broken source/SBOM attachment) instead of only
+        # test failures — the tag-triggered release runs the same -Pfull-build goal.
+        # failOnWarnings turns any Javadoc warning into a build failure so they
+        # cannot regress silently.
+        run: ./mvnw -Pfull-build clean verify -Dmaven.javadoc.failOnWarnings=true

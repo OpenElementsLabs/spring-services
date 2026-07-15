@@ -37,6 +37,11 @@ public class UserEntityPrincipalDirectory implements PrincipalDirectory {
 
   private final UserRepository userRepository;
 
+  /**
+   * Creates a new directory backed by the user repository.
+   *
+   * @param userRepository the repository used to look up and live-check users
+   */
   public UserEntityPrincipalDirectory(final UserRepository userRepository) {
     this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
   }

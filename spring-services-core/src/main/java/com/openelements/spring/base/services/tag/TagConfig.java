@@ -12,4 +12,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ComponentScan(basePackageClasses = TagConfig.class)
-public class TagConfig {}
+public class TagConfig {
+
+  /** Creates the configuration; the tag beans are registered via component scanning. */
+  public TagConfig() {}
+}

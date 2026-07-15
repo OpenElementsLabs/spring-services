@@ -19,6 +19,8 @@ import java.util.List;
 public interface McpToolProvider {
 
     /**
+     * Returns the MCP tool specifications contributed by this provider.
+     *
      * @return the tool specifications contributed by this provider
      */
     List<SyncToolSpecification> toolSpecifications();

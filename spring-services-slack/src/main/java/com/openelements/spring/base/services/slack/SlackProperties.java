@@ -12,10 +12,23 @@ public class SlackProperties {
 
   private String token;
 
+  /** Creates the properties with no token configured. */
+  public SlackProperties() {}
+
+  /**
+   * Returns the configured Slack bot token.
+   *
+   * @return the Slack bot token, or {@code null} if none is configured
+   */
   public String getToken() {
     return token;
   }
 
+  /**
+   * Sets the Slack bot token used to authenticate against the Slack API.
+   *
+   * @param token the Slack bot token
+   */
   public void setToken(final String token) {
     this.token = token;
   }

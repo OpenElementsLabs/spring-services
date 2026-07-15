@@ -24,4 +24,8 @@ import org.springframework.context.annotation.Import;
 @EnableConfigurationProperties(McpProperties.class)
 @Import({McpPaging.class, McpToolSupport.class, McpSecurityConfig.class, McpServerConfig.class})
 public class McpConfiguration {
+
+    /** Creates the configuration. */
+    public McpConfiguration() {
+    }
 }

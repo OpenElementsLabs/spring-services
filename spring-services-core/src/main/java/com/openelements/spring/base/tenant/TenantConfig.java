@@ -12,4 +12,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ComponentScan(basePackageClasses = TenantConfig.class)
-public class TenantConfig {}
+public class TenantConfig {
+
+  /** Creates the configuration; the tenant beans are registered via component scanning. */
+  public TenantConfig() {}
+}

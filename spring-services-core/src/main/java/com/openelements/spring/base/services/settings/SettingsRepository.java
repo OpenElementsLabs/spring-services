@@ -14,7 +14,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface SettingsRepository extends JpaRepository<SettingsEntity, UUID> {
 
+  /**
+   * Looks up a setting by its key.
+   *
+   * @param key the setting key
+   * @return the matching setting, or an empty {@link Optional} if none exists
+   */
   Optional<SettingsEntity> findByKey(String key);
 
+  /**
+   * Deletes the setting with the given key, if present.
+   *
+   * @param key the setting key
+   */
   void deleteByKey(String key);
 }

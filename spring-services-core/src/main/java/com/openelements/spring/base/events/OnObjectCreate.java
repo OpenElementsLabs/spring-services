@@ -14,6 +14,8 @@ import org.jspecify.annotations.NonNull;
 public class OnObjectCreate<T extends WithId> extends GenericDataEvent<T> {
 
   /**
+   * Creates a new creation event for the given DTO.
+   *
    * @param source the newly created DTO
    */
   public OnObjectCreate(@NonNull T source) {

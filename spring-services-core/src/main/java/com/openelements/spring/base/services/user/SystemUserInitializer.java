@@ -42,6 +42,12 @@ public class SystemUserInitializer implements ApplicationRunner {
 
   private final JdbcTemplate jdbcTemplate;
 
+  /**
+   * Creates a new initializer that ensures the System User row exists at startup.
+   *
+   * @param userRepository the repository used to check for the existing System User
+   * @param jdbcTemplate the template used to insert the System User row
+   */
   public SystemUserInitializer(
       final UserRepository userRepository, final JdbcTemplate jdbcTemplate) {
     this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");

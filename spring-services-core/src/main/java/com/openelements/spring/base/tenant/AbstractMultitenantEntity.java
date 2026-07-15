@@ -22,8 +22,12 @@ import jakarta.persistence.PreUpdate;
 public class AbstractMultitenantEntity extends AbstractEntity
     implements EntityWithMultitenantSupport {
 
+  /** The id of the tenant that owns this row; assigned by the owning data service on insert. */
   @Column(nullable = false)
   private String tenantId;
+
+  /** Creates a new tenant-scoped entity; the tenant id is assigned by the owning data service. */
+  public AbstractMultitenantEntity() {}
 
   @Override
   public String getTenantId() {

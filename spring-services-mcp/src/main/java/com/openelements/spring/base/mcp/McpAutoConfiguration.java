@@ -24,4 +24,9 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnClass(McpServer.class)
 @Import(McpConfiguration.class)
-public class McpAutoConfiguration {}
+public class McpAutoConfiguration {
+
+    /** Creates the auto-configuration. */
+    public McpAutoConfiguration() {
+    }
+}

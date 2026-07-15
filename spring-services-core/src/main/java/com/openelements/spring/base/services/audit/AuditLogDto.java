@@ -12,6 +12,7 @@ import java.util.UUID;
  * @param id the audit entry id
  * @param entityType the simple class name of the audited DTO type
  * @param entityId the id of the audited entity
+ * @param name the human readable name of the audited entity
  * @param action the kind of lifecycle event that produced this entry
  * @param user the user that performed the action (references the System User row for
  *     unauthenticated operations)

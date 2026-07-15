@@ -12,6 +12,14 @@ import java.util.UUID;
  * {@link #avatarUrl()} points directly at the identity provider's avatar image — clients render it
  * in an {@code <img>} tag without any proxying or caching by this library. {@code avatarUrl} is
  * {@code null} when the identity provider does not assert an avatar for the user.
+ *
+ * @param id the unique identifier of the user
+ * @param name the user's display name
+ * @param email the user's email address
+ * @param avatarUrl the avatar image URL synchronized from the identity provider, or {@code null} if
+ *     none is asserted
+ * @param createdAt the timestamp at which the user record was created
+ * @param updatedAt the timestamp at which the user record was last updated
  */
 @Schema(description = "User")
 public record UserDto(

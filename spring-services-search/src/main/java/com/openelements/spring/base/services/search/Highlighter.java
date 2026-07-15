@@ -13,9 +13,16 @@ package com.openelements.spring.base.services.search;
  */
 public final class Highlighter {
 
-  // Private-use Unicode marks so we can detect Meilisearch's highlight
-  // boundary inside otherwise HTML-escaped text.
+  /**
+   * Private-use Unicode marker that Meilisearch places before a matched fragment, detected inside
+   * otherwise HTML-escaped text and later replaced with an opening {@code <em>} tag.
+   */
   public static final String PRE_MARK = "";
+
+  /**
+   * Private-use Unicode marker that Meilisearch places after a matched fragment, detected inside
+   * otherwise HTML-escaped text and later replaced with a closing {@code </em>} tag.
+   */
   public static final String POST_MARK = "";
 
   private Highlighter() {}
@@ -24,6 +31,11 @@ public final class Highlighter {
    * Escapes HTML special characters in user-typed text, then turns the Meilisearch boundary markers
    * back into {@code <em>} / {@code </em>}. The result is safe to render with {@code
    * dangerouslySetInnerHTML}.
+   *
+   * @param raw the {@code _formatted} value from Meilisearch, containing the private-use highlight
+   *     markers; may be {@code null}
+   * @return an HTML-safe string with user content escaped and highlight markers converted to {@code
+   *     <em>} tags, or an empty string when {@code raw} is {@code null}
    */
   public static String safeHighlight(final String raw) {
     if (raw == null) {

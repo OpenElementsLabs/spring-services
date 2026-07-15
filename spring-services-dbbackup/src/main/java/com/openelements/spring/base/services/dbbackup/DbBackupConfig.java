@@ -27,4 +27,8 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "openelements.db-backup", name = "enabled", havingValue = "true")
 @ComponentScan(basePackageClasses = DbBackupConfig.class)
 @EnableConfigurationProperties(DbBackupProperties.class)
-public class DbBackupConfig {}
+public class DbBackupConfig {
+
+  /** Creates the configuration. */
+  public DbBackupConfig() {}
+}

@@ -26,6 +26,12 @@ public class MeilisearchIndexSettingsInitializer implements ApplicationRunner {
   private final MeilisearchClient client;
   private final List<IndexSettings> settings;
 
+  /**
+   * Creates the index-settings initializer.
+   *
+   * @param client the Meilisearch client used to ensure indexes and write settings
+   * @param settings all registered per-index settings beans
+   */
   public MeilisearchIndexSettingsInitializer(
       final MeilisearchClient client, final List<IndexSettings> settings) {
     this.client = client;

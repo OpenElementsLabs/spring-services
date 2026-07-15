@@ -7,11 +7,27 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utility that verifies whether the running JVM can decode HEIC/HEIF images.
+ *
+ * <p>Checks that an {@link ImageIO} reader for the format is registered and that a bundled probe
+ * image can actually be decoded, so that missing native libraries are detected at startup rather
+ * than on the first upload.
+ */
 public class HeicSupportCheck {
 
   private static final Logger log = LoggerFactory.getLogger(HeicSupportCheck.class);
   private static final String PROBE_RESOURCE = "/heic-probe/sample.heic";
 
+  /** Creates a new instance; all functionality is exposed through static methods. */
+  public HeicSupportCheck() {}
+
+  /**
+   * Verifies that HEIC/HEIF images can be decoded by the current runtime.
+   *
+   * @return {@code true} if a reader is registered and the bundled probe image decodes,
+   *     {@code false} otherwise
+   */
   public static boolean verifyHeicSupport() {
     final boolean readerRegistered =
         Arrays.stream(ImageIO.getReaderFormatNames())

@@ -9,6 +9,7 @@ import java.util.UUID;
 /**
  * JSON payload sent to webhook URLs when a domain event occurs.
  *
+ * @param <T> the type of the entity DTO carried by this payload
  * @param eventId unique identifier for idempotency
  * @param eventType the type of domain event
  * @param dataClass the entity class
@@ -19,6 +20,7 @@ public record WebhookDataEventPayload<T extends WithId>(
     UUID eventId, WebhookDataEventType eventType, Class<T> dataClass, T data, Instant timestamp)
     implements WebhookEventPayload {
 
+  /** Validates the components, rejecting {@code null} values and a {@code null} data id. */
   public WebhookDataEventPayload {
     Objects.requireNonNull(eventId, "eventId must not be null");
     Objects.requireNonNull(eventType, "eventType must not be null");
@@ -27,6 +29,15 @@ public record WebhookDataEventPayload<T extends WithId>(
     Objects.requireNonNull(timestamp, "timestamp must not be null");
   }
 
+  /**
+   * Creates a payload with a fresh event id and the current timestamp for the given entity.
+   *
+   * @param <T> the type of the entity DTO
+   * @param eventType the type of domain event
+   * @param dataclass the entity class
+   * @param data the entity DTO
+   * @return a new payload describing the event
+   */
   public static <T extends WithId> WebhookDataEventPayload<T> of(
       WebhookDataEventType eventType, Class<T> dataclass, T data) {
     Objects.requireNonNull(data, "data must not be null");
@@ -34,6 +45,14 @@ public record WebhookDataEventPayload<T extends WithId>(
         UUID.randomUUID(), eventType, dataclass, data, Instant.now());
   }
 
+  /**
+   * Creates a payload for the given entity, inferring the entity class from its runtime type.
+   *
+   * @param <T> the type of the entity DTO
+   * @param eventType the type of domain event
+   * @param data the entity DTO
+   * @return a new payload describing the event
+   */
   public static <T extends WithId> WebhookDataEventPayload<T> of(
       WebhookDataEventType eventType, T data) {
     Objects.requireNonNull(data, "data must not be null");

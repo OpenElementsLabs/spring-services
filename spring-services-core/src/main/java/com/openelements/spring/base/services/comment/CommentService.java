@@ -11,6 +11,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Data service managing comments, setting the current user as the author of newly created comments.
+ */
 @Service
 @Transactional
 public class CommentService extends AbstractDbBackedDataService<CommentEntity, CommentDto> {
@@ -19,6 +22,13 @@ public class CommentService extends AbstractDbBackedDataService<CommentEntity, C
 
   private final UserService userService;
 
+  /**
+   * Creates a new comment service.
+   *
+   * @param commentRepository the repository used to persist and query comments
+   * @param userService the service used to resolve the currently authenticated author
+   * @param eventPublisher Spring's event publisher, passed to the superclass
+   */
   public CommentService(
       @NonNull final CommentRepository commentRepository,
       @NonNull final UserService userService,

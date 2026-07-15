@@ -30,6 +30,12 @@ public class ApiKeyDataService {
   private final ApiKeyRepository apiKeyRepository;
   private final UserService userService;
 
+  /**
+   * Creates a new service for managing API keys.
+   *
+   * @param apiKeyRepository the repository used to persist and look up API keys
+   * @param userService the service used to resolve the user an operation is performed by
+   */
   public ApiKeyDataService(
       @NonNull final ApiKeyRepository apiKeyRepository, @NonNull final UserService userService) {
     this.apiKeyRepository =

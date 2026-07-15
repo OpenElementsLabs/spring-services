@@ -15,6 +15,8 @@ import org.jspecify.annotations.NonNull;
 public class OnObjectDelete<T extends WithId> extends GenericDataEvent<T> {
 
   /**
+   * Creates a new deletion event for the given DTO.
+   *
    * @param source the DTO snapshot taken before the entity was removed
    */
   public OnObjectDelete(@NonNull T source) {
