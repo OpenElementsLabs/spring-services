@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>spring-services</artifactId>
-    <version>1.3.0</version>
+    <version>1.4.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Spring Services (reactor)</name>
