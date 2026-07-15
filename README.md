@@ -31,7 +31,8 @@ coordinate is the reactor parent (a `pom`, no classes) — depend on one of the 
 
 **À la carte:** import the BOM once, then declare `spring-services-core` plus only the feature
 modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-services-email`,
-`spring-services-search`, `spring-services-dbbackup`, `spring-services-scim`) without versions:
+`spring-services-search`, `spring-services-dbbackup`, `spring-services-scim`,
+`spring-services-tenant`) without versions:
 
 ```xml
 <dependencyManagement>
@@ -331,6 +332,7 @@ spring-services/                    — reactor parent (packaging=pom)
 ├── spring-services-search          — Meilisearch full-text search (RestClient, no extra dep)
 ├── spring-services-dbbackup        — db-backup sidecar client (RestClient, no extra dep)
 ├── spring-services-scim            — SCIM 2.0 Users provider (opt-in via openelements.scim.token)
+├── spring-services-tenant          — row-level multi-tenancy (self-activates on the classpath)
 ├── spring-services-all             — everything bundle (depends on all modules; no config of its own)
 └── spring-services-bom             — bill of materials for lockstep versioning
 ```
