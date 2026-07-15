@@ -1,7 +1,7 @@
 # Upgrade prompt: `com.open-elements:spring-services` 1.2.0 → 1.3.0
 
-`spring-services` 1.3.0 is a **coordinate-breaking and DB-breaking (but not Java-API-breaking)
-release**. Three coupled changes land together:
+`spring-services` 1.3.0 is a **coordinate-breaking and DB-breaking release** with one small public
+API break (a single `@Configuration` class was renamed). Three coupled changes land together:
 
 1. **Maven multi-module reactor (coordinate change).** The `com.open-elements:spring-services`
    coordinate is now the **reactor parent** (`packaging=pom`) and no longer ships a jar with classes.
@@ -16,16 +16,22 @@ release**. Three coupled changes land together:
    of the application's default (`public`) schema. They stay in a **single** JPA persistence unit
    (one `EntityManagerFactory`, one `TransactionManager`) — library-internal foreign keys and atomic
    transactions are unchanged.
-3. **Real Spring Boot starter.** The library is now auto-configured. `FullSpringServiceConfig` has
-   been **removed**; a consuming application no longer uses `@Import(FullSpringServiceConfig.class)`,
-   `@EntityScan`, or `@EnableJpaRepositories` to wire the library — adding the dependency is enough,
-   and the application's own entities/repositories keep being discovered.
+3. **Real Spring Boot starter.** The library is now auto-configured via
+   `SpringServicesCoreAutoConfiguration` (registered in
+   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`). Adding the
+   dependency is enough — a consuming application no longer *needs*
+   `@Import(FullSpringServiceConfig.class)`, `@EntityScan`, or `@EnableJpaRepositories` to wire the
+   library, and its own entities/repositories keep being discovered. **`FullSpringServiceConfig` is
+   retained** (the starter itself `@Import`s it), so an existing `@Import(FullSpringServiceConfig.class)`
+   still compiles and works — it simply becomes redundant.
 
-There are **no public Java API changes** (method signatures, DTOs, annotations, records, enums are
-unchanged). The breaks are at the **build-coordinate** level (the parent pom carries no classes) and
-the **database** level (the new code will not start against the old `public`-schema tables until you
-move them). **The library ships no runtime migrations** — you apply the SQL below with your own
-migration tool (Flyway/Liquibase), in version order.
+Apart from one renamed `@Configuration` class (`LanguageConfig` → `TranslationConfig`, see below),
+there are **no public Java API changes** (method signatures, DTOs, annotations, records, enums are
+unchanged). The breaks are at the **build-coordinate** level (the parent pom carries no classes), the
+**database** level (the new code will not start against the old `public`-schema tables until you move
+them), and — only for à-la-carte consumers who imported it directly — the `LanguageConfig` rename.
+**The library ships no runtime migrations** — you apply the SQL below with your own migration tool
+(Flyway/Liquibase), in version order.
 
 > ⚠️ **Read the warnings before you run anything.** Applied incorrectly (e.g. with
 > `spring.jpa.hibernate.ddl-auto=update`), this upgrade causes **silent data loss**. It also requires
@@ -103,16 +109,23 @@ plus only the feature modules you need, without versions:
 Feature module artifact ids: `spring-services-slack`, `spring-services-mcp`,
 `spring-services-email`, `spring-services-search`, `spring-services-dbbackup`.
 
-#### Zero-config starter (required cleanup)
+#### Zero-config starter (recommended cleanup — not a compile break)
 
 The library now registers itself via
-`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, and
-**`FullSpringServiceConfig` has been removed**. If your 1.2.0 application wired the library with
-`@Import(FullSpringServiceConfig.class)`, you **must delete that import** — it no longer compiles.
-The dependency alone now wires everything, and your own entities/repositories continue to be
-discovered, so `@EntityScan("com.openelements.spring.base")` /
+`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. The dependency
+alone now wires everything, and your own entities/repositories continue to be discovered.
+
+**`FullSpringServiceConfig` is retained, not removed.** The starter auto-configuration itself
+`@Import`s it, so if your 1.2.0 application wired the library with `@Import(FullSpringServiceConfig.class)`
+it **still compiles and works** — the import just becomes redundant (the config is applied once; Spring
+dedups the repeated `@Import` by class). Removing it is optional cleanup, not a required fix.
+
+The `@EntityScan("com.openelements.spring.base")` /
 `@EnableJpaRepositories("com.openelements.spring.base")` that existed *only* to wire the library
-should be removed too.
+**should** be removed, though: a lingering manual `@EntityScan` makes `EntityScanPackages` non-empty
+and thereby suppresses Boot's additive default scan of your application's own package (see the
+exception below). Delete these library-only scan annotations; keep `@Import(FullSpringServiceConfig.class)`
+or drop it, as you prefer.
 
 > **Exception — explicit `@EntityScan`.** If your application declares its own
 > `@EntityScan("com.example…")` for its own entities, that *suppresses* the additive fallback and the
@@ -132,11 +145,43 @@ The seven library tables are now mapped with `@Table(schema = "oe_spring_service
 must contain that schema, and the tables must live in it, before the 1.3.0 application starts. This is
 what the migration SQL below does.
 
-#### No public API changes
+#### Renamed configuration class: `LanguageConfig` → `TranslationConfig` (breaking-light)
 
-No public method signatures, types, annotations, records, enums, or message strings changed between
-1.2.0 and 1.3.0. Nothing to migrate in application code beyond the dependency coordinate and the
-removal of the now-deleted `@Import(FullSpringServiceConfig.class)`.
+The public `@Configuration` class `com.openelements.spring.base.services.translation.LanguageConfig`
+was renamed to `com.openelements.spring.base.services.translation.TranslationConfig`. There is **no
+back-compat alias** — the old name is gone. This only affects consumers who referenced the class
+directly (à-la-carte wiring); the vast majority who used `@Import(FullSpringServiceConfig.class)` (or
+the new starter) are unaffected, because `FullSpringServiceConfig` now imports `TranslationConfig`
+internally.
+
+```java
+// before (1.2.0) — only if you imported it directly
+import com.openelements.spring.base.services.translation.LanguageConfig;
+@Import(LanguageConfig.class)
+
+// after (1.3.0)
+import com.openelements.spring.base.services.translation.TranslationConfig;
+@Import(TranslationConfig.class)
+```
+
+The class's behaviour is unchanged — it is the same component scan over the `translation` package,
+only the type name changed.
+
+#### No other public API changes
+
+Aside from the `LanguageConfig` → `TranslationConfig` rename above, no public method signatures,
+types, annotations, records, enums, or message strings changed between 1.2.0 and 1.3.0. A full
+public-type inventory diff of 1.2.0 → 1.3.0 shows exactly one removed type (`LanguageConfig`); every
+other new type is purely additive (the new `*AutoConfiguration` classes, `DbSchema`, and the new
+`spring-services-mcp` module). Nothing else to migrate in application code beyond the dependency
+coordinate and the schema move.
+
+> **Note for explicit-import consumers.** In 1.2.0, `FullSpringServiceConfig` (shipped in the single
+> jar) also aggregated the Slack, email, search, and db-backup configurations. In 1.3.0 those features
+> live in separate modules and self-activate via their own auto-configurations, so the *core*
+> `FullSpringServiceConfig` no longer imports them. If you rely on `@Import(FullSpringServiceConfig.class)`
+> for those features, make sure the corresponding feature module (or `spring-services-all`) is on the
+> classpath — the module then wires the feature itself; you do not add its `@Import` back.
 
 ### Database migration (you run this with your own migration tool)
 
@@ -190,15 +235,19 @@ CREATE SCHEMA IF NOT EXISTS oe_spring_services;
 1. Find the consumer's build file that declares `com.open-elements:spring-services`.
 2. Replace the coordinate per **Path A** (switch to `spring-services-all`) or **Path B** (BOM +
    `-core` + chosen feature modules). Bump the version to `1.3.0`.
-3. Delete `@Import(FullSpringServiceConfig.class)` (the class is gone in 1.3.0) and any
-   `@EntityScan` / `@EnableJpaRepositories` that existed only to wire the library — unless you use
-   `@EntityScan` for your own entities, in which case add `com.openelements.spring.base` to it.
-4. Add the migration SQL above as a new versioned script in your own Flyway/Liquibase timeline.
-5. Ensure `spring.jpa.hibernate.ddl-auto` is `validate` or `none` for this deploy (not `update`/`create`).
-6. Grant the runtime DB role `USAGE` on `oe_spring_services`.
-7. Resolve dependencies (`mvn -U dependency:resolve` or `./gradlew --refresh-dependencies`).
-8. Deploy with downtime: stop the old instance, run the migration, start 1.3.0.
-9. Compile and run the consumer's test suite to verify the build is green.
+3. Remove any `@EntityScan` / `@EnableJpaRepositories` that existed only to wire the library — unless
+   you use `@EntityScan` for your own entities, in which case add `com.openelements.spring.base` to it.
+   `@Import(FullSpringServiceConfig.class)` is now optional (the class is retained and still compiles);
+   you may leave it or drop it — do not treat it as a required change.
+4. If (and only if) you imported `LanguageConfig` directly, rename the reference to `TranslationConfig`
+   (package `com.openelements.spring.base.services.translation`). If you only used
+   `FullSpringServiceConfig` or the starter, skip this.
+5. Add the migration SQL above as a new versioned script in your own Flyway/Liquibase timeline.
+6. Ensure `spring.jpa.hibernate.ddl-auto` is `validate` or `none` for this deploy (not `update`/`create`).
+7. Grant the runtime DB role `USAGE` on `oe_spring_services`.
+8. Resolve dependencies (`mvn -U dependency:resolve` or `./gradlew --refresh-dependencies`).
+9. Deploy with downtime: stop the old instance, run the migration, start 1.3.0.
+10. Compile and run the consumer's test suite to verify the build is green.
 
 ### Guard rails / Don't do this
 
@@ -209,6 +258,11 @@ CREATE SCHEMA IF NOT EXISTS oe_spring_services;
 - Do **not** run this upgrade with `ddl-auto=update`/`create` — you will orphan your data.
 - Do **not** attempt a rolling/zero-downtime deploy against a shared database.
 - Do **not** mix explicit module versions with the BOM import; let the BOM manage them.
+- Do **not** delete `@Import(FullSpringServiceConfig.class)` believing the class was removed — it was
+  **not**. Removing it is optional cleanup; the class still exists and still compiles.
+- Do **not** create a `LanguageConfig` shim/alias to avoid the rename — update the reference to
+  `TranslationConfig` instead. And do **not** touch `TranslationConfig` unless you actually imported
+  the old `LanguageConfig` directly.
 - Do **not** rename columns, change the single-`DataSource` setup, or introduce a second
   `EntityManagerFactory` "to isolate the library" — the design is deliberately one persistence unit.
 - Do **not** point your **application's own** entities at `oe_spring_services` — that schema is
