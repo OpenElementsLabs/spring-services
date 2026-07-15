@@ -124,8 +124,8 @@ class AuditLogIntegrationTest {
     jdbcTemplate.update(
         "INSERT INTO "
             + DbSchema.NAME
-            + ".users (id, sub, user_name, name, active, updated_at, created_at) "
-            + "VALUES (?, ?, ?, ?, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            + ".users (id, sub, user_name, name, active, deleted, updated_at, created_at) "
+            + "VALUES (?, ?, ?, ?, TRUE, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         SystemUser.ID,
         SystemUser.SUB,
         SystemUser.SUB,
