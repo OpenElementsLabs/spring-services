@@ -60,7 +60,7 @@ modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-servic
 
 Each feature module self-activates when present on the classpath, so consumers pull only the
 dependencies they use. Migrating from the pre-split `spring-services` artifact? See
-[`docs/releases/upgrade-to-1.4.md`](docs/releases/upgrade-to-1.4.md).
+[`docs/releases/upgrade-to-1.3.md`](docs/releases/upgrade-to-1.3.md).
 
 To consume a `-SNAPSHOT` build, also declare the Central Portal snapshot repository (releases still
 come from Maven Central):
