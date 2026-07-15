@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -46,7 +46,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * service, and the {@link ApiKeyRepository} is the real Spring Data repository writing to the
  * containerised database.
  *
- * <p><b>Mock-Audit.</b> Two {@code @MockBean}s:
+ * <p><b>Mock-Audit.</b> Two {@code @MockitoBean}s:
  *
  * <ul>
  *   <li>{@code UserService} — stubbed to return a static "Test Admin" {@code UserDto}. The
@@ -68,9 +68,9 @@ class ApiKeyDataServiceIntegrationTest {
 
   @Autowired private ApiKeyRepository apiKeyRepository;
 
-  @MockBean private UserService userService;
+  @MockitoBean private UserService userService;
 
-  @MockBean private AuthService authService;
+  @MockitoBean private AuthService authService;
 
   @BeforeEach
   void setUp() {

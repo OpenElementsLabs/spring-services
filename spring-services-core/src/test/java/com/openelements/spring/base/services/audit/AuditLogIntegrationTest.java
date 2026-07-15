@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -62,7 +62,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * starts a real Postgres via Testcontainers. {@link TagDataService} is used as a real publisher
  * of {@code OnObjectCreate/Update/Delete} events so the integration is end-to-end.
  *
- * <p><b>Mock-Audit.</b> {@code AuthService} is the single {@code @MockBean} — real
+ * <p><b>Mock-Audit.</b> {@code AuthService} is the single {@code @MockitoBean} — real
  * {@code AuthService} reads from {@link
  * org.springframework.security.core.context.SecurityContextHolder} populated by the filter
  * chain, which the tests deliberately bypass to drive listener decisions directly. Every other
@@ -94,7 +94,7 @@ class AuditLogIntegrationTest {
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
-  @MockBean private AuthService authService;
+  @MockitoBean private AuthService authService;
 
   private UserEntity alice;
   private UserEntity bob;
