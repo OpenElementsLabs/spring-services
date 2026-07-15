@@ -56,6 +56,18 @@ public class UserEntity extends AbstractEntity {
   @Column(name = "active", nullable = false)
   private boolean active = true;
 
+  /**
+   * Whether the user has been soft-deleted (e.g. by a SCIM {@code DELETE}). A soft-deleted row is
+   * hidden from the SCIM view but retained so audit-log and comment foreign keys stay intact; it is
+   * distinct from a merely deactivated ({@code active = false}) user.
+   */
+  @Column(name = "deleted", nullable = false)
+  private boolean deleted = false;
+
+  /** The moment the user was soft-deleted, or {@code null} if the user is not deleted. */
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
+
   /** The last-update timestamp of the user row. */
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
@@ -150,6 +162,44 @@ public class UserEntity extends AbstractEntity {
    */
   public void setActive(final boolean active) {
     this.active = active;
+  }
+
+  /**
+   * Returns whether this user has been soft-deleted. A soft-deleted user is treated as absent by the
+   * SCIM surface (returned as {@code 404}) and excluded from listings, but the row is retained for
+   * referential integrity.
+   *
+   * @return {@code true} if the user has been soft-deleted, {@code false} otherwise
+   */
+  public boolean isDeleted() {
+    return deleted;
+  }
+
+  /**
+   * Sets whether this user has been soft-deleted.
+   *
+   * @param deleted {@code true} to mark the user as soft-deleted, {@code false} to restore it
+   */
+  public void setDeleted(final boolean deleted) {
+    this.deleted = deleted;
+  }
+
+  /**
+   * Returns the moment this user was soft-deleted.
+   *
+   * @return the soft-delete timestamp, or {@code null} if the user is not deleted
+   */
+  public Instant getDeletedAt() {
+    return deletedAt;
+  }
+
+  /**
+   * Sets the moment this user was soft-deleted.
+   *
+   * @param deletedAt the soft-delete timestamp, or {@code null} if the user is not deleted
+   */
+  public void setDeletedAt(final Instant deletedAt) {
+    this.deletedAt = deletedAt;
   }
 
   /**
