@@ -19,7 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -49,7 +49,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * transactional configuration — entities are flushed and reloaded across transactions so the
  * assertions reflect what is durably in the database, not just the session cache.
  *
- * <p><b>Mock-Audit.</b> A single {@code @MockBean AuthService} is the only mock. The real
+ * <p><b>Mock-Audit.</b> A single {@code @MockitoBean AuthService} is the only mock. The real
  * {@code AuthService} would require a Spring Security {@code SecurityContextHolder} populated by
  * the filter chain, which these tests deliberately bypass to drive {@code getCurrentUserEntity()}
  * directly. The {@code UserService}, {@link UserRepository}, and {@code UserProvisioner} under
@@ -68,7 +68,7 @@ class UserServiceActiveGateIntegrationTest {
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
-  @MockBean private AuthService authService;
+  @MockitoBean private AuthService authService;
 
   /**
    * Deletes dependent {@code audit_log} rows before the {@code users} rows they reference, then

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,7 +42,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * WebhookRepository} are real beans; the per-test {@code @BeforeEach} truncates the {@code
  * webhook} table to keep scenarios independent.
  *
- * <p><b>Mock-Audit.</b> One {@code @MockBean} of {@link AuthService}. The service inherits from
+ * <p><b>Mock-Audit.</b> One {@code @MockitoBean} of {@link AuthService}. The service inherits from
  * {@code AbstractDbBackedDataService}, whose audit hooks consult {@code AuthService} for the
  * acting principal — outside a real HTTP request there is no JWT to resolve, so the bean is
  * mocked to default-stub behaviour. No other collaborator is mocked: every assertion is made
@@ -59,7 +59,7 @@ class WebhookDataServiceIntegrationTest {
 
   @Autowired private WebhookRepository webhookRepository;
 
-  @MockBean private AuthService authService;
+  @MockitoBean private AuthService authService;
 
   @BeforeEach
   void setUp() {

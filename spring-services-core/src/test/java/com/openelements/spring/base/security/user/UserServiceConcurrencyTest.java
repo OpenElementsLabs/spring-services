@@ -31,7 +31,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -69,7 +69,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * in-memory database faithfully reproduces.
  *
  * <p><b>Mock surface and justification.</b> {@link
- * com.openelements.spring.base.security.AuthService} is the single {@code @MockBean} — it would
+ * com.openelements.spring.base.security.AuthService} is the single {@code @MockitoBean} — it would
  * otherwise require a Spring Security {@code SecurityContextHolder} populated by the filter
  * chain, which the tests deliberately bypass to drive {@code getCurrentUserEntity()} directly
  * on background threads. Per-thread {@code UserInformation} dispatch is implemented with a
@@ -100,7 +100,7 @@ class UserServiceConcurrencyTest {
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
-  @MockBean private AuthService authService;
+  @MockitoBean private AuthService authService;
 
   /**
    * Deletes dependent {@code audit_log} rows before the {@code users} rows they reference, then
