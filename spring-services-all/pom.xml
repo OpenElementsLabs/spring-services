@@ -14,6 +14,7 @@
     <description>Everything bundle: depends on core plus every optional feature module. Drop-in
         replacement for the pre-split spring-services artifact. Ships no configuration of its own —
         each module self-activates via its own auto-configuration.</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>

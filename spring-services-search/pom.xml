@@ -12,6 +12,7 @@
 
     <name>Spring Services Search</name>
     <description>Optional Meilisearch-backed full-text search feature module for spring-services</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>

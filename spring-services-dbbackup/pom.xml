@@ -12,6 +12,7 @@
 
     <name>Spring Services DB-Backup</name>
     <description>Optional db-backup-service sidecar client feature module for spring-services</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>

@@ -12,6 +12,7 @@
 
     <name>Spring Services Core</name>
     <description>Core spring-services module: entities, data, events, security, and light features</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>

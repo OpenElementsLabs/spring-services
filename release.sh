@@ -75,6 +75,23 @@ echo "Releasing version $NEW_VERSION"
 # release that was never cut.
 ./mvnw -Pfull-build clean verify
 
+# Validate every deployed POM against Maven Central's rules BEFORE we tag.
+#
+# This runs PomChecker — the SAME validation JReleaser performs during the
+# release workflow's deploy step (the "<url> is not defined in POM" /
+# "Rules for publishing to Maven Central were not met" failures come from here).
+# JReleaser only runs it AFTER the tag is pushed, so without this gate a POM
+# metadata bug (missing <url>/<name>/<description>/<licenses>/<developers>/<scm>)
+# is only discovered once the release workflow is already running against a tag.
+#
+# PomChecker needs no secrets, no signing and no staging, so it is safe to run
+# locally. It runs AFTER versions:set on purpose: the version is now the real
+# (non-SNAPSHOT) release version, so the strict release rules are enforced.
+# It runs across the whole reactor (no -N) so every module — core, the feature
+# modules, spring-services-all and the BOM — is checked, exactly as JReleaser does.
+echo "Validating POMs against Maven Central rules (PomChecker)..."
+./mvnw -B org.kordamp.maven:pomchecker-maven-plugin:1.14.0:check-maven-central
+
 # Generate the release doc only after a green build, but still before committing
 # so it ships inside the release commit (and therefore the v$NEW_VERSION tag).
 # The version is already set in the build file, so the skill derives the correct

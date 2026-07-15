@@ -12,6 +12,7 @@
 
     <name>Spring Services MCP</name>
     <description>Optional Model Context Protocol (MCP) server feature module for spring-services</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>
