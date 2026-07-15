@@ -50,6 +50,11 @@
             </dependency>
             <dependency>
                 <groupId>com.open-elements</groupId>
+                <artifactId>spring-services-scim</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.open-elements</groupId>
                 <artifactId>spring-services-all</artifactId>
                 <version>${project.version}</version>
             </dependency>

@@ -8,13 +8,10 @@
         <version>1.4.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-services-all</artifactId>
+    <artifactId>spring-services-scim</artifactId>
 
-    <name>Spring Services All</name>
-    <description>Everything bundle: depends on core plus every optional feature module. Drop-in
-        replacement for the pre-split spring-services artifact. Ships no configuration of its own —
-        each module self-activates via its own auto-configuration.</description>
-    <url>https://github.com/OpenElementsLabs/spring-services</url>
+    <name>Spring Services SCIM</name>
+    <description>Optional SCIM 2.0 Users service-provider feature module for spring-services</description>
 
     <dependencies>
         <dependency>
@@ -22,41 +19,16 @@
             <artifactId>spring-services-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-slack</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-search</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-dbbackup</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-email</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-mcp</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.open-elements</groupId>
-            <artifactId>spring-services-scim</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
-        <!-- Test dependencies: the aggregate test boots the full classpath against Postgres. -->
+        <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
