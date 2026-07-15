@@ -132,7 +132,8 @@
  *
  * <h2>Tenant-aware variants</h2>
  *
- * <p>For multi-tenant services, see {@link com.openelements.spring.base.tenant} which provides the
- * tenant-scoped counterparts of the abstractions defined here.
+ * <p>For multi-tenant services, see the {@code spring-services-tenant} module (package
+ * {@code com.openelements.spring.base.tenant}), which provides the tenant-scoped counterparts of the
+ * abstractions defined here.
  */
 package com.openelements.spring.base.data;

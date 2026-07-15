@@ -46,6 +46,7 @@
         <module>spring-services-email</module>
         <module>spring-services-mcp</module>
         <module>spring-services-scim</module>
+        <module>spring-services-tenant</module>
         <module>spring-services-all</module>
         <module>spring-services-bom</module>
     </modules>
