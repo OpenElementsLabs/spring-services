@@ -1,4 +1,10 @@
-# Upgrade prompt: enabling the SCIM 2.0 Users provider (spec 015)
+# Upgrade prompt: spring-services 1.4.0 optional-module changes
+
+`spring-services` 1.4.0 adds the optional **SCIM 2.0 Users provider** (spec 015) and moves
+**multi-tenancy into its own module** (spec 016). Both sections below are independent — apply only
+the ones you use.
+
+## SCIM 2.0 Users provider (spec 015)
 
 `spring-services` 1.4.0 adds an **optional** SCIM 2.0 Users service-provider module,
 `spring-services-scim`. It lets an external identity provider (Authentik, or any RFC 7644 client)
@@ -83,3 +89,26 @@ credential. Rotation = change this property and the IdP token together; there is
   group write returns `501 Not Implemented`. Do not enable group provisioning in your IdP yet.
 - User `PATCH` is not implemented (`501`); Authentik updates via `PUT` full-replace.
 - Do not point your **application's own** entities at the reserved SCIM principal UUID.
+
+## Multi-tenancy moved to `spring-services-tenant` (spec 016)
+
+The multi-tenancy abstractions (`TenantService`, `AbstractMultitenantEntity`,
+`AbstractMultitenantDbBackedDataService`, `RepositoryWithTenantSupport`, `EnableTenant`,
+`TenantConfig`, …) previously lived in `spring-services-core`. In 1.4.0 they move, unchanged, into a
+new optional feature module `spring-services-tenant`. No API, schema, or runtime-behaviour change to
+the tenancy logic — this is a build-coordinate change only.
+
+- **`spring-services-all` consumers: nothing to do.** The everything-bundle now depends on
+  `spring-services-tenant`, so the feature is present exactly as before.
+- **À-la-carte consumers who used tenant types via `spring-services-core`:** add the module
+  (version managed by the BOM):
+
+  ```xml
+  <dependency>
+      <groupId>com.open-elements</groupId>
+      <artifactId>spring-services-tenant</artifactId>
+  </dependency>
+  ```
+
+The feature self-activates on classpath presence (`TenantAutoConfiguration`); `@EnableTenant` and
+`@Import(TenantConfig.class)` continue to work for explicit opt-in. There is no database migration.

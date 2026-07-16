@@ -8,7 +8,6 @@ import com.openelements.spring.base.services.settings.SettingsConfig;
 import com.openelements.spring.base.services.tag.TagConfig;
 import com.openelements.spring.base.services.translation.TranslationConfig;
 import com.openelements.spring.base.services.webhook.WebhookConfig;
-import com.openelements.spring.base.tenant.TenantConfig;
 import org.springframework.context.annotation.Import;
 
 /**
@@ -29,8 +28,6 @@ import org.springframework.context.annotation.Import;
  *
  * <ul>
  *   <li>{@link SecurityConfig} — JWT and API-key authentication.
- *   <li>{@link TenantConfig} — multi-tenancy support (entities, repositories, current-tenant
- *       resolution).
  *   <li>{@link ApiKeyConfig} — API-key data layer (entity, repository, data service).
  *   <li>{@link SettingsConfig} — generic key/value settings store.
  *   <li>{@link TagConfig} — taggable-entity support.
@@ -40,7 +37,6 @@ import org.springframework.context.annotation.Import;
  */
 @Import({
         SecurityConfig.class,
-        TenantConfig.class,
         ApiKeyConfig.class,
         SettingsConfig.class,
         TagConfig.class,

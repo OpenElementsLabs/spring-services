@@ -2,8 +2,6 @@ package com.openelements.spring.base.tenant;
 
 import com.openelements.spring.base.security.AuthService;
 import java.util.Objects;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 /**
  * Resolves the tenant id of the current request.
@@ -11,8 +9,10 @@ import org.springframework.stereotype.Service;
  * <p>The tenant id is taken verbatim from the {@code name} of the authenticated principal as
  * exposed by {@link AuthService#getPrincipal()}. For JWT-authenticated requests this is the {@code
  * sub} claim; for API-key requests it is the API key entity's name.
+ *
+ * <p>Registered as a bean by {@link TenantConfig#tenantService(AuthService)} rather than by
+ * component scanning.
  */
-@Service
 public class TenantService {
 
   private final AuthService authService;
@@ -22,7 +22,6 @@ public class TenantService {
    *
    * @param authService the service used to resolve the authenticated principal
    */
-  @Autowired
   public TenantService(final AuthService authService) {
     this.authService = Objects.requireNonNull(authService, "authService must not be null");
   }
