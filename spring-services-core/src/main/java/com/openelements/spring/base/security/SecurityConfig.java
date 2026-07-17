@@ -8,6 +8,7 @@ import com.openelements.spring.base.services.user.UserConfig;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -110,7 +111,8 @@ public class SecurityConfig {
    */
   @Bean
   public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
-      final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint) {
+      @Qualifier("apiKeyAuthenticationEntryPoint")
+          final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint) {
     return new ApiKeyAuthenticationFilter(apiKeyDataService, apiKeyAuthenticationEntryPoint);
   }
 
@@ -166,7 +168,8 @@ public class SecurityConfig {
   public SecurityFilterChain externalApiFilterChain(
       final HttpSecurity http,
       final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
-      final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint)
+      @Qualifier("apiKeyAuthenticationEntryPoint")
+          final JsonAuthenticationEntryPoint apiKeyAuthenticationEntryPoint)
       throws Exception {
     http.securityMatcher("/api/external/**")
         .authorizeHttpRequests(
@@ -202,7 +205,9 @@ public class SecurityConfig {
   @Bean
   @Order(2)
   public SecurityFilterChain defaultFilterChain(
-      final HttpSecurity http, final JsonAuthenticationEntryPoint jwtAuthenticationEntryPoint)
+      final HttpSecurity http,
+      @Qualifier("jwtAuthenticationEntryPoint")
+          final JsonAuthenticationEntryPoint jwtAuthenticationEntryPoint)
       throws Exception {
     http.authorizeHttpRequests(
             auth ->
