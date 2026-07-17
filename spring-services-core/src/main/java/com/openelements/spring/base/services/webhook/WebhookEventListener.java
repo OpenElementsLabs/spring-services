@@ -64,10 +64,10 @@ public class WebhookEventListener {
     handle(WebhookDataEventType.DELETED, event.getType(), event.getData());
   }
 
-  private <T extends WithId> void handle(WebhookDataEventType eventType, Class<T> type, T data) {
-    if (supportsWebhook(type, WebhookDataEventType.DELETED)) {
-      final WebhookDataEventPayload payload =
-          WebhookDataEventPayload.of(WebhookDataEventType.DELETED, type, data);
+  private <T extends WithId> void handle(
+      final WebhookDataEventType eventType, final Class<T> type, final T data) {
+    if (supportsWebhook(type, eventType)) {
+      final WebhookDataEventPayload payload = WebhookDataEventPayload.of(eventType, type, data);
       webhookSender.sendAndTrack(payload);
     }
   }

@@ -46,15 +46,13 @@ class WebhookEventListenerTest {
   private final WebhookEventListener listener = new WebhookEventListener(webhookSender);
 
   /**
-   * Documents the current observed behaviour: every domain event reaches {@link
-   * WebhookSender#sendAndTrack} carrying the original {@code data} reference. Note: the captured
-   * {@code eventType} is asserted against {@link WebhookDataEventType#DELETED} rather than
-   * {@code CREATED} — that reflects a known defect in {@code WebhookEventListener.handle(...)},
-   * which ignores its {@code eventType} parameter. This test pins the as-shipped behaviour; the
-   * defect itself is tracked separately and outside the scope of this docs pass.
+   * An {@link OnObjectCreate} event reaches {@link WebhookSender#sendAndTrack} carrying the original
+   * {@code data} reference and, crucially, {@link WebhookDataEventType#CREATED} as its {@code
+   * eventType} — the listener must propagate the lifecycle type rather than collapsing every event
+   * to a single value.
    */
   @Test
-  @DisplayName("An OnObjectCreate event is wrapped into a WebhookDataEventPayload and forwarded to WebhookSender.sendAndTrack — payload carries the original data reference.")
+  @DisplayName("An OnObjectCreate event is wrapped into a WebhookDataEventPayload with eventType=CREATED and forwarded to WebhookSender.sendAndTrack — payload carries the original data reference.")
   void shouldDelegateCreateEventToSender() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "created");
@@ -67,12 +65,12 @@ class WebhookEventListenerTest {
     final ArgumentCaptor<WebhookDataEventPayload> captor =
         ArgumentCaptor.forClass(WebhookDataEventPayload.class);
     verify(webhookSender).sendAndTrack(captor.capture());
-    assertThat(captor.getValue().eventType()).isEqualTo(WebhookDataEventType.DELETED);
+    assertThat(captor.getValue().eventType()).isEqualTo(WebhookDataEventType.CREATED);
     assertThat(captor.getValue().data()).isSameAs(data);
   }
 
   @Test
-  @DisplayName("An OnObjectUpdate event is wrapped into a WebhookDataEventPayload and forwarded to WebhookSender.sendAndTrack.")
+  @DisplayName("An OnObjectUpdate event is wrapped into a WebhookDataEventPayload with eventType=UPDATED and forwarded to WebhookSender.sendAndTrack.")
   void shouldDelegateUpdateEventToSender() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "updated");
@@ -82,11 +80,15 @@ class WebhookEventListenerTest {
     listener.handleOnObjectUpdate(event);
 
     // THEN
-    verify(webhookSender).sendAndTrack(any(WebhookDataEventPayload.class));
+    final ArgumentCaptor<WebhookDataEventPayload> captor =
+        ArgumentCaptor.forClass(WebhookDataEventPayload.class);
+    verify(webhookSender).sendAndTrack(captor.capture());
+    assertThat(captor.getValue().eventType()).isEqualTo(WebhookDataEventType.UPDATED);
+    assertThat(captor.getValue().data()).isSameAs(data);
   }
 
   @Test
-  @DisplayName("An OnObjectDelete event is wrapped into a WebhookDataEventPayload and forwarded to WebhookSender.sendAndTrack.")
+  @DisplayName("An OnObjectDelete event is wrapped into a WebhookDataEventPayload with eventType=DELETED and forwarded to WebhookSender.sendAndTrack.")
   void shouldDelegateDeleteEventToSender() {
     // GIVEN
     final TestData data = new TestData(UUID.randomUUID(), "deleted");
@@ -96,7 +98,11 @@ class WebhookEventListenerTest {
     listener.handleOnObjectDelete(event);
 
     // THEN
-    verify(webhookSender).sendAndTrack(any(WebhookDataEventPayload.class));
+    final ArgumentCaptor<WebhookDataEventPayload> captor =
+        ArgumentCaptor.forClass(WebhookDataEventPayload.class);
+    verify(webhookSender).sendAndTrack(captor.capture());
+    assertThat(captor.getValue().eventType()).isEqualTo(WebhookDataEventType.DELETED);
+    assertThat(captor.getValue().data()).isSameAs(data);
   }
 
   @Test

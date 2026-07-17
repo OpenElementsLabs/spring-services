@@ -7,14 +7,18 @@ Follow-up items surfaced during the `/spec-review` of Spec 011 that were out of 
   Requires a JWT-issuing test fixture (a custom `JwtDecoder` that accepts hand-crafted tokens, plus a
   small test controller). Rounds out the behavior scenario "Missing JWT on default chain produces same
   error shape".
-- **Ship a `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`** for
-  zero-config integration (no more `@Import(FullSpringServiceConfig.class)`). Note: Spec 013 (open)
-  already ships a real Spring Boot starter via `AutoConfigurationPackages`, so this may be absorbed
-  there — reconcile before acting.
+- ~~**Ship a `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`** for
+  zero-config integration (no more `@Import(FullSpringServiceConfig.class)`).~~ **(done)** — Absorbed
+  by Spec 013/014: every module now ships its own `AutoConfiguration.imports` (core →
+  `SpringServicesCoreAutoConfiguration`, plus tenant/scim/email/slack/dbbackup/search/mcp).
 - **Per-feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty`** for all library beans, so
   consumers can register their own `JwtAuthenticationConverter` or disable individual features by
   property (`openelements.security.api-key.enabled=false`). Needs a property-naming convention and a
   coherent toggle plan first. Related to Spec 014's per-module `@AutoConfiguration` guarding.
+  **Status (partial):** module-level guards now exist (`@ConditionalOnClass` on core/email/slack/mcp;
+  `@ConditionalOnProperty` on scim/db-backup/search/mcp). Still missing: property toggles + consumer
+  overridability (`@ConditionalOnMissingBean`) for the **core security beans** (e.g. the API-key chain
+  and `JwtAuthenticationConverter`).
 
 **Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done). (The
 "flip Spec 011 INDEX status to done" follow-up is already resolved — the INDEX shows `done`.)
@@ -32,23 +36,28 @@ once one exists.
 **Context:** Surfaced while writing integration tests; deferred until a deployment-notes doc section
 exists to host it.
 
+**Status (partial):** the formula is already documented in `README.md` (upgrade-notes section, ~line
+247). Remaining work is only to lift it into a dedicated "Production Deployment Notes" section once
+one exists.
+
 ## Spec candidate: Test Hygiene & Bug Fixes
 
 Three separate findings surfaced while documenting all 45 test files (class Javadoc + `@DisplayName` +
 mock audit, done after Spec 012). They justify their own spec, to be worked out via `/spec-create` with
 a preceding `/grill-me`. The points below are the raw findings, **not** a finished spec design.
 
-**Finding 1 — Real bug: `WebhookEventListener.handle(...)` ignores `eventType`**
+**Finding 1 — Real bug: `WebhookEventListener.handle(...)` ignores `eventType` — ✅ FIXED**
 
 - File: `src/main/java/com/openelements/spring/base/services/webhook/WebhookEventListener.java`
-- Symptom: the method takes `eventType` as a parameter but, in both branches (payload build +
-  `WebhookSupport.supports(...)`, around lines 45–47), hardcodes `WebhookDataEventType.DELETED` instead
-  of using the parameter. As a result CREATED and UPDATED events are sent to subscribers as DELETED.
-- Test status: the existing `WebhookEventListenerTest.shouldHandleCreate` passes only by luck — it just
-  checks "sender was called". The test-doc pass documented the bug in the test's class Javadoc rather
-  than silently fixing it.
-- Grill questions for the spec: do subscriber signatures need to change? Do any apps already rely on the
-  buggy behaviour (DELETED for every lifecycle event)? How do we test the three variants reliably?
+- Symptom (was): the method took `eventType` as a parameter but hardcoded `WebhookDataEventType.DELETED`
+  in both branches (payload build + `supportsWebhook(...)`), so CREATED and UPDATED events were sent to
+  subscribers as DELETED.
+- Fix: `handle(...)` now passes the actual `eventType` into both `supportsWebhook(...)` and
+  `WebhookDataEventPayload.of(...)`. `WebhookEventListenerTest` was updated to assert the correct
+  `eventType` (CREATED/UPDATED/DELETED) for all three variants instead of pinning the buggy behaviour.
+- Note: the open grill questions (do subscriber signatures need to change? do any apps already rely on
+  the buggy "DELETED for everything" behaviour?) are now moot for correctness but worth a heads-up in
+  release notes, since downstream consumers will start receiving the correct event types.
 
 **Finding 2 — Over-mocking in integration tests**
 
@@ -98,7 +107,12 @@ need a server-side fallback (`name ← preferred_username ← sub`) before the J
 
 **Context:** Module-usage question that needs investigation before we can rely on the `name` claim.
 
-## Decide the `OidcHealthIndicator` endpoint after switching to `jwk-set-uri`
+## Decide the `OidcHealthIndicator` endpoint after switching to `jwk-set-uri` — ⚫ OBSOLETE
+
+> **Obsolete (verified 2026-07-17):** no `OidcHealthIndicator` class and no `issuer-uri`/`jwk-set-uri`
+> configuration exist anywhere in this repository. The premise below no longer (or never did) applies
+> here — the indicator was never built in `spring-services`, or lives in a downstream application.
+> Revisit only if/when such an indicator is actually added to this library.
 
 The indicator currently reads `issuer-uri` and pings `${issuer-uri}/.well-known/openid-configuration`.
 We are switching to `jwk-set-uri` for JWT validation, which raises a choice (grill session, Spec 011
