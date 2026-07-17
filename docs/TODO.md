@@ -127,17 +127,20 @@ dependencies, no access to internal packages).
 **Prerequisite:** Spec 014 (multi-module restructuring) must land first.
 
 SCIM 2.0 Provider (Schritt 2, nach Foundation) — **in Teil-Specs aufgeteilt** (Grill-Session 2026-07-11):
-- **Spec 015 — SCIM Users Provider** (in Arbeit): dedizierter dritter Filter-Chain für `/scim/v2/**` mit
-  **statischem Bearer-Token** (`openelements.scim.token`, **nicht** JWT — Authentik sendet ein festes
-  opakes Token), Discovery-Endpoints (ServiceProviderConfig/ResourceTypes/Schemas), Users-Resource
-  (List+Filter, POST, GET, PUT-Replace, DELETE) gemappt auf `UserEntity` aus Spec 012. `POST`-Kollision →
-  `409 uniqueness` (RFC), DELETE → soft (`active=false` + `deleted`/`deleted_at`). Audit-Einträge unter
-  reserviertem **SCIM-Service-Principal**. Vor-Merge-Verifikation der Authentik-`409`-Recovery am
-  #21-Harness (siehe Issue-Kommentar).
-- **Folge-Issue A — SCIM Groups + Membership**: `GroupEntity` + Membership-Tabelle, `/scim/v2/Groups`
+- **Spec 015 — SCIM Users Provider** (**done**, PR #33 gemerged 2026-07-15): dedizierter dritter
+  Filter-Chain für `/scim/v2/**` mit **statischem Bearer-Token** (`openelements.scim.token`, **nicht**
+  JWT — Authentik sendet ein festes opakes Token), Discovery-Endpoints
+  (ServiceProviderConfig/ResourceTypes/Schemas), Users-Resource (List+Filter, POST, GET, PUT-Replace,
+  DELETE) gemappt auf `UserEntity` aus Spec 012. `POST`-Kollision → `409 uniqueness` (RFC), DELETE →
+  soft (`active=false` + `deleted`/`deleted_at`). Audit-Einträge unter reserviertem
+  **SCIM-Service-Principal**. Vor-Merge-Verifikation der Authentik-`409`-Recovery am #21-Harness
+  ist erfolgt (Issue #21 geschlossen). Umgesetzt im Modul `spring-services-scim`.
+- **Folge-Issue A — SCIM Groups + Membership** (offen; heute als 501-Stub in `ScimGroupController`,
+  `GET /Groups` liefert leere Liste): `GroupEntity` + Membership-Tabelle, `/scim/v2/Groups`
   (POST/GET/PUT/**PATCH** mit PatchOp add/remove/replace auf `members`, DELETE). Liefert
   `ResolvedPrincipal.groups()` aus `UserEntityPrincipalDirectory` (heute leer).
-- **Folge-Issue B — Group→Role-Mapping**: konfigurierbare Ableitung von `ResolvedPrincipal.roles()` aus
+- **Folge-Issue B — Group→Role-Mapping** (offen; `UserEntityPrincipalDirectory` liefert `roles()`/
+  `groups()` weiterhin leer): konfigurierbare Ableitung von `ResolvedPrincipal.roles()` aus
   Gruppen-Mitgliedschaft; macht USER-Tokens role-aware.
 - Verbleibende offene Designfragen für die Folge-Issues (aus Grill-Sessions): PATCH-Mechanik,
   Filter-Grammatik jenseits `eq` (sw/co/AND/OR), ETag/Optimistic-Concurrency, Tenant-Interaktion
