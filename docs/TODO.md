@@ -1,163 +1,148 @@
-# TODOs
+# TODO
 
-Follow-up items surfaced during the `/spec-review` of Spec 011 that were out of scope for that spec.
+## MockMvc integration test for the JWT chain's `JsonAuthenticationEntryPoint`
 
-- **MockMvc integration test for the JWT chain `JsonAuthenticationEntryPoint`** (Bearer scheme over a
-  real HTTP round-trip). Currently only covered at unit level (`JsonAuthenticationEntryPointTest`).
-  Requires a JWT-issuing test fixture (a custom `JwtDecoder` that accepts hand-crafted tokens, plus a
-  small test controller). Rounds out the behavior scenario "Missing JWT on default chain produces same
-  error shape".
-- ~~**Ship a `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`** for
-  zero-config integration (no more `@Import(FullSpringServiceConfig.class)`).~~ **(done)** — Absorbed
-  by Spec 013/014: every module now ships its own `AutoConfiguration.imports` (core →
-  `SpringServicesCoreAutoConfiguration`, plus tenant/scim/email/slack/dbbackup/search/mcp).
-- **Per-feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty`** for all library beans, so
-  consumers can register their own `JwtAuthenticationConverter` or disable individual features by
-  property (`openelements.security.api-key.enabled=false`). Needs a property-naming convention and a
-  coherent toggle plan first. Related to Spec 014's per-module `@AutoConfiguration` guarding.
-  **Status (partial):** module-level guards now exist (`@ConditionalOnClass` on core/email/slack/mcp;
-  `@ConditionalOnProperty` on scim/db-backup/search/mcp). Still missing: property toggles + consumer
-  overridability (`@ConditionalOnMissingBean`) for the **core security beans** (e.g. the API-key chain
-  and `JwtAuthenticationConverter`).
+Cover the Bearer scheme over a real HTTP round-trip. Currently the entry point is only covered at
+unit level (`JsonAuthenticationEntryPointTest`). Rounds out the behavior scenario "Missing JWT on
+default chain produces same error shape".
 
-**Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done). (The
-"flip Spec 011 INDEX status to done" follow-up is already resolved — the INDEX shows `done`.)
+- Requires a JWT-issuing test fixture: a custom `JwtDecoder` that accepts hand-crafted tokens, plus
+  a small test controller.
 
-**Prerequisite:** The autoconfiguration and toggle items should reconcile with Spec 013 and Spec 014.
+**Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done) — out of
+scope for that spec.
+
+## Property toggles and consumer overridability for core security beans
+
+Per-feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty` for all library beans, so
+consumers can register their own `JwtAuthenticationConverter` or disable individual features by
+property (e.g. `openelements.security.api-key.enabled=false`). Needs a property-naming convention
+and a coherent toggle plan first.
+
+- Module-level guards already exist (`@ConditionalOnClass` on core/email/slack/mcp;
+  `@ConditionalOnProperty` on scim/db-backup/search/mcp), absorbed from Spec 014's per-module
+  `@AutoConfiguration` guarding.
+- Still missing (verified 2026-07-31: no `@ConditionalOnMissingBean` exists anywhere in the
+  reactor): property toggles and `@ConditionalOnMissingBean` overridability for the **core security
+  beans** — the API-key chain and `JwtAuthenticationConverter`.
+
+**Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done); should
+reconcile with the Spec 013/014 autoconfiguration setup.
 
 ## Document the test connection-pool sizing convention
 
-Integration tests set `spring.datasource.hikari.maximum-pool-size=30` because `UserProvisioner` uses
-`REQUIRES_NEW`, holding two connections per provisioning thread. Production apps need to size their own
-pool accordingly (`peak_concurrent_first_logins × 2 + steady-state`). This is currently only mentioned
-in the README upgrade notes and should also live in a dedicated "Production Deployment Notes" section
-once one exists.
+Integration tests set `spring.datasource.hikari.maximum-pool-size=30` because `UserProvisioner`
+uses `REQUIRES_NEW`, holding two connections per provisioning thread. Production apps need to size
+their own pool accordingly (`peak_concurrent_first_logins × 2 + steady-state`).
 
-**Context:** Surfaced while writing integration tests; deferred until a deployment-notes doc section
-exists to host it.
+- The formula is already documented in `README.md` (upgrade-notes section, ~line 245). Remaining
+  work is only to lift it into a dedicated "Production Deployment Notes" section.
 
-**Status (partial):** the formula is already documented in `README.md` (upgrade-notes section, ~line
-247). Remaining work is only to lift it into a dedicated "Production Deployment Notes" section once
-one exists.
+**Context:** Surfaced while writing integration tests; deferred until a deployment-notes doc
+section exists to host it.
 
-## Spec candidate: Test Hygiene & Bug Fixes
+**Prerequisite:** A "Production Deployment Notes" documentation section (does not exist yet).
 
-Three separate findings surfaced while documenting all 45 test files (class Javadoc + `@DisplayName` +
-mock audit, done after Spec 012). They justify their own spec, to be worked out via `/spec-create` with
-a preceding `/grill-me`. The points below are the raw findings, **not** a finished spec design.
+## Spec candidate: test hygiene (over-mocking cleanup)
 
-**Finding 1 — Real bug: `WebhookEventListener.handle(...)` ignores `eventType` — ✅ FIXED**
+Findings from documenting all 45 test files (class Javadoc + `@DisplayName` + mock audit, done
+after Spec 012). They justify their own spec, to be worked out via `/spec-create` with a preceding
+`/grill-me`; the points below are raw findings, **not** a finished design. (A third finding — the
+`WebhookEventListener` `eventType` bug — has already been fixed directly, commit `c35ccea`.)
 
-- File: `src/main/java/com/openelements/spring/base/services/webhook/WebhookEventListener.java`
-- Symptom (was): the method took `eventType` as a parameter but hardcoded `WebhookDataEventType.DELETED`
-  in both branches (payload build + `supportsWebhook(...)`), so CREATED and UPDATED events were sent to
-  subscribers as DELETED.
-- Fix: `handle(...)` now passes the actual `eventType` into both `supportsWebhook(...)` and
-  `WebhookDataEventPayload.of(...)`. `WebhookEventListenerTest` was updated to assert the correct
-  `eventType` (CREATED/UPDATED/DELETED) for all three variants instead of pinning the buggy behaviour.
-- Note: the open grill questions (do subscriber signatures need to change? do any apps already rely on
-  the buggy "DELETED for everything" behaviour?) are now moot for correctness but worth a heads-up in
-  release notes, since downstream consumers will start receiving the correct event types.
+Over-mocking in integration tests:
 
-**Finding 2 — Over-mocking in integration tests**
-
-- `ApiKeyDataServiceIntegrationTest` — `@MockBean UserService` in a test that otherwise uses a real
-  Postgres via Testcontainers. Should seed a real user via `userRepository.save(...)` and stub
-  `AuthService` minimally, so the "integration" label is honest.
-- `ApiKeyDataServiceIntegrationTest` — `@MockBean AuthService` is declared only for transitive wiring
-  and never read by the tests. Either scope it more tightly or replace it with a no-op `SecurityContext`
-  setup.
+- `ApiKeyDataServiceIntegrationTest` — `@MockitoBean UserService` in a test that otherwise uses a
+  real Postgres via Testcontainers. Should seed a real user via `userRepository.save(...)` so the
+  "integration" label is honest.
+- `ApiKeyDataServiceIntegrationTest` — `@MockitoBean AuthService` is declared only for transitive
+  wiring and never read by the tests. Scope it more tightly or replace it with a no-op
+  `SecurityContext` setup.
 - `CommentServiceIntegrationTest` — `@MockitoSpyBean UserService` is used only for a single
-  `verify(never()).findById(...)` assertion. The N+1 claim can be expressed more directly via the
-  Hibernate `Statistics` counter (already used in the same class for other assertions), making the spy
-  obsolete.
-- Grill questions for the spec: are there other integration tests with hidden mocking we missed? Is the
-  "real beans in integration tests, mocks only in unit tests" convention already captured in
-  `CLAUDE.md`, and should it be?
+  `verify(never()).findById(...)` assertion. The N+1 claim can be expressed via the Hibernate
+  `Statistics` counter (already used in the same class), making the spy obsolete.
 
-**Finding 3 — Cosmetic: ObjectProvider / FilterChain mocks replaceable with real implementations**
+Cosmetic: mocks replaceable with real implementations:
 
 - `SlackServiceTest` + `EmailServiceTest` — `mock(ObjectProvider.class)` with
-  `@SuppressWarnings("unchecked")`. Spring's `ObjectProvider` is a functional interface —
-  `(ObjectProvider<X>) () -> instance` (or `() -> null`) is more readable and avoids the cast.
-- `ApiKeyAuthenticationFilterTest` — the `FilterChain` mock is conventional, but a "RecordingFilterChain"
-  (a real impl that records calls in a list) would be more robust against double-invocation bugs.
-- `SecurityConfigRoleTest` — the `ApiKeyDataService` mock is a no-op constructor argument. It could be
-  replaced with a no-op impl, or removed entirely via factory extraction (`jwtAuthenticationConverter()`
-  as a static helper without the `ApiKeyDataService` dependency).
-- `AuditLogDataServiceTest` — `UserRepository` + `ApplicationEventPublisher` are dead mock ballast in the
-  reader tests. If a reader/writer split of the data services lands (see the migration item above), both
-  mocks can go.
-- Grill questions for the spec: is a general "no `mock(...)` for functional interfaces" rule worth adding
-  to `CLAUDE.md`? Should we configure SonarQube / PMD rules for it?
+  `@SuppressWarnings("unchecked")`. `ObjectProvider` is a functional interface —
+  `(ObjectProvider<X>) () -> instance` is more readable and avoids the cast.
+- `ApiKeyAuthenticationFilterTest` — the `FilterChain` mock is conventional, but a
+  "RecordingFilterChain" (a real impl recording calls in a list) would be more robust against
+  double-invocation bugs.
+- `SecurityConfigRoleTest` — the `ApiKeyDataService` mock is a no-op constructor argument. Replace
+  with a no-op impl, or remove via factory extraction (`jwtAuthenticationConverter()` as a static
+  helper without the `ApiKeyDataService` dependency).
+- `AuditLogDataServiceTest` — `UserRepository` + `ApplicationEventPublisher` are dead mock ballast
+  in the reader tests; a reader/writer split of the data services would let both go.
 
-**Scope question for the spec itself:** should all three findings land in one spec, or be split in two
-(bug fix #1 isolated, cleanup #2 + #3 together)? The grill session decides.
+Open grill questions for the spec: are there other integration tests with hidden mocking? Should
+the "real beans in integration tests, mocks only in unit tests" convention be captured in
+`CLAUDE.md`? Is a general "no `mock(...)` for functional interfaces" rule worth enforcing via
+SonarQube/PMD? One spec for everything, or split the cleanup in two?
 
 **Context:** Surfaced during the post-Spec-012 test-documentation pass; deferred because it needs a
-`/grill-me` + `/spec-create` cycle before implementation.
+`/grill-me` + `/spec-create` cycle before implementation. All findings re-verified against the code
+on 2026-07-31.
 
 ## Clarify the Authentik `name`-claim guarantee
 
 Confirm whether the Authentik configuration guarantees a `name` claim for every user who signs in.
-Concretely: does every Authentik user have a maintained `name` attribute, and is the `profile` scope
-mapping in the Authentik provider set so that `name` always ends up in the JWT — or can there be users
-(e.g. SSO-imported, freshly created without a profile) whose `name` is missing? If uncertain, we likely
-need a server-side fallback (`name ← preferred_username ← sub`) before the JWT reaches spring-services.
+Concretely: does every Authentik user have a maintained `name` attribute, and is the `profile`
+scope mapping in the Authentik provider set so that `name` always ends up in the JWT — or can there
+be users (e.g. SSO-imported, freshly created without a profile) whose `name` is missing? If
+uncertain, we likely need a server-side fallback (`name ← preferred_username ← sub`) before the JWT
+reaches spring-services.
 
-**Context:** Module-usage question that needs investigation before we can rely on the `name` claim.
-
-## Decide the `OidcHealthIndicator` endpoint after switching to `jwk-set-uri` — ⚫ OBSOLETE
-
-> **Obsolete (verified 2026-07-17):** no `OidcHealthIndicator` class and no `issuer-uri`/`jwk-set-uri`
-> configuration exist anywhere in this repository. The premise below no longer (or never did) applies
-> here — the indicator was never built in `spring-services`, or lives in a downstream application.
-> Revisit only if/when such an indicator is actually added to this library.
-
-The indicator currently reads `issuer-uri` and pings `${issuer-uri}/.well-known/openid-configuration`.
-We are switching to `jwk-set-uri` for JWT validation, which raises a choice (grill session, Spec 011
-Branch F):
-
-- **(a) Keep both keys** — `issuer-uri` only for the indicator, `jwk-set-uri` for JWT validation. The
-  indicator pings discovery as before, but two OIDC URLs must be maintained per environment.
-- **(b) Point the indicator at `jwk-set-uri`** — ping the JWKS endpoint directly. One config URL, but we
-  lose the check that the discovery document is valid (functionally irrelevant for us as a
-  resource server — we only need JWKS).
-
-**Context:** Open decision from the grill session for Spec 011 (Branch F, `OidcHealthIndicator`);
-deferred until the `jwk-set-uri` switch is scheduled.
+**Context:** Module-usage question that needs investigation before we can rely on the `name`
+claim.
 
 ## Evaluate Spring Modulith for real module boundaries
 
 After the multi-module restructuring, module boundaries are pure convention: plain Maven classpath
-modules without JPMS (chosen deliberately, since Spring interacts poorly with JPMS), so every `public`
-type in `spring-services-core` is reachable across modules. Spring Modulith could declare the logical
-Spring module boundaries explicitly and verify them via an `ApplicationModules` test (allowed
+modules without JPMS (chosen deliberately, since Spring interacts poorly with JPMS), so every
+`public` type in `spring-services-core` is reachable across modules. Spring Modulith could declare
+the logical module boundaries explicitly and verify them via an `ApplicationModules` test (allowed
 dependencies, no access to internal packages).
 
-**Context:** Surfaced in the `/grill-me` session for Spec 014 (multi-module restructuring), Branch E
-(API surface between modules) — JPMS was rejected and Modulith parked as the alternative.
+**Context:** Surfaced in the `/grill-me` session for Spec 014 (multi-module restructuring),
+Branch E (API surface between modules) — JPMS was rejected and Modulith parked as the alternative.
+The former prerequisite (Spec 014) has since landed, so this is unblocked.
 
-**Prerequisite:** Spec 014 (multi-module restructuring) must land first.
+## SCIM Groups + membership
 
-SCIM 2.0 Provider (Schritt 2, nach Foundation) — **in Teil-Specs aufgeteilt** (Grill-Session 2026-07-11):
-- **Spec 015 — SCIM Users Provider** (**done**, PR #33 gemerged 2026-07-15): dedizierter dritter
-  Filter-Chain für `/scim/v2/**` mit **statischem Bearer-Token** (`openelements.scim.token`, **nicht**
-  JWT — Authentik sendet ein festes opakes Token), Discovery-Endpoints
-  (ServiceProviderConfig/ResourceTypes/Schemas), Users-Resource (List+Filter, POST, GET, PUT-Replace,
-  DELETE) gemappt auf `UserEntity` aus Spec 012. `POST`-Kollision → `409 uniqueness` (RFC), DELETE →
-  soft (`active=false` + `deleted`/`deleted_at`). Audit-Einträge unter reserviertem
-  **SCIM-Service-Principal**. Vor-Merge-Verifikation der Authentik-`409`-Recovery am #21-Harness
-  ist erfolgt (Issue #21 geschlossen). Umgesetzt im Modul `spring-services-scim`.
-- **Folge-Issue A — SCIM Groups + Membership** (offen; heute als 501-Stub in `ScimGroupController`,
-  `GET /Groups` liefert leere Liste): `GroupEntity` + Membership-Tabelle, `/scim/v2/Groups`
-  (POST/GET/PUT/**PATCH** mit PatchOp add/remove/replace auf `members`, DELETE). Liefert
-  `ResolvedPrincipal.groups()` aus `UserEntityPrincipalDirectory` (heute leer).
-- **Folge-Issue B — Group→Role-Mapping** (offen; `UserEntityPrincipalDirectory` liefert `roles()`/
-  `groups()` weiterhin leer): konfigurierbare Ableitung von `ResolvedPrincipal.roles()` aus
-  Gruppen-Mitgliedschaft; macht USER-Tokens role-aware.
-- Verbleibende offene Designfragen für die Folge-Issues (aus Grill-Sessions): PATCH-Mechanik,
-  Filter-Grammatik jenseits `eq` (sw/co/AND/OR), ETag/Optimistic-Concurrency, Tenant-Interaktion
-  (eine SCIM-Instance pro Tenant?), Authentik-Vendor-Extensions, Discovery-Ehrlichkeit, Group-Rename/Delete
-  und Auswirkungen auf abgeleitete Rollen, ob `revokeAllForSubject` bei SCIM-Deactivation als
-  zusätzlicher Hard-Revoke-Hook gewünscht ist.
+Follow-up A from the SCIM provider split. Spec 015 (SCIM Users provider) shipped without Groups —
+today `ScimGroupController` is a 501 stub (`GET /Groups` returns an empty list). Needed:
+`GroupEntity` + membership table, `/scim/v2/Groups` (POST/GET/PUT/**PATCH** with PatchOp
+add/remove/replace on `members`, DELETE), and `ResolvedPrincipal.groups()` served from
+`UserEntityPrincipalDirectory` (returns an empty set today).
+
+- Open design questions from the grill sessions: PATCH mechanics, filter grammar beyond `eq`
+  (sw/co/AND/OR), ETag/optimistic concurrency, tenant interaction (one SCIM instance per tenant?),
+  Authentik vendor extensions, discovery honesty, and group rename/delete effects on derived roles.
+
+**Context:** Deferred from the grill session of 2026-07-11 that split the SCIM 2.0 provider into
+part-specs; Spec 015 (done, PR #33 merged 2026-07-15) deliberately excluded Groups.
+
+## SCIM Group→Role mapping
+
+Follow-up B from the SCIM provider split: configurable derivation of `ResolvedPrincipal.roles()`
+from group membership, making USER tokens role-aware. `UserEntityPrincipalDirectory` still returns
+empty `roles()`/`groups()`.
+
+- Open design question: whether `revokeAllForSubject` on SCIM deactivation is wanted as an
+  additional hard-revoke hook.
+
+**Context:** Deferred from the grill session of 2026-07-11 that split the SCIM 2.0 provider into
+part-specs.
+
+**Prerequisite:** SCIM Groups + membership (previous entry) must land first.
+
+## Extract an integration module for API keys, PATs & webhooks
+
+API keys, PATs, and webhooks should move out of `spring-services-core` into a separate optional
+feature module, following the feature-module pattern established by Spec 014 and applied again in
+Spec 016 (`spring-services-tenant`).
+
+**Context:** Captured as a quick note during general work (no detailed provenance recorded); fits
+the Spec 014/016 module-extraction pattern.
