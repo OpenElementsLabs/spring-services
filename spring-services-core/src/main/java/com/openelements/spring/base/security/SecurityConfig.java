@@ -2,6 +2,7 @@ package com.openelements.spring.base.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.security.apikey.ApiKeyAuthenticationFilter;
+import com.openelements.spring.base.security.roles.Roles;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.user.UserConfig;
@@ -139,7 +140,7 @@ public class SecurityConfig {
           final List<String> roles = jwt.getClaimAsStringList("roles");
           if (roles != null) {
             roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(role -> new SimpleGrantedAuthority(Roles.AUTHORITY_PREFIX + role))
                 .forEach(authorities::add);
           }
           return authorities;
