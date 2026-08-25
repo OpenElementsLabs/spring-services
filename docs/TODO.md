@@ -1,17 +1,5 @@
 # TODO
 
-## MockMvc integration test for the JWT chain's `JsonAuthenticationEntryPoint`
-
-Cover the Bearer scheme over a real HTTP round-trip. Currently the entry point is only covered at
-unit level (`JsonAuthenticationEntryPointTest`). Rounds out the behavior scenario "Missing JWT on
-default chain produces same error shape".
-
-- Requires a JWT-issuing test fixture: a custom `JwtDecoder` that accepts hand-crafted tokens, plus
-  a small test controller.
-
-**Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done) — out of
-scope for that spec.
-
 ## Property toggles and consumer overridability for core security beans
 
 Per-feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty` for all library beans, so
