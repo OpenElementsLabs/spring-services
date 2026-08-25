@@ -112,3 +112,51 @@ the tenancy logic — this is a build-coordinate change only.
 
 The feature self-activates on classpath presence (`TenantAutoConfiguration`); `@EnableTenant` and
 `@Import(TenantConfig.class)` continue to work for explicit opt-in. There is no database migration.
+
+## Caller role lookup via `AuthService.getRoles()` (spec 017)
+
+`spring-services-core` 1.4.0 adds a way to ask **which roles the current caller has** from inside
+business logic, so applications no longer re-implement Spring Security's `ROLE_` prefix convention
+themselves. This is **purely additive** — no existing type, method signature, produced authority
+string, or runtime behaviour changes, and there is nothing to migrate. Adopt it only where it helps.
+
+### What is new
+
+- `AuthService.getRoles()` returns an immutable, prefix-free `Set<String>` of the current caller's
+  role names, directly comparable against the `Roles` constants. It **degrades closed**: a missing
+  or unauthenticated security context yields an empty set rather than throwing.
+- `AuthService.findAuthentication()` returns `Optional<Authentication>` — the absent-state-tolerant
+  companion to the existing throwing `getAuthentication()` (which is unchanged and **not**
+  deprecated).
+- `Roles.AUTHORITY_PREFIX` (`"ROLE_"`), `Roles.ROLE_API_KEY` (`"API_KEY"`) and `Roles.ROLE_ANONYMOUS`
+  (`"ANONYMOUS"`) — declared constants for names the library already produces at runtime.
+
+### Replace hand-rolled prefix checks
+
+```java
+// before — the application re-implements the prefix convention
+private static final String IT_ADMIN_AUTHORITY = "ROLE_" + Roles.ROLE_IT_ADMIN;
+boolean isItAdmin = authService.getAuthentication().getAuthorities().stream()
+    .map(GrantedAuthority::getAuthority)
+    .anyMatch(IT_ADMIN_AUTHORITY::equals);
+
+// after
+boolean isItAdmin = authService.getRoles().contains(Roles.ROLE_IT_ADMIN);
+```
+
+Applications carrying a `boolean itAdmin` through a request-context record can carry the
+`Set<String>` snapshot instead, so adding a second role check no longer changes a signature.
+
+### Guard rails / Don't do this
+
+- **`getRoles()` answers *which* names, not *how* the caller authenticated.** A JWT `roles` claim
+  containing `API_KEY` or `ANONYMOUS` produces exactly that role name. Determine the mechanism from
+  the `Authentication` type, never from a role name.
+- **An anonymous caller holds `{ANONYMOUS}` — a non-empty set.** A guard of the shape "caller has at
+  least one role ⇒ allow" would admit unauthenticated callers. Only ever ask whether a **specific**
+  role is present.
+- **Not a replacement for `@RequiresItAdmin` & co.** Declarative endpoint guards and the filter
+  chains remain the enforcement mechanism; `getRoles()` informs business decisions behind an
+  already-guarded endpoint.
+- **IdP-side role names must match the `Roles` constants character for character** — comparison is
+  case-sensitive, exactly as Spring Security's own `hasRole(...)`.
