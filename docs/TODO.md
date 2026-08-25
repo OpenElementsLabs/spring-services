@@ -146,3 +146,51 @@ Spec 016 (`spring-services-tenant`).
 
 **Context:** Captured as a quick note during general work (no detailed provenance recorded); fits
 the Spec 014/016 module-extraction pattern.
+
+## `AuthService` probes for authentication state (`isAuthenticated()` / `isAnonymous()`)
+
+`AuthService` currently offers no way to ask whether the current request has a real, non-anonymous
+caller — every accessor either returns state or throws. A pair of probe methods would let
+application code check before acting instead of running into an `IllegalStateException`.
+
+The semantics are the whole point of the entry, and they are not obvious: neither chain in
+`SecurityConfig` disables Spring Security's `AnonymousAuthenticationFilter`, so an unauthenticated
+request to a `permitAll` endpoint (`/api/health/**`, Swagger) carries an
+`AnonymousAuthenticationToken` whose `isAuthenticated()` returns `true`. Spring Security's own SpEL
+`isAuthenticated()` (in `SecurityExpressionRoot`, behind `@PreAuthorize`) is defined as
+`!trustResolver.isAnonymous(authentication)` — i.e. anonymous is *not* authenticated. Since
+`@EnableMethodSecurity` is active and the `@Requires*` annotations are SpEL, an `AuthService`
+method that delegates naively to `Authentication.isAuthenticated()` would mean the opposite of
+`@PreAuthorize("isAuthenticated()")` in the same codebase. Any implementation must therefore go
+through an `AuthenticationTrustResolver` (none is used anywhere in the reactor today), and should
+also decide whether `isFullyAuthenticated()` / remember-me is in scope.
+
+**Context:** Surfaced in the `/grill-me` session preceding Spec 017 (caller role lookup) — the
+spec referred to here under its earlier working name `PrincipalRoles`. Deliberately excluded
+from that spec: it is an independently useful concern about authentication *state*, not about
+the caller's *roles*. Spec 017 answers the anonymity question through the role set instead,
+since `ROLE_ANONYMOUS` surfaces as the role `ANONYMOUS`.
+
+## Caller groups as a first-class type (`CallerGroups`)
+
+Group membership from a configurable token claim is the natural counterpart to Spec 017's
+`AuthService.getRoles()`: read the claim, trim, de-duplicate, fail closed. A reference
+implementation exists in `open-tasks` as `TokenGroupsProvider`.
+
+Unlike roles, groups should probably **not** be a bare `Set<String>`. Spec 017 dropped its
+`CallerRoles` value type because a role name is only ever a name, and `Set<String>` composes better.
+Groups plausibly carry more — id, display name, nesting — which is what would justify a real type.
+That distinction is also what removes the "two `Set<String>` constructor arguments are silently
+swappable" hazard: once groups are their own type, roles and groups can no longer be interchanged by
+accident.
+
+Open questions before this can become a spec: the property name for the claim (which collides with
+the still-unresolved property-naming convention in the *Property toggles* entry above), whether
+groups need to reach `SCIM Groups + membership`, and whether an empty/absent claim is distinguishable
+from "no caller".
+
+**Context:** Explicitly scoped out of Spec 017 (caller role lookup) at the start of its
+`/spec-create` session, to keep that spec purely additive and free of new configuration surface.
+
+**Prerequisite:** A property-naming convention for the library (see *Property toggles and consumer
+overridability for core security beans*).
