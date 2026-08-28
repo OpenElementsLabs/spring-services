@@ -41,4 +41,22 @@ class ApplicationInfoTest {
     assertThat(Arrays.stream(ApplicationInfo.class.getRecordComponents()).map(RecordComponent::getName))
         .doesNotContain("buildTime", "time", "timestamp", "buildTimestamp");
   }
+
+  @Test
+  @DisplayName("SBOM records normalise a null collection to an empty, immutable list.")
+  void recordsNormaliseNullCollections() {
+    final SbomComponent component = new SbomComponent(null, "n", null, null, null, null);
+    assertThat(component.licenses()).isEmpty();
+
+    final SbomSummary summary = new SbomSummary(null, null, null, null, 0, null);
+    assertThat(summary.licenses()).isEmpty();
+
+    final SbomDocument document = new SbomDocument(summary, null);
+    assertThat(document.components()).isEmpty();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        UnsupportedOperationException.class, () -> component.licenses().add("x"));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        UnsupportedOperationException.class, () -> document.components().add(component));
+  }
 }

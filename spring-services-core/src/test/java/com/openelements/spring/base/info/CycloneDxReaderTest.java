@@ -116,6 +116,32 @@ class CycloneDxReaderTest {
           .extracting(SbomComponent::name)
           .containsExactly("future-lib", "future-lib-2");
     }
+
+    @Test
+    @DisplayName(
+        "Structurally odd but well-formed input parses defensively: absent bomFormat, null and "
+            + "non-scalar fields, non-object array entries, a non-array licenses value, and "
+            + "license entries that fall through to the expression.")
+    void defensiveEdgeCasesParse() {
+      final SbomDocument document = reader.read(fixture("edge-cases.cdx.json")).orElseThrow();
+
+      // absent bomFormat is accepted; explicit JSON null serialNumber becomes null.
+      assertThat(document.summary().bomFormat()).isNull();
+      assertThat(document.summary().serialNumber()).isNull();
+      // metadata present but without a component → null application.
+      assertThat(document.summary().application()).isNull();
+
+      // The bare string array entry is skipped; only the two object components remain.
+      assertThat(document.components()).extracting(SbomComponent::name).containsExactly("c1", "c2");
+
+      final SbomComponent c1 = document.components().get(0);
+      assertThat(c1.version()).isNull(); // explicit JSON null
+      assertThat(c1.purl()).isNull(); // non-scalar object is not read as text
+      assertThat(c1.licenses()).isEmpty(); // "licenses" is a string, not an array
+
+      // {} and {"license":"not-an-object"} yield nothing; the third entry falls back to expression.
+      assertThat(document.components().get(1).licenses()).containsExactly("GPL-3.0-only");
+    }
   }
 
   @Nested

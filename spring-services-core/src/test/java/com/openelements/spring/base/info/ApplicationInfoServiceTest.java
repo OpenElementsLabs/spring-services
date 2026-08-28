@@ -250,6 +250,54 @@ class ApplicationInfoServiceTest {
       assertThat(info).isNotNull();
       assertThat(info.tag()).isNull();
     }
+
+    @Test
+    @DisplayName("A blank commit.id.abbrev falls back to the first seven chars of the full hash.")
+    void blankAbbrevFallsBackToDerivedShortId() {
+      final Map<String, String> entries = new HashMap<>();
+      entries.put("commit.id", "a1b2c3d4e5f6a7b8c9d0");
+      entries.put("commit.id.abbrev", "");
+      final GitProperties git = gitProperties(entries);
+
+      final GitInfo info =
+          service(null, git, new DefaultResourceLoader(), sbomAt(NO_SBOM_LOCATION))
+              .getApplicationInfo()
+              .git();
+
+      assertThat(info).isNotNull();
+      assertThat(info.shortCommitId()).isEqualTo("a1b2c3d");
+    }
+
+    @Test
+    @DisplayName("A valid build.commit.time is parsed into commitTime on the build.commit fallback.")
+    void buildCommitTimeIsParsed() {
+      final BuildProperties build =
+          buildProperties(
+              Map.of("commit", "a1b2c3d4e5f6a7b8c9d0", "commit.time", "2026-08-01T10:15:30Z"));
+
+      final GitInfo info =
+          service(build, null, new DefaultResourceLoader(), sbomAt(NO_SBOM_LOCATION))
+              .getApplicationInfo()
+              .git();
+
+      assertThat(info).isNotNull();
+      assertThat(info.commitTime()).isEqualTo(Instant.parse("2026-08-01T10:15:30Z"));
+    }
+
+    @Test
+    @DisplayName("An unparseable build.commit.time degrades to a null commitTime, not an exception.")
+    void unparseableBuildCommitTimeIsNull() {
+      final BuildProperties build =
+          buildProperties(Map.of("commit", "a1b2c3d4e5f6a7b8c9d0", "commit.time", "not-a-date"));
+
+      final GitInfo info =
+          service(build, null, new DefaultResourceLoader(), sbomAt(NO_SBOM_LOCATION))
+              .getApplicationInfo()
+              .git();
+
+      assertThat(info).isNotNull();
+      assertThat(info.commitTime()).isNull();
+    }
   }
 
   @Nested
