@@ -193,6 +193,21 @@ from committed configuration.
 - **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
   synchronously inside the originating transaction; consumers opt into post-commit behaviour
   with `@TransactionalEventListener`.
+- **Application Build & SBOM Info** — `ApplicationInfoService` answers *"which build is running,
+  and what is it made of?"* from build-produced metadata: artifact coordinates and Git commit
+  (from Spring Boot's `BuildProperties` / `GitProperties`) plus a parsed CycloneDX SBOM.
+  `getApplicationInfo()` returns an immutable snapshot (coordinates, Git info, SBOM *summary*) and
+  never returns `null` or throws when the build produced no metadata; `findSbom()` returns the
+  full component list. The Git commit is read from `git.properties`, falling back to `build.commit`
+  for container builds with no `.git` directory (`git.properties` wins on conflict). No build
+  timestamp is exposed (it would be a fixed reproducible-build constant), no new dependency is
+  added, and the SBOM is read once at startup. Configured via `openelements.info.sbom.enabled`
+  (default `true`) and `openelements.info.sbom.location` (blank = autodetect, matching Spring
+  Boot's `SbomEndpoint` probe order). The bean works even in an application without JPA, and can
+  be overridden by declaring your own `ApplicationInfoService`.
+  **Security:** the library exposes *no* REST endpoint — an SBOM is a precise attack-surface map
+  (the exact version of every dependency), so any application-defined info/SBOM endpoint must sit
+  behind an admin-level guard.
 - **Search** *(opt-in, off by default)* — Meilisearch-backed full-text search via a thin `RestClient`
   wrapper (`MeilisearchClient`). Enabled with `openelements.meilisearch.enabled=true`; `host` is then
   required. At startup the lib exchanges the master key for a scoped runtime key, applies declarative
