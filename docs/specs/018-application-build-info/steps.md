@@ -7,16 +7,16 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 1: Immutable record model
 
-- [ ] Create `base/info/SbomComponent.java` — record `(group?, name, version?, type?, purl?, licenses)`; compact constructor normalises `licenses` (`null` → empty, then `List.copyOf`).
-- [ ] Create `base/info/SbomSummary.java` — record `(bomFormat?, specVersion?, serialNumber?, application?, componentCount, licenses)`; compact constructor normalises `licenses`. No timestamp field.
-- [ ] Create `base/info/SbomDocument.java` — record `(summary, components)`; compact constructor normalises `components`.
-- [ ] Create `base/info/GitInfo.java` — record `(commitId, shortCommitId, branch?, tag?, dirty?, commitTime?)`. `dirty` is a `@Nullable Boolean`.
-- [ ] Create `base/info/ApplicationInfo.java` — record `(group?, artifact?, version?, name?, git?, sbom?)` plus a static `empty()` factory returning an all-null instance.
-- [ ] Create `base/info/package-info.java` — `@NullMarked` package doc describing the feature.
+- [x] Create `base/info/SbomComponent.java` — record `(group?, name, version?, type?, purl?, licenses)`; compact constructor normalises `licenses` (`null` → empty, then `List.copyOf`).
+- [x] Create `base/info/SbomSummary.java` — record `(bomFormat?, specVersion?, serialNumber?, application?, componentCount, licenses)`; compact constructor normalises `licenses`. No timestamp field.
+- [x] Create `base/info/SbomDocument.java` — record `(summary, components)`; compact constructor normalises `components`.
+- [x] Create `base/info/GitInfo.java` — record `(commitId, shortCommitId, branch?, tag?, dirty?, commitTime?)`. `dirty` is a `@Nullable Boolean`.
+- [x] Create `base/info/ApplicationInfo.java` — record `(group?, artifact?, version?, name?, git?, sbom?)` plus a static `empty()` factory returning an all-null instance.
+- [x] Create `base/info/package-info.java` — `@NullMarked` package doc describing the feature.
 
 **Acceptance criteria:**
-- [ ] Module compiles.
-- [ ] No collection accessor returns `null`; all returned collections are unmodifiable.
+- [x] Module compiles.
+- [x] No collection accessor returns `null`; all returned collections are unmodifiable.
 
 **Related behaviors:** The model exposes no build time; The summary carries no SBOM timestamp; Returned collections are immutable (model half).
 
@@ -24,16 +24,16 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 2: `CycloneDxReader` — package-private Jackson tree parser
 
-- [ ] Create `base/info/CycloneDxReader.java`. Given a Spring `Resource`, parse it as a Jackson tree and produce an `Optional<SbomDocument>`.
-- [ ] Reject a document whose `bomFormat` is present and not `CycloneDX` → empty + WARN.
-- [ ] Parse `bomFormat`, `specVersion`, `serialNumber`, `metadata.component` (→ application `SbomComponent`), and the flat `components[]` array.
-- [ ] Per component: `group`, `name`, `version`, `type`, `purl`, and licenses collapsed via `license.id` → `license.name` → `expression`.
-- [ ] `SbomSummary.licenses` = distinct, sorted union over all component licenses.
-- [ ] Malformed JSON / IO error → empty + WARN naming the resource. Never throw.
+- [x] Create `base/info/CycloneDxReader.java`. Given a Spring `Resource`, parse it as a Jackson tree and produce an `Optional<SbomDocument>`.
+- [x] Reject a document whose `bomFormat` is present and not `CycloneDX` → empty + WARN.
+- [x] Parse `bomFormat`, `specVersion`, `serialNumber`, `metadata.component` (→ application `SbomComponent`), and the flat `components[]` array.
+- [x] Per component: `group`, `name`, `version`, `type`, `purl`, and licenses collapsed via `license.id` → `license.name` → `expression`.
+- [x] `SbomSummary.licenses` = distinct, sorted union over all component licenses.
+- [x] Malformed JSON / IO error → empty + WARN naming the resource. Never throw.
 
 **Acceptance criteria:**
-- [ ] Module compiles.
-- [ ] Reader never throws on bad input.
+- [x] Module compiles.
+- [x] Reader never throws on bad input.
 
 **Related behaviors:** A valid SBOM is summarised; The summary carries no SBOM timestamp; An SBOM with no components is still a valid SBOM; An SBOM with no metadata section parses; Unknown fields from a future spec version are ignored; A JSON document that is not CycloneDX degrades to no SBOM; all six License scenarios; The summary aggregates distinct licenses in sorted order.
 
@@ -41,10 +41,10 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 3: `ApplicationInfoProperties`
 
-- [ ] Create `base/info/ApplicationInfoProperties.java` — `@ConfigurationProperties("openelements.info")` with nested `sbom.enabled` (default `true`) and `sbom.location` (default empty).
+- [x] Create `base/info/ApplicationInfoProperties.java` — `@ConfigurationProperties("openelements.info")` with nested `sbom.enabled` (default `true`) and `sbom.location` (default empty).
 
 **Acceptance criteria:**
-- [ ] Module compiles; binding works for `openelements.info.sbom.enabled` / `openelements.info.sbom.location`.
+- [x] Module compiles; binding works for `openelements.info.sbom.enabled` / `openelements.info.sbom.location`.
 
 **Related behaviors:** SBOM reading can be switched off; An explicit location overrides autodetection.
 
@@ -52,17 +52,17 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 4: `ApplicationInfoService`
 
-- [ ] Create `base/info/ApplicationInfoService.java` (`@Service`).
-- [ ] Constructor takes `ObjectProvider<BuildProperties>`, `ObjectProvider<GitProperties>`, `ResourceLoader`, `ApplicationInfoProperties`.
-- [ ] Resolve coordinates from `BuildProperties` (null when absent).
-- [ ] Resolve `GitInfo`: prefer `GitProperties`; fall back to `BuildProperties.get("commit")`; `null` when neither. `shortCommitId` = abbrev, else first 7 chars, else whole hash. Empty `tag` → `null`. `dirty` nullable.
-- [ ] Resolve SBOM: if `sbom.enabled` is false, skip entirely (never open a file). Else resolve location (explicit, else autodetect order: `bom.json`, `application.cdx.json`, `native-image/sbom.json`) via `ResourceLoader` and parse with `CycloneDxReader`.
-- [ ] Compute `ApplicationInfo` and `Optional<SbomDocument>` once in constructor, cache in final fields.
-- [ ] Public `getApplicationInfo()` (never null, carries only summary) and `findSbom()` (full list).
+- [x] Create `base/info/ApplicationInfoService.java` (`@Service`).
+- [x] Constructor takes `ObjectProvider<BuildProperties>`, `ObjectProvider<GitProperties>`, `ResourceLoader`, `ApplicationInfoProperties`.
+- [x] Resolve coordinates from `BuildProperties` (null when absent).
+- [x] Resolve `GitInfo`: prefer `GitProperties`; fall back to `BuildProperties.get("commit")`; `null` when neither. `shortCommitId` = abbrev, else first 7 chars, else whole hash. Empty `tag` → `null`. `dirty` nullable.
+- [x] Resolve SBOM: if `sbom.enabled` is false, skip entirely (never open a file). Else resolve location (explicit, else autodetect order: `bom.json`, `application.cdx.json`, `native-image/sbom.json`) via `ResourceLoader` and parse with `CycloneDxReader`.
+- [x] Compute `ApplicationInfo` and `Optional<SbomDocument>` once in constructor, cache in final fields.
+- [x] Public `getApplicationInfo()` (never null, carries only summary) and `findSbom()` (full list).
 
 **Acceptance criteria:**
-- [ ] Module compiles.
-- [ ] `getApplicationInfo()` never returns null; resource read at most once.
+- [x] Module compiles.
+- [x] `getApplicationInfo()` never returns null; resource read at most once.
 
 **Related behaviors:** Coordinates read from build-info; Missing build-info yields empty coordinates; all Git-metadata scenarios; getApplicationInfo does not carry the component list; The full component list is available separately; No SBOM on the classpath yields no SBOM; Autodetection prefers bom.json; An explicit location overrides autodetection; SBOM reading can be switched off; The service never returns null; Repeated calls return the same cached result.
 
@@ -70,11 +70,11 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 5: Auto-configuration
 
-- [ ] Create `base/info/ApplicationInfoAutoConfiguration.java` — `@AutoConfiguration`, `@AutoConfigureAfter(ProjectInfoAutoConfiguration.class)`, `@EnableConfigurationProperties(ApplicationInfoProperties.class)`, with an `@ConditionalOnMissingBean` `@Bean` for `ApplicationInfoService`. **Not** guarded by `@ConditionalOnClass(EntityManagerFactory.class)`; **not** imported by `FullSpringServiceConfig`.
-- [ ] Append `com.openelements.spring.base.info.ApplicationInfoAutoConfiguration` as a second line in core's `AutoConfiguration.imports`.
+- [x] Create `base/info/ApplicationInfoAutoConfiguration.java` — `@AutoConfiguration`, `@AutoConfigureAfter(ProjectInfoAutoConfiguration.class)`, `@EnableConfigurationProperties(ApplicationInfoProperties.class)`, with an `@ConditionalOnMissingBean` `@Bean` for `ApplicationInfoService`. **Not** guarded by `@ConditionalOnClass(EntityManagerFactory.class)`; **not** imported by `FullSpringServiceConfig`.
+- [x] Append `com.openelements.spring.base.info.ApplicationInfoAutoConfiguration` as a second line in core's `AutoConfiguration.imports`.
 
 **Acceptance criteria:**
-- [ ] Module compiles; the bean is contributed by auto-config, not component scan.
+- [x] Module compiles; the bean is contributed by auto-config, not component scan.
 
 **Related behaviors:** The service is available without JPA; An application can substitute its own service.
 
@@ -82,11 +82,11 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 6: Unit tests — reader and model
 
-- [ ] `CycloneDxReaderTest` against hand-written fixtures under `src/test/resources/sbom/`: valid 1.6 doc with metadata + 3 components, empty `components`, no `metadata`, non-CycloneDX (`bomFormat=SPDX`), malformed/truncated JSON, `specVersion=1.7` with unknown keys, and each license form (id, name, expression, id+name precedence, no licenses).
-- [ ] Model tests for collection immutability and `ApplicationInfo.empty()`.
+- [x] `CycloneDxReaderTest` against hand-written fixtures under `src/test/resources/sbom/`: valid 1.6 doc with metadata + 3 components, empty `components`, no `metadata`, non-CycloneDX (`bomFormat=SPDX`), malformed/truncated JSON, `specVersion=1.7` with unknown keys, and each license form (id, name, expression, id+name precedence, no licenses).
+- [x] Model tests for collection immutability and `ApplicationInfo.empty()`.
 
 **Acceptance criteria:**
-- [ ] All tests pass; `./mvnw -pl spring-services-core test` green.
+- [x] All tests pass; `./mvnw -pl spring-services-core test` green.
 
 **Related behaviors:** A valid SBOM is summarised; An SBOM with no components is still a valid SBOM; An SBOM with no metadata section parses; A JSON document that is not CycloneDX degrades to no SBOM; Unknown fields from a future spec version are ignored; all License scenarios; The summary aggregates distinct licenses in sorted order; Returned collections are immutable.
 
@@ -94,10 +94,10 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 7: Unit tests — service
 
-- [ ] `ApplicationInfoServiceTest` with hand-built `BuildProperties`/`GitProperties` covering: coordinates read; missing build-info → null coordinates, no exception; git from git.properties (all fields); git fallback to build.commit; git.properties wins on conflict; no git → null GitInfo; unknown dirty → null; dirty true; short hash < 7 not truncated; empty tag → null; summary vs full-list split; explicit location override; autodetect order; disabled → no file opened; no sbom → null + no WARN; caching (same instance, read once).
+- [x] `ApplicationInfoServiceTest` with hand-built `BuildProperties`/`GitProperties` covering: coordinates read; missing build-info → null coordinates, no exception; git from git.properties (all fields); git fallback to build.commit; git.properties wins on conflict; no git → null GitInfo; unknown dirty → null; dirty true; short hash < 7 not truncated; empty tag → null; summary vs full-list split; explicit location override; autodetect order; disabled → no file opened; no sbom → null + no WARN; caching (same instance, read once).
 
 **Acceptance criteria:**
-- [ ] All tests pass.
+- [x] All tests pass.
 
 **Related behaviors:** Coordinates read from build-info; Missing build-info yields empty coordinates; all Git-metadata scenarios; getApplicationInfo does not carry the component list; The full component list is available separately; An explicit location overrides autodetection; Autodetection prefers bom.json; SBOM reading can be switched off; No SBOM on the classpath yields no SBOM; The service never returns null; Repeated calls return the same cached result.
 
@@ -105,10 +105,10 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 8: Context/integration tests
 
-- [ ] `ApplicationInfoAutoConfigurationTest` (`ApplicationContextRunner`): bean exists with `EntityManagerFactory` hidden via `FilteredClassLoader`, and `SpringServicesCoreAutoConfiguration` did not apply; a user-declared `ApplicationInfoService` bean replaces the library one; a malformed SBOM on the classpath does not fail context startup and logs a warning.
+- [x] `ApplicationInfoAutoConfigurationTest` (`ApplicationContextRunner`): bean exists with `EntityManagerFactory` hidden via `FilteredClassLoader`, and `SpringServicesCoreAutoConfiguration` did not apply; a user-declared `ApplicationInfoService` bean replaces the library one; a malformed SBOM on the classpath does not fail context startup and logs a warning.
 
 **Acceptance criteria:**
-- [ ] All context tests pass.
+- [x] All context tests pass.
 
 **Related behaviors:** The service is available without JPA; An application can substitute its own service; Malformed JSON degrades to no SBOM.
 
@@ -116,11 +116,11 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 9: Real reactor SBOM fixture
 
-- [ ] Generate a real `cyclonedx-maven-plugin` SBOM and check it in under `spring-services-core/src/test/resources/sbom/reactor.cdx.json`.
-- [ ] Add a fixture test: parses, `componentCount > 0`, a component's `purl` identifies a Spring Boot artifact, every component has non-null `name`.
+- [x] Generate a real `cyclonedx-maven-plugin` SBOM and check it in under `spring-services-core/src/test/resources/sbom/reactor.cdx.json`.
+- [x] Add a fixture test: parses, `componentCount > 0`, a component's `purl` identifies a Spring Boot artifact, every component has non-null `name`.
 
 **Acceptance criteria:**
-- [ ] Fixture test passes.
+- [x] Fixture test passes.
 
 **Related behaviors:** The real reactor SBOM parses [fixture].
 
@@ -128,11 +128,11 @@ No new dependency is added. The feature is backend-only — there are no fronten
 
 ## Step 10: Documentation
 
-- [ ] Update `spring-services-core` README / module docs with the new service, the `openelements.info.*` properties, and the security note that an application-defined SBOM endpoint must sit behind an admin guard (D7).
-- [ ] Update root `CLAUDE.md` Project Context (Features) if it tracks per-feature descriptions.
+- [x] Update `spring-services-core` README / module docs with the new service, the `openelements.info.*` properties, and the security note that an application-defined SBOM endpoint must sit behind an admin guard (D7).
+- [x] Update root `CLAUDE.md` Project Context (Features) if it tracks per-feature descriptions.
 
 **Acceptance criteria:**
-- [ ] Docs mention the service, properties, and the admin-guard security note.
+- [x] Docs mention the service, properties, and the admin-guard security note.
 
 **Related behaviors:** — (documentation)
 
