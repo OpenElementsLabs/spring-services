@@ -1,0 +1,26 @@
+{
+  "specVersion": "1.6",
+  "serialNumber": null,
+  "metadata": {
+    "authors": []
+  },
+  "components": [
+    "i-am-not-an-object",
+    {
+      "type": "library",
+      "name": "c1",
+      "version": null,
+      "purl": { "nested": "not-a-scalar" },
+      "licenses": "not-an-array"
+    },
+    {
+      "type": "library",
+      "name": "c2",
+      "licenses": [
+        {},
+        { "license": "not-an-object" },
+        { "license": { "url": "http://example.org/license" }, "expression": "GPL-3.0-only" }
+      ]
+    }
+  ]
+}
