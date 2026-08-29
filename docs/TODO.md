@@ -182,3 +182,44 @@ from "no caller".
 
 **Prerequisite:** A property-naming convention for the library (see *Property toggles and consumer
 overridability for core security beans*).
+
+## `spring-services-actuator` module
+
+An optional feature module depending on `spring-boot-starter-actuator` and `spring-services-core`.
+It would carry the *transport* concerns that spec 018 deliberately left out: serving the unmodified
+CycloneDX SBOM (the form a compliance scanner consumes), a Git/Build `InfoContributor` feeding
+`/actuator/info`, and — the reason Actuator is wanted in the first place — health checks and
+Prometheus metrics. The parsing and the model stay in core; this module only exposes them.
+
+- Must reuse the same SBOM location probe order as `ApplicationInfoService`, so the parsed view and
+  the raw download never describe different files.
+- Needs a decision on management port and on securing `/actuator/**`, which no app does today.
+
+**Context:** Split out during the `/grill-me` for spec 018 (application build + SBOM info). Actuator
+is wanted "later" for health/Prometheus anyway, so SBOM transport rides along rather than pulling
+Micrometer into every consuming application now.
+
+**Prerequisite:** Spec 018 (provides the model this module would expose).
+
+## Build wiring for application build metadata
+
+Spec 018 reads three files that no Open Elements build currently produces. The wiring is a
+`java-parent` concern plus one line per application repository:
+
+- `project.build.outputTimestamp` fixed in `java-parent` — **in progress separately**; without it
+  no Maven build in the org is byte-reproducible, independent of spec 018.
+- `spring-boot-maven-plugin:build-info` in `java-parent`'s `pluginManagement`, with
+  `additionalProperties` carrying `commit`, activated per application.
+- `cyclonedx-maven-plugin` output redirected to
+  `${project.build.outputDirectory}/META-INF/sbom/application.cdx.json` for applications.
+- `ARG GIT_COMMIT` in the Dockerfiles of `open-crm`, `open-tasks`, `open-expenses`,
+  `KnowledgeForge` and `Octobird`, passed into Maven — their `.dockerignore` excludes `.git`, so the
+  in-container build produces no Git metadata today.
+
+`META-INF/build-info.properties`, `META-INF/git.properties` and `META-INF/sbom/*` are single-slot
+classpath resources: if two jars ship one, only the first is read. Their generation must therefore
+sit in an application-level activation, never in a profile shared with library modules — the same
+trap that already forced `generateGitPropertiesFile=false` in `java-parent`'s `full-build` profile.
+
+**Context:** Surfaced during the `/grill-me` for spec 018; deferred because `java-parent` is a
+separate repository and its `outputTimestamp` change is already being made in parallel.
