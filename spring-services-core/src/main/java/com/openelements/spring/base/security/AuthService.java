@@ -1,10 +1,16 @@
 package com.openelements.spring.base.security;
 
+import com.openelements.spring.base.security.roles.Roles;
+import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -19,6 +25,13 @@ import org.springframework.stereotype.Service;
  * expected piece of authentication state is missing or has the wrong shape — these conditions
  * normally indicate a programming error rather than an authentication failure (which would have
  * been rejected earlier in the filter chain).
+ *
+ * <p><b>One deliberate exception:</b> {@link #getRoles()} never throws because of missing
+ * authentication state — it degrades <em>closed</em> to an empty set. It is the only accessor that
+ * may legitimately be called from a code path that runs without an authenticated caller (its
+ * companion {@link #findAuthentication()} exposes the same absent-state-tolerant read of the
+ * context). Do not "align" {@code getRoles()} with the fail-fast accessors: the fail-closed
+ * guarantee is intentional and covered by tests.
  *
  * <h2>Typical usage</h2>
  *
@@ -55,17 +68,90 @@ public class AuthService {
   /**
    * Returns the {@link Authentication} of the current request.
    *
+   * <p>Companion to {@link #findAuthentication()}: this variant fails fast and is the right choice
+   * for code that can only run behind an authenticated endpoint, where an absent {@link
+   * Authentication} indicates a programming error. Use {@link #findAuthentication()} instead from
+   * code that may legitimately run without an authenticated caller.
+   *
    * @return the current authentication, never {@code null}
    * @throws IllegalStateException if there is no authentication in the security context
    */
   @NonNull
   public Authentication getAuthentication() {
-    final Authentication authentication =
-        securityContextHolderStrategy.getContext().getAuthentication();
-    if (authentication == null) {
-      throw new IllegalStateException("No authentication found");
+    return findAuthentication()
+        .orElseThrow(() -> new IllegalStateException("No authentication found"));
+  }
+
+  /**
+   * Returns the {@link Authentication} of the current request, if any.
+   *
+   * <p>Companion to {@link #getAuthentication()}: use this variant from code that may legitimately
+   * run without an authenticated caller (e.g. on a {@code permitAll} path, where an unauthenticated
+   * request carries only an anonymous token, or none at all). The two are equal peers — neither is
+   * deprecated.
+   *
+   * @return an {@link Optional} holding the current authentication, or empty if none is bound to the
+   *     security context
+   */
+  @NonNull
+  public Optional<Authentication> findAuthentication() {
+    return Optional.ofNullable(securityContextHolderStrategy.getContext().getAuthentication());
+  }
+
+  /**
+   * Returns the role names of the current caller, without Spring Security's {@link
+   * Roles#AUTHORITY_PREFIX}.
+   *
+   * <p>Every authority whose value starts with {@link Roles#AUTHORITY_PREFIX} contributes its
+   * prefix-free remainder to the result — so an authority {@code ROLE_IT-ADMIN} becomes the role
+   * name {@code IT-ADMIN}, directly comparable against the {@link Roles} constants (e.g. {@code
+   * authService.getRoles().contains(Roles.ROLE_IT_ADMIN)}). Authorities that do not carry the prefix
+   * — most notably the {@code SCOPE_*} authorities derived from the JWT {@code scope} claim — are
+   * excluded, as is a bare or whitespace-only {@code ROLE_} authority. Comparison is
+   * case-sensitive, matching Spring Security's own {@code hasRole(...)} evaluation.
+   *
+   * <p><b>Unlike every other accessor on this class, this method never throws</b> because of missing
+   * authentication state: an absent security context, a {@code null} authority collection, or {@code
+   * null} entries within it all yield an empty set rather than an exception. It never returns more
+   * roles than the caller actually holds.
+   *
+   * <p><b>Which names, not how they authenticated.</b> The returned set answers <em>which role names
+   * the caller carries</em>; it must never be used to infer <em>how</em> the caller authenticated. A
+   * JWT whose {@code roles} claim contains {@code API_KEY} or {@code ANONYMOUS} produces exactly that
+   * role name, indistinguishable from what {@code ApiKeyAuthenticationFilter} or the anonymous filter
+   * produce. The authentication mechanism is answered by the {@link Authentication} type, not by a
+   * role name.
+   *
+   * <p>The result is an <b>immutable snapshot</b> of the current request's roles: mutation attempts
+   * throw {@link UnsupportedOperationException}, and {@code contains(null)} throws {@link
+   * NullPointerException} (a {@code null} role name is a programming error at the call site, not a
+   * security-context state that should degrade closed). Hold it for the duration of the request
+   * rather than calling this method once per role check.
+   *
+   * @return an immutable set of prefix-free role names, empty if the caller holds none; never {@code
+   *     null}
+   */
+  @NonNull
+  public Set<String> getRoles() {
+    return findAuthentication()
+        .map(Authentication::getAuthorities)
+        .map(AuthService::toRoleNames)
+        .orElseGet(Set::of);
+  }
+
+  private static Set<String> toRoleNames(
+      final Collection<? extends GrantedAuthority> authorities) {
+    if (authorities == null) {
+      return Set.of();
     }
-    return authentication;
+    return authorities.stream()
+        .filter(Objects::nonNull)
+        .map(GrantedAuthority::getAuthority)
+        .filter(Objects::nonNull)
+        .filter(authority -> authority.startsWith(Roles.AUTHORITY_PREFIX))
+        .map(authority -> authority.substring(Roles.AUTHORITY_PREFIX.length()))
+        .filter(name -> !name.isBlank())
+        .collect(Collectors.toUnmodifiableSet());
   }
 
   /**

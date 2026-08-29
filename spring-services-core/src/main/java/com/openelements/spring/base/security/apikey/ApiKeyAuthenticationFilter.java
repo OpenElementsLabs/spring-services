@@ -1,5 +1,6 @@
 package com.openelements.spring.base.security.apikey;
 
+import com.openelements.spring.base.security.roles.Roles;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
 import jakarta.servlet.FilterChain;
@@ -122,7 +123,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyEntity apiKey;
 
     ApiKeyAuthentication(final ApiKeyEntity apiKey) {
-      super(List.of(new SimpleGrantedAuthority("ROLE_API_KEY")));
+      super(List.of(new SimpleGrantedAuthority(Roles.AUTHORITY_PREFIX + Roles.ROLE_API_KEY)));
       this.apiKey = apiKey;
       setAuthenticated(true);
     }
