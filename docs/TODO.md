@@ -212,6 +212,91 @@ Spec 016 (`spring-services-tenant`).
 **Context:** Captured as a quick note during general work (no detailed provenance recorded); fits
 the Spec 014/016 module-extraction pattern.
 
+## Spec candidate: a property naming convention for the whole reactor
+
+The configuration prefixes are inconsistent and nothing decides which is right. Verified inventory of
+every `@ConfigurationProperties` in the reactor:
+
+| Prefix | Module |
+| --- | --- |
+| `open-elements.email` | `spring-services-email` |
+| `open-elements.slack` | `spring-services-slack` |
+| `openelements.mcp` | `spring-services-mcp` |
+| `openelements.scim` | `spring-services-scim` |
+| `openelements.db-backup` | `spring-services-dbbackup` |
+| `openelements.meilisearch` | `spring-services-search` |
+
+Two spellings of the vendor prefix, and the leaf name follows neither the module name
+(`dbbackup` → `db-backup`) nor the technology consistently (`search` → `meilisearch`, i.e. the
+implementation leaks into the configuration surface).
+
+This needs its own spec, because it is a coordinated rename across modules:
+
+- Decide the vendor prefix (`openelements` is the majority, 4:2) and the leaf-naming rule — module
+  name or feature name, and whether an implementation may appear in a property name at all.
+- Decide the deprecation mechanism. Renaming a property is breaking for every consumer; Spring Boot
+  offers `additional-spring-configuration-metadata.json` with `deprecation.replacement`, plus
+  `@DeprecatedConfigurationProperty`, so the old names can keep working for one release with a
+  warning instead of breaking silently.
+- Cover the properties that do not exist yet but are already designed: spec 020's
+  `openelements.security.own-client-id` and `openelements.token-exchange.targets.*`.
+
+**Context:** Named as its own spec on 2026-09-10 while planning spec 020 (token exchange), which
+needs two new properties and should not settle the convention on its own. The naming question was
+previously only a side note in *Property toggles and consumer overridability for core security beans*
+and a prerequisite of *Caller groups as a first-class type*; both entries should reference this spec
+once it exists.
+
+## Distinguish "delegated, actor known" from "delegated, actor unknown"
+
+Spec 020 answers `CallerOrigin.DELEGATED` whether or not the token names the acting party, and
+exposes the actor separately via `findActorSubject()`. That is deliberate for step 1: Keycloak never
+supplies an actor, so a distinction in the enum would be an Authentik-only value, and an empty
+`findActorSubject()` already carries the information.
+
+Worth revisiting if application code turns out to branch on it — e.g. "a delegated call must name its
+actor, otherwise reject". That is an authorization rule, so the decision belongs to whoever needs it:
+either an application-side check on `findActorSubject().isEmpty()`, or a library-side constant
+(`DELEGATED_ANONYMOUS`?), which would grow the closed enum again.
+
+**Context:** Explicitly deferred out of spec 020 (`design.md`, *Open questions*) on 2026-09-10 —
+"muss nicht in step 1".
+
+## Enforce audience validation on the JWT chain (**important**)
+
+The library sets **no** audience validator. Spring Boot only adds one when
+`spring.security.oauth2.resourceserver.jwt.audiences` is set — `OAuth2ResourceServerJwtConfiguration.getValidators(...)`
+(verified in the Boot 3.5.14 sources) otherwise returns the plain default validator, i.e. issuer and
+timestamps only. The library reads just `name`, `email`, `picture`, `preferred_username` and `roles`
+today; `aud`, `azp` and `client_id` are untouched claim surface.
+
+**Consequence:** all applications share one Authentik issuer, so backend B accepts a token that was
+issued for backend A and simply forwarded. To B it looks like a direct user call — including the
+audit-log entry, which names the user. As long as that holds, token exchange (see
+`docs/ideas/pat-landschaftsanalyse.md`) is **bypassable**: whoever forwards instead of exchanging gets
+through, and any recognition of intermediary systems is a label rather than a control.
+
+**The decision to make:** (a) enforce — fail startup without `audiences`; a breaking change that locks
+every application out until its IdP side is configured; (b) document and recommend; (c) ratchet — a
+property defaulting to off, a startup warning, mandatory from the next major.
+
+**Two measurements are missing first** (fetch one token per IdP and decode it — not a documentation
+exercise):
+
+- What does **authentik** put into an access token's `aud`? Not provable from the docs, and no
+  recorded token exists in this repository (not even the spec-015 material taken from real Authentik
+  traffic contains `aud`).
+- What does the **Keycloak** audience mapper actually write? Keycloak requires an *Audience* protocol
+  mapper (on the client or on an assigned client scope, *Included Client Audience* + *Add to access
+  token*); without it the access token does not name the resource server. The Keycloak mailing list
+  reports the mapper inserting a client's internal **UUID** instead of its client ID — so the value
+  must be checked on the token itself.
+
+**Context:** Surfaced in the `/grill-me` session of 2026-09-10 on PAT versus token exchange
+(`docs/ideas/pat-landschaftsanalyse.md`). Deliberately not implemented right away because token
+exchange is being cleaned up first — the gap stays open until then, which is why this is marked
+*important*.
+
 ## A dedicated `Authentication` type for the SCIM service principal
 
 `ScimTokenAuthenticationFilter` authenticates the SCIM provisioning caller as a plain
@@ -260,8 +345,8 @@ from "no caller".
 **Context:** Explicitly scoped out of Spec 017 (caller role lookup) at the start of its
 `/spec-create` session, to keep that spec purely additive and free of new configuration surface.
 
-**Prerequisite:** A property-naming convention for the library (see *Property toggles and consumer
-overridability for core security beans*).
+**Prerequisite:** A property-naming convention for the library (see *Spec candidate: a property
+naming convention for the whole reactor*).
 
 ## `spring-services-actuator` module
 
