@@ -1,5 +1,6 @@
 package com.openelements.spring.base;
 
+import com.openelements.spring.base.data.DataConfig;
 import com.openelements.spring.base.security.SecurityConfig;
 import com.openelements.spring.base.services.apikey.ApiKeyConfig;
 import com.openelements.spring.base.services.audit.AuditConfig;
@@ -33,10 +34,13 @@ import org.springframework.context.annotation.Import;
  *   <li>{@link TagConfig} — taggable-entity support.
  *   <li>{@link WebhookConfig} — outbound webhook subscriptions and dispatching.
  *   <li>{@link AuditConfig} — Audit log of every data lifecycle event with user attribution.
+ *   <li>{@link DataConfig} — generic data layer; contributes the database reachability check
+ *       {@link com.openelements.spring.base.data.DbHealthService}.
  * </ul>
  */
 @Import({
         SecurityConfig.class,
+        DataConfig.class,
         ApiKeyConfig.class,
         SettingsConfig.class,
         TagConfig.class,
