@@ -212,29 +212,32 @@ Spec 016 (`spring-services-tenant`).
 **Context:** Captured as a quick note during general work (no detailed provenance recorded); fits
 the Spec 014/016 module-extraction pattern.
 
-## `AuthService` probes for authentication state (`isAuthenticated()` / `isAnonymous()`)
+## A dedicated `Authentication` type for the SCIM service principal
 
-`AuthService` currently offers no way to ask whether the current request has a real, non-anonymous
-caller — every accessor either returns state or throws. A pair of probe methods would let
-application code check before acting instead of running into an `IllegalStateException`.
+`ScimTokenAuthenticationFilter` authenticates the SCIM provisioning caller as a plain
+`UsernamePasswordAuthenticationToken` with the `String` principal `ScimServicePrincipal.USER_NAME`
+and no authorities — the exact shape `@WithMockUser` produces. The two are therefore
+**indistinguishable**, which is why Spec 019 classifies the SCIM caller as
+`AuthenticationType.OTHER` rather than giving it a constant of its own.
 
-The semantics are the whole point of the entry, and they are not obvious: neither chain in
-`SecurityConfig` disables Spring Security's `AnonymousAuthenticationFilter`, so an unauthenticated
-request to a `permitAll` endpoint (`/api/health/**`, Swagger) carries an
-`AnonymousAuthenticationToken` whose `isAuthenticated()` returns `true`. Spring Security's own SpEL
-`isAuthenticated()` (in `SecurityExpressionRoot`, behind `@PreAuthorize`) is defined as
-`!trustResolver.isAnonymous(authentication)` — i.e. anonymous is *not* authenticated. Since
-`@EnableMethodSecurity` is active and the `@Requires*` annotations are SpEL, an `AuthService`
-method that delegates naively to `Authentication.isAuthenticated()` would mean the opposite of
-`@PreAuthorize("isAuthenticated()")` in the same codebase. Any implementation must therefore go
-through an `AuthenticationTrustResolver` (none is used anywhere in the reactor today), and should
-also decide whether `isFullyAuthenticated()` / remember-me is in scope.
+Making it classifiable needs three things, in two modules:
 
-**Context:** Surfaced in the `/grill-me` session preceding Spec 017 (caller role lookup) — the
-spec referred to here under its earlier working name `PrincipalRoles`. Deliberately excluded
-from that spec: it is an independently useful concern about authentication *state*, not about
-the caller's *roles*. Spec 017 answers the anonymity question through the role set instead,
-since `ROLE_ANONYMOUS` surfaces as the role `ANONYMOUS`.
+- an interface or marker owned by `spring-services-core` that the SCIM token implements — `core`
+  must not depend on `spring-services-scim` (the dependency runs the other way, and the module is
+  optional), so `core` cannot match on the SCIM class;
+- a new `AuthenticationType` constant, generic (`SERVICE`) rather than SCIM-specific, so a future
+  machine principal fits without extending the enum again;
+- a `default`-branch audit in consumer code: adding an enum constant breaks an exhaustive `switch`
+  without one. Spec 019's Javadoc declares the set extensible precisely to keep this possible in a
+  minor release.
+
+It cannot be retrofitted by inspecting today's authentication — the dedicated token type is the
+prerequisite, not an implementation detail.
+
+**Context:** Deliberately parked during the `/grill-me` session for Spec 019 (authentication type
+probe) on 2026-09-10: no application logic branches on the SCIM caller today, so the two-module
+change and the new public API in `core` were not justified. Spec 019 (`design.md`, D6) records the
+reasoning.
 
 ## Caller groups as a first-class type (`CallerGroups`)
 
