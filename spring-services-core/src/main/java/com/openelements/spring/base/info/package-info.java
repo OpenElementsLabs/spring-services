@@ -13,7 +13,8 @@
  * <ul>
  *   <li><b>Artifact coordinates</b> — from {@code META-INF/build-info.properties}, exposed by Spring
  *       Boot as {@link org.springframework.boot.info.BuildProperties}.
- *   <li><b>Git metadata</b> — from {@code META-INF/git.properties}, exposed as {@link
+ *   <li><b>Git metadata</b> — from {@code git.properties} on the classpath root (Spring Boot's
+ *       default for {@code spring.info.git.location}; <em>not</em> under {@code META-INF}), exposed as {@link
  *       org.springframework.boot.info.GitProperties}; with a fallback to {@code build.commit} in
  *       {@code build-info.properties} for container builds that have no {@code .git} directory.
  *   <li><b>SBOM</b> — a CycloneDX document on the classpath (default {@code

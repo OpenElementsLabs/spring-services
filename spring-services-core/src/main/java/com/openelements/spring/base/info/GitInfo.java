@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A {@code GitInfo} exists only when a commit hash is known — the absence of a commit is
  * represented by a {@code null} {@link ApplicationInfo#git()}, not by a {@code GitInfo} full of
- * {@code null}s. The hash is sourced either from {@code META-INF/git.properties} (where {@code .git}
+ * {@code null}s. The hash is sourced either from {@code git.properties} on the classpath root (where
+ * {@code .git}
  * was present at build time) or, as a fallback, from {@code build.commit} in
  * {@code build-info.properties} (the container build that receives the hash as a build argument);
  * see {@link ApplicationInfoService} for the precedence rule.

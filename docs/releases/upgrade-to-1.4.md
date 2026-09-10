@@ -1,8 +1,18 @@
 # Upgrade prompt: spring-services 1.4.0 optional-module changes
 
-`spring-services` 1.4.0 adds the optional **SCIM 2.0 Users provider** (spec 015) and moves
-**multi-tenancy into its own module** (spec 016). Both sections below are independent — apply only
-the ones you use.
+`spring-services` 1.4.0 brings five independent changes. Every section below stands on its own —
+apply only the ones you need:
+
+| Change | Spec | Nature |
+| --- | --- | --- |
+| Optional **SCIM 2.0 Users provider** | 015 | new optional module, off by default, two additive columns |
+| **Multi-tenancy moved** to its own module | 016 | build-coordinate change only |
+| **Caller role lookup** `AuthService.getRoles()` | 017 | purely additive API |
+| **Application build & SBOM info** `ApplicationInfoService` | 018 | purely additive API; needs build wiring to produce data |
+| **Database reachability check** `DbHealthService` | 021 | purely additive API |
+
+Plus one transitive dependency change, described at the end: `swagger-annotations-jakarta` moves from
+2.2.29 to 2.2.47.
 
 ## SCIM 2.0 Users provider (spec 015)
 
@@ -160,3 +170,190 @@ Applications carrying a `boolean itAdmin` through a request-context record can c
   already-guarded endpoint.
 - **IdP-side role names must match the `Roles` constants character for character** — comparison is
   case-sensitive, exactly as Spring Security's own `hasRole(...)`.
+
+## Application build & SBOM info via `ApplicationInfoService` (spec 018)
+
+`spring-services-core` 1.4.0 adds a read-only service that answers **"which build is running, and
+what is it made of?"** — artifact coordinates, the Git commit, and a parsed CycloneDX SBOM. It is
+**purely additive**: no existing type or behaviour changes, no new dependency, no REST endpoint, and
+it works without JPA (its own auto-configuration, guarded by `@ConditionalOnMissingBean` so you can
+supply your own implementation).
+
+### What is new
+
+```java
+ApplicationInfo info = applicationInfoService.getApplicationInfo();
+info.group();      info.artifact();   info.version();   info.name();
+info.git();        // GitInfo: commitId, shortCommitId, branch, tag, dirty, commitTime
+info.sbom();       // SbomSummary: bomFormat, specVersion, serialNumber, application,
+                   //              componentCount, licenses
+
+// the full flat component list, only when you need it
+Optional<SbomDocument> sbom = applicationInfoService.findSbom();
+```
+
+Every field is nullable and every read is non-throwing: with nothing wired, you get
+`ApplicationInfo.empty()` — all `null` — rather than an exception. A malformed or non-CycloneDX SBOM
+yields an empty result, not a failure.
+
+### The build wiring you have to add — otherwise it reports nothing
+
+This is the part the library cannot do for you: it *reads* three files that a default Maven build
+does not produce. All three belong in your **application** POM, not in a shared parent.
+
+**1. Coordinates and the container-build commit** — `build-info` writes
+`META-INF/build-info.properties`, which is Spring Boot's default location:
+
+```xml
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>build-info</id>
+            <goals><goal>build-info</goal></goals>
+            <configuration>
+                <additionalProperties>
+                    <!-- Surfaces as build.commit and is the fallback Git source. Feed it from the
+                         CI/Docker build argument, since an in-container build has no .git. -->
+                    <commit>${env.GIT_COMMIT}</commit>
+                </additionalProperties>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+**2. Git metadata, where `.git` exists** — enable the properties file in the application:
+
+```xml
+<plugin>
+    <groupId>io.github.git-commit-id</groupId>
+    <artifactId>git-commit-id-maven-plugin</artifactId>
+    <configuration>
+        <!-- java-parent sets this to false on purpose: a /git.properties shipped by a library
+             collides on the consumer's classpath, where only the first jar's copy is ever read.
+             An application is the last consumer, so it may and should write its own. -->
+        <generateGitPropertiesFile>true</generateGitPropertiesFile>
+    </configuration>
+</plugin>
+```
+
+The plugin's default output is `${project.build.outputDirectory}/git.properties`, which is exactly
+where Spring Boot looks (`spring.info.git.location` defaults to `classpath:git.properties` — note:
+**not** under `META-INF/`).
+
+**3. The SBOM** — `java-parent`'s `full-build` profile already runs `cyclonedx:makeBom`, but with the
+plugin's default output (`target/bom.json`), which never enters the jar. Redirect it so it lands on
+the classpath:
+
+```xml
+<plugin>
+    <groupId>org.cyclonedx</groupId>
+    <artifactId>cyclonedx-maven-plugin</artifactId>
+    <configuration>
+        <outputDirectory>${project.build.outputDirectory}/META-INF/sbom</outputDirectory>
+        <outputName>application.cdx</outputName>
+    </configuration>
+</plugin>
+```
+
+If `.git` is absent in your Docker build (a `.dockerignore` that excludes it is the common case), pass
+the hash in instead and let `build.commit` carry it:
+
+```dockerfile
+ARG GIT_COMMIT
+RUN ./mvnw -B -DskipTests -Denv.GIT_COMMIT=$GIT_COMMIT package
+```
+
+### Where the values come from, and who wins
+
+| Field | Source | Precedence |
+| --- | --- | --- |
+| `group`, `artifact`, `version`, `name` | `META-INF/build-info.properties` → `BuildProperties` | — |
+| `git.*` | `classpath:git.properties` → `GitProperties` | **wins** |
+| `git.commitId` (fallback) | `build.commit` from `build-info.properties` | used only when `git.properties` is absent |
+| `sbom` | autodetected, in Spring Boot `SbomEndpoint` order: `classpath:META-INF/sbom/bom.json`, then `classpath:META-INF/sbom/application.cdx.json`, then `classpath:META-INF/native-image/sbom.json` | override with `openelements.info.sbom.location` |
+
+### Configuration
+
+```properties
+# Both are optional; these are the defaults.
+openelements.info.sbom.enabled=true
+openelements.info.sbom.location=
+```
+
+`location` empty means autodetect (table above). Set `enabled=false` to skip SBOM reading entirely —
+coordinates and Git info still work.
+
+### Guard rails / Don't do this
+
+- **There is deliberately no endpoint.** Path, authorization and response shape are yours. Which
+  matters, because an SBOM is a **complete dependency inventory with versions** — publishing it
+  unauthenticated hands an attacker your patch level. Put it behind the same authorization as your
+  other administrative data.
+- **There is no build timestamp, and that is not an oversight.** With reproducible builds
+  `project.build.outputTimestamp` is a fixed constant (`java-parent` 1.3.0 sets it), so a "build time"
+  would describe the parent release, not your build. For "when did this source state come into being",
+  use `git.commitTime`. The SBOM's `metadata.timestamp` is not exposed for the same reason.
+- **`ApplicationInfo` is a snapshot of classpath resources, not live state.** It cannot tell you
+  whether a dependency was patched at runtime.
+- **Don't expect the raw SBOM bytes.** This service exposes a *parsed* view; serving the unmodified
+  file (what a compliance scanner consumes) and an Actuator `InfoContributor` are planned for a
+  separate `spring-services-actuator` module.
+- **`META-INF/build-info.properties`, `git.properties` and `META-INF/sbom/*` are single-slot
+  classpath resources.** If two jars ship one, only the first is read. Never generate them in a
+  profile shared with library modules — that is why `java-parent` disables `git.properties` for
+  libraries.
+
+## Database reachability check via `DbHealthService` (spec 021)
+
+`spring-services-core` 1.4.0 registers one more read-only bean: `DbHealthService`, which answers
+whether the configured `DataSource` is reachable **right now**. **Purely additive** — nothing to
+migrate.
+
+The point is what a bean-level check cannot tell you: an application that booted successfully can
+still have a dead database — network partition, exhausted pool, restarted server, rotated
+credentials. `isDatabaseReachable()` borrows a pooled connection and executes `SELECT 1`, so it
+reports the truth instead of a cached "up".
+
+```java
+@GetMapping("/health")
+HealthDTO health() {
+  return new HealthDTO(
+      HealthStatus.UP,
+      dbHealthService.isDatabaseReachable() ? HealthStatus.UP : HealthStatus.DOWN);
+}
+```
+
+### Guard rails / Don't do this
+
+- **It never throws.** Any `SQLException` — and any `RuntimeException` from the pool, such as a
+  connection-acquisition timeout — is logged (`WARN`, stack trace at `DEBUG`) and returned as
+  `false`. Don't wrap it in `try`/`catch` to reach the same answer.
+- **Nothing is cached: every call is a fresh round-trip.** Each call occupies one pooled connection
+  for the duration of the query, and against a saturated pool it blocks for up to the pool's
+  connection timeout. Size your pool with your probe interval in mind.
+- **An unauthenticated, unthrottled health endpoint calling this is a way to occupy your pool.**
+  Authorization, caching and rate limiting are the application's job — which is also why the library
+  ships no endpoint and no status enum.
+- **It is not an Actuator `HealthIndicator`.** No Actuator dependency is added; that integration is
+  planned for the separate `spring-services-actuator` module and will reuse this service rather than
+  re-probe.
+- **It answers reachability only** — no schema check, no migration state, no replica lag.
+
+## Dependency change: `swagger-annotations-jakarta` 2.2.29 → 2.2.47
+
+1.4.0 builds on `com.open-elements:java-parent` 1.3.0, which manages the OpenAPI stack through
+`springdoc-openapi-bom` **and** `swagger-bom`. `spring-services-core` no longer pins its own Swagger
+version, so the annotations artifact it brings transitively moves from **2.2.29 to 2.2.47**.
+
+Nothing to do in most applications. But if you pin Swagger or springdoc yourself, **align the whole
+stack**: `swagger-core` calls annotation members that only exist in its own release, so a split
+Swagger stack fails at runtime with `NoSuchMethodError` rather than merely losing a feature. To find
+the versions matching a springdoc release, read `<swagger-api.version>` and `<swagger-ui.version>` in
+that release's `springdoc-openapi` POM — `springdoc-openapi-bom` manages springdoc artifacts only.
+
+One side effect worth knowing: with `project.build.outputTimestamp` now fixed centrally in
+`java-parent` 1.3.0, a third party can rebuild a `spring-services` release byte-identically with
+`./mvnw -Pfull-build clean verify`, without knowing any build flag.
