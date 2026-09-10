@@ -53,7 +53,7 @@ Three inputs feed the model. All three are produced by the build, none by the li
 | Input | File | Produced by | Spring type |
 |---|---|---|---|
 | Artifact coordinates | `META-INF/build-info.properties` | `spring-boot-maven-plugin:build-info` | `BuildProperties` |
-| Git metadata | `META-INF/git.properties` | `git-commit-id-maven-plugin` | `GitProperties` |
+| Git metadata | `classpath:git.properties` (Spring Boot's default for `spring.info.git.location`, and the plugin's default output — **not** under `META-INF/`) | `git-commit-id-maven-plugin` | `GitProperties` |
 | SBOM | `META-INF/sbom/application.cdx.json` | `cyclonedx-maven-plugin` | — (none; Actuator only serves the bytes) |
 
 Spring Boot 3.5 auto-configures `BuildProperties` and `GitProperties` in
@@ -274,7 +274,7 @@ commit, not of the build machine.
 ### D4: Two Git sources, `git.properties` wins
 
 Where `.git` exists (developer machine, CI), `git-commit-id-maven-plugin` writes the full
-`META-INF/git.properties` and Spring exposes it as `GitProperties`. Where it does not (the Docker
+`git.properties` and Spring exposes it as `GitProperties`. Where it does not (the Docker
 build), the commit arrives as a build argument and lands in `build-info.properties` as
 `build.commit`, readable via `buildProperties.get("commit")`.
 
@@ -345,7 +345,7 @@ the model to be populated. It belongs in `java-parent` and in the application re
 | `cyclonedx-maven-plugin` output to `${project.build.outputDirectory}/META-INF/sbom/application.cdx.json` | `java-parent`, activated per application |
 | `ARG GIT_COMMIT` in the Dockerfile, passed to Maven | each application repository |
 
-> **Classpath collision rule.** `META-INF/build-info.properties`, `META-INF/git.properties` and
+> **Classpath collision rule.** `META-INF/build-info.properties`, `git.properties` and
 > `META-INF/sbom/*` are *single-slot* classpath resources: if two jars on one classpath each ship
 > one, only the first is ever read. Their generation must therefore live in an **application-level
 > activation**, never in a profile shared with library modules. This is the same trap that already

@@ -387,7 +387,7 @@ Spec 018 reads three files that no Open Elements build currently produces. The w
   `KnowledgeForge` and `Octobird`, passed into Maven — their `.dockerignore` excludes `.git`, so the
   in-container build produces no Git metadata today.
 
-`META-INF/build-info.properties`, `META-INF/git.properties` and `META-INF/sbom/*` are single-slot
+`META-INF/build-info.properties`, `git.properties` and `META-INF/sbom/*` are single-slot
 classpath resources: if two jars ship one, only the first is read. Their generation must therefore
 sit in an application-level activation, never in a profile shared with library modules — the same
 trap that already forced `generateGitPropertiesFile=false` in `java-parent`'s `full-build` profile.
