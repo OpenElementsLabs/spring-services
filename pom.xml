@@ -51,11 +51,13 @@
         <module>spring-services-bom</module>
     </modules>
 
-    <!-- Shared third-party versions for all modules (module-internal concern; not pushed to the org parent). -->
+    <!-- Third-party versions that java-parent does not manage (module-internal concern; not pushed
+         to the org parent). Anything the parent manages must NOT be redefined here: a property of the
+         same name shadows the parent's, so a stale value would silently pin the parent's BOM import
+         to an old version. jspecify and testcontainers were removed for exactly that reason — the
+         parent manages org.jspecify:jspecify and imports testcontainers-bom. -->
     <properties>
         <slack-api-client.version>1.45.3</slack-api-client.version>
-        <jspecify.version>1.0.0</jspecify.version>
-        <testcontainers.version>2.0.5</testcontainers.version>
         <wiremock.version>3.10.0</wiremock.version>
         <mcp-sdk.version>0.18.3</mcp-sdk.version>
     </properties>

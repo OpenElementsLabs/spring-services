@@ -41,11 +41,10 @@
             <groupId>io.swagger.core.v3</groupId>
             <artifactId>swagger-annotations-jakarta</artifactId>
         </dependency>
+        <!-- Version and scope managed by java-parent. -->
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
-            <version>${jspecify.version}</version>
-            <scope>compile</scope>
         </dependency>
         <!-- Test dependencies -->
         <dependency>
