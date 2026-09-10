@@ -1,0 +1,17 @@
+# Normalise line endings for every text file in the repository.
+#
+# java-parent 1.3.0 configures Spotless with <lineEndings>UNIX</lineEndings>, which makes the
+# formatter's output independent of the developer's platform and Git configuration. That alone does
+# not make the published sources jar LF-clean — Git still checks files out according to the local
+# core.autocrlf — so the parent expects each child project to carry this file. Without it a build on
+# Windows produces a sources jar with CRLF and the release stops being byte-reproducible.
+* text=auto eol=lf
+
+# Binary files Git must never touch.
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

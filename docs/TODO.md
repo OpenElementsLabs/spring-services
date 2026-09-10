@@ -374,8 +374,11 @@ Micrometer into every consuming application now.
 Spec 018 reads three files that no Open Elements build currently produces. The wiring is a
 `java-parent` concern plus one line per application repository:
 
-- `project.build.outputTimestamp` fixed in `java-parent` — **in progress separately**; without it
-  no Maven build in the org is byte-reproducible, independent of spec 018.
+- ~~`project.build.outputTimestamp` fixed in `java-parent`~~ — **done**: shipped in
+  `java-parent` 1.3.0 as the literal `2026-09-10T00:00:00Z`, and this reactor is on it. Verified by
+  building the reactor twice and comparing artifact checksums: byte-identical. The parent's comment
+  states it explicitly — the value is *not* a build time, it identifies the `java-parent` release an
+  artifact was built against; `release.sh` rewrites it per release.
 - `spring-boot-maven-plugin:build-info` in `java-parent`'s `pluginManagement`, with
   `additionalProperties` carrying `commit`, activated per application.
 - `cyclonedx-maven-plugin` output redirected to
@@ -390,4 +393,6 @@ sit in an application-level activation, never in a profile shared with library m
 trap that already forced `generateGitPropertiesFile=false` in `java-parent`'s `full-build` profile.
 
 **Context:** Surfaced during the `/grill-me` for spec 018; deferred because `java-parent` is a
-separate repository and its `outputTimestamp` change is already being made in parallel.
+separate repository. Its `outputTimestamp` part has since landed (1.3.0, 2026-09-10); the remaining
+bullets — `build-info`, the SBOM output path and `ARG GIT_COMMIT` in the application Dockerfiles —
+are still open, and they are what spec 018 actually needs in order to read anything.

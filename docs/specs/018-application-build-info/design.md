@@ -340,7 +340,7 @@ the model to be populated. It belongs in `java-parent` and in the application re
 
 | Requirement | Where |
 |---|---|
-| `project.build.outputTimestamp` set to a fixed value | `java-parent` (in progress, separately) |
+| `project.build.outputTimestamp` set to a fixed value | `java-parent` — **shipped in 1.3.0** (`2026-09-10T00:00:00Z`) |
 | `spring-boot-maven-plugin:build-info` in `pluginManagement`, with `additionalProperties` carrying `commit` | `java-parent`, activated per application |
 | `cyclonedx-maven-plugin` output to `${project.build.outputDirectory}/META-INF/sbom/application.cdx.json` | `java-parent`, activated per application |
 | `ARG GIT_COMMIT` in the Dockerfile, passed to Maven | each application repository |
