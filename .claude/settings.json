@@ -1,8 +1,27 @@
 {
+  "extraKnownMarketplaces": {
+    "open-elements-company": {
+      "source": {
+        "source": "github",
+        "repo": "OpenElementsLabs/agentic-support-open-elements"
+      }
+    },
+    "open-elements-coding": {
+      "source": {
+        "source": "github",
+        "repo": "OpenElementsLabs/agentic-support-coding"
+      }
+    },
+    "open-elements-workflow": {
+      "source": {
+        "source": "github",
+        "repo": "OpenElementsLabs/agentic-support-workflow"
+      }
+    }
+  },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
     "agentic-support-coding@open-elements-coding": true,
     "agentic-support-open-elements@open-elements-company": true,
-    "agentic-support-workflow@open-elements": true
+    "agentic-support-workflow@open-elements-workflow": true
   }
 }
