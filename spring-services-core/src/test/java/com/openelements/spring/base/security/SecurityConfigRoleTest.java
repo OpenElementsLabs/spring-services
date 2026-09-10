@@ -67,6 +67,19 @@ class SecurityConfigRoleTest {
     assertThat(authorities).contains("ROLE_ADMIN");
   }
 
+  /**
+   * Spec 017: the converter now builds the authority from {@code Roles.AUTHORITY_PREFIX} instead of
+   * a local {@code "ROLE_"} literal. The produced string must stay byte-identical — a JWT {@code
+   * roles} claim containing {@code IT-ADMIN} still yields exactly {@code ROLE_IT-ADMIN}.
+   */
+  @Test
+  @DisplayName("The JWT converter builds authorities from the prefix constant — IT-ADMIN yields the identical ROLE_IT-ADMIN.")
+  void rolesClaimMappedViaPrefixConstant() {
+    final var auth = jwtAuthenticationConverter.convert(buildJwt(List.of("IT-ADMIN")));
+    final Set<String> authorities = authorityStrings(auth.getAuthorities());
+    assertThat(authorities).contains("ROLE_IT-ADMIN");
+  }
+
   @Test
   @DisplayName("Multiple entries in the roles claim all become distinct ROLE_ authorities.")
   void multipleRolesMapped() {

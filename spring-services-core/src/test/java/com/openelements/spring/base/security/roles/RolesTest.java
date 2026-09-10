@@ -54,6 +54,22 @@ class RolesTest {
   }
 
   /**
+   * Pins the three constants added in spec 017: the authority prefix (the single home of the
+   * {@code "ROLE_"} literal, which the library's own authority producers now reference) and the two
+   * mechanism-marker role names the library issues at runtime. A silent rename here would desync the
+   * prefix from Spring Security, or break the {@code API_KEY}/{@code ANONYMOUS} names consumers
+   * compare against.
+   */
+  @Test
+  @DisplayName(
+      "Roles.AUTHORITY_PREFIX, ROLE_API_KEY and ROLE_ANONYMOUS resolve to their documented literals.")
+  void authorityPrefixAndMechanismMarkerValuesAreStable() {
+    assertEquals("ROLE_", Roles.AUTHORITY_PREFIX);
+    assertEquals("API_KEY", Roles.ROLE_API_KEY);
+    assertEquals("ANONYMOUS", Roles.ROLE_ANONYMOUS);
+  }
+
+  /**
    * Verifies the utility-class lock: {@code Roles} declares a {@code private} no-arg constructor.
    * Static analysers (SpotBugs, PMD) raise a finding if a constants holder is instantiable.
    */

@@ -3,15 +3,26 @@ package com.openelements.spring.base.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.openelements.spring.base.security.roles.Roles;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.AuthenticatedPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -444,6 +455,311 @@ class AuthServiceTest {
 
       // THEN
       assertThat(result.getName()).isEqualTo("direct-name");
+    }
+  }
+
+  /**
+   * Binds an {@link Authentication} whose {@code getAuthorities()} returns exactly the supplied
+   * collection — including {@code null}, or a collection that contains {@code null} entries or a
+   * {@link GrantedAuthority} whose {@code getAuthority()} is {@code null}. {@link
+   * TestingAuthenticationToken} always normalises its authorities to a non-null list, so these
+   * fail-closed edge cases need a raw {@link Authentication} implementation.
+   */
+  private static void bindAuthorities(final Collection<? extends GrantedAuthority> authorities) {
+    final Authentication authentication =
+        new Authentication() {
+          @Override
+          public Collection<? extends GrantedAuthority> getAuthorities() {
+            return authorities;
+          }
+
+          @Override
+          public Object getCredentials() {
+            return null;
+          }
+
+          @Override
+          public Object getDetails() {
+            return null;
+          }
+
+          @Override
+          public Object getPrincipal() {
+            return "principal";
+          }
+
+          @Override
+          public boolean isAuthenticated() {
+            return true;
+          }
+
+          @Override
+          public void setAuthenticated(final boolean isAuthenticated) {}
+
+          @Override
+          public String getName() {
+            return "principal";
+          }
+        };
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+  }
+
+  /** Binds a {@link TestingAuthenticationToken} carrying the given authority strings verbatim. */
+  private static void bindAuthorityStrings(final String... authorities) {
+    SecurityContextHolder.getContext()
+        .setAuthentication(new TestingAuthenticationToken("principal", "credentials", authorities));
+  }
+
+  @Nested
+  @DisplayName("getRoles")
+  class GetRolesTest {
+
+    @Test
+    @DisplayName("Roles from a JWT are returned without the authority prefix.")
+    void stripsAuthorityPrefix() {
+      bindAuthorityStrings("ROLE_IT-ADMIN", "ROLE_EMPLOYEE");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactlyInAnyOrder("IT-ADMIN", "EMPLOYEE");
+      assertThat(roles).contains(Roles.ROLE_IT_ADMIN);
+      assertThat(roles).contains(Roles.ROLE_EMPLOYEE);
+    }
+
+    @Test
+    @DisplayName("An API-key caller holds exactly the API_KEY role.")
+    void apiKeyCallerHoldsApiKeyRole() {
+      bindAuthorityStrings("ROLE_API_KEY");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("API_KEY");
+      assertThat(roles).contains(Roles.ROLE_API_KEY);
+    }
+
+    @Test
+    @DisplayName("An anonymous caller holds the ANONYMOUS role and is not an empty set.")
+    void anonymousCallerHoldsAnonymousRole() {
+      SecurityContextHolder.getContext()
+          .setAuthentication(
+              new AnonymousAuthenticationToken(
+                  "key",
+                  "anonymousUser",
+                  List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("ANONYMOUS");
+      assertThat(roles).contains(Roles.ROLE_ANONYMOUS);
+      assertThat(roles).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("An authenticated caller with no authorities yields an empty set — distinct from anonymous.")
+    void authenticatedCallerWithNoAuthoritiesYieldsEmptySet() {
+      bindAuthorities(List.of());
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A role name not declared in Roles is preserved — no whitelist is applied.")
+    void undeclaredRoleNameIsPreserved() {
+      bindAuthorityStrings("ROLE_SOME-FUTURE-ROLE");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("SOME-FUTURE-ROLE");
+      assertThat(roles).contains("SOME-FUTURE-ROLE");
+    }
+
+    @Test
+    @DisplayName("Duplicate authorities collapse into one role name.")
+    void duplicateAuthoritiesCollapse() {
+      bindAuthorities(
+          List.of(
+              new SimpleGrantedAuthority("ROLE_EMPLOYEE"),
+              new SimpleGrantedAuthority("ROLE_EMPLOYEE")));
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("EMPLOYEE");
+      assertThat(roles).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("No authentication in the context yields an empty set and never throws.")
+    void noAuthenticationYieldsEmptySet() {
+      SecurityContextHolder.clearContext();
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A null authority collection yields an empty set — no NullPointerException.")
+    void nullAuthorityCollectionYieldsEmptySet() {
+      bindAuthorities(null);
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An empty authority collection yields an empty set.")
+    void emptyAuthorityCollectionYieldsEmptySet() {
+      bindAuthorities(List.of());
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A null entry inside the authority collection is skipped.")
+    void nullEntryIsSkipped() {
+      final Collection<GrantedAuthority> authorities = new ArrayList<>();
+      authorities.add(new SimpleGrantedAuthority("ROLE_EMPLOYEE"));
+      authorities.add(null);
+      bindAuthorities(authorities);
+
+      assertThat(authService.getRoles()).containsExactly("EMPLOYEE");
+    }
+
+    @Test
+    @DisplayName("A GrantedAuthority returning a null authority string is skipped.")
+    void nullAuthorityStringIsSkipped() {
+      final GrantedAuthority nullAuthority = () -> null;
+      bindAuthorities(Arrays.asList(new SimpleGrantedAuthority("ROLE_EMPLOYEE"), nullAuthority));
+
+      assertThat(authService.getRoles()).containsExactly("EMPLOYEE");
+    }
+
+    @Test
+    @DisplayName("Scope authorities are not roles — SCOPE_* is discarded.")
+    void scopeAuthoritiesAreNotRoles() {
+      bindAuthorityStrings("SCOPE_openid", "SCOPE_profile", "ROLE_EMPLOYEE");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("EMPLOYEE");
+      assertThat(roles).doesNotContain("openid", "SCOPE_openid");
+    }
+
+    @Test
+    @DisplayName("An authority carrying only the bare prefix is discarded.")
+    void barePrefixIsDiscarded() {
+      bindAuthorityStrings("ROLE_");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).isEmpty();
+      assertThat(roles).doesNotContain("");
+    }
+
+    @Test
+    @DisplayName("An authority whose name is only whitespace is discarded.")
+    void whitespaceOnlyNameIsDiscarded() {
+      bindAuthorityStrings("ROLE_   ");
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An authority without the prefix is discarded.")
+    void authorityWithoutPrefixIsDiscarded() {
+      bindAuthorityStrings("EMPLOYEE");
+
+      assertThat(authService.getRoles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("The prefix is stripped exactly once — ROLE_ROLE_FOO becomes ROLE_FOO, not FOO.")
+    void prefixIsStrippedExactlyOnce() {
+      bindAuthorityStrings("ROLE_ROLE_FOO");
+
+      assertThat(authService.getRoles()).containsExactly("ROLE_FOO");
+    }
+
+    @Test
+    @DisplayName("Role comparison is case-sensitive and agrees with @RequiresItAdmin.")
+    void comparisonIsCaseSensitive() {
+      bindAuthorityStrings("ROLE_it-admin");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThat(roles).containsExactly("it-admin");
+      assertThat(roles.contains(Roles.ROLE_IT_ADMIN)).isFalse();
+    }
+
+    @Test
+    @DisplayName("The returned set is unmodifiable and repeated calls are unaffected by mutation attempts.")
+    void returnedSetIsUnmodifiable() {
+      bindAuthorityStrings("ROLE_EMPLOYEE");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThatThrownBy(() -> roles.add("IT-ADMIN"))
+          .isInstanceOf(UnsupportedOperationException.class);
+      assertThatThrownBy(roles::clear).isInstanceOf(UnsupportedOperationException.class);
+      assertThat(authService.getRoles()).containsExactly("EMPLOYEE");
+    }
+
+    @Test
+    @DisplayName("Asking whether the caller holds the null role fails fast with NullPointerException.")
+    void containsNullFailsFast() {
+      bindAuthorityStrings("ROLE_EMPLOYEE");
+
+      final Set<String> roles = authService.getRoles();
+
+      assertThatThrownBy(() -> roles.contains(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("Two calls within the same request return equal sets that can be held as a snapshot.")
+    void twoCallsReturnEqualSets() {
+      bindAuthorityStrings("ROLE_IT-ADMIN", "ROLE_EMPLOYEE");
+
+      final Set<String> first = authService.getRoles();
+      final Set<String> second = authService.getRoles();
+
+      assertThat(first).isEqualTo(second);
+      assertThat(first).containsExactlyInAnyOrder("IT-ADMIN", "EMPLOYEE");
+    }
+  }
+
+  @Nested
+  @DisplayName("findAuthentication")
+  class FindAuthenticationTest {
+
+    @Test
+    @DisplayName("findAuthentication() returns the bound Authentication.")
+    void returnsBoundAuthentication() {
+      final TestingAuthenticationToken auth = new TestingAuthenticationToken("user", "pass");
+      SecurityContextHolder.getContext().setAuthentication(auth);
+
+      final Optional<Authentication> result = authService.findAuthentication();
+
+      assertThat(result).containsSame(auth);
+    }
+
+    @Test
+    @DisplayName("findAuthentication() returns empty when nothing is bound and never throws.")
+    void returnsEmptyWhenNothingBound() {
+      SecurityContextHolder.clearContext();
+
+      assertThat(authService.findAuthentication()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getAuthentication() keeps its throwing contract and is not @Deprecated.")
+    void getAuthenticationKeepsThrowingContractAndIsNotDeprecated() throws NoSuchMethodException {
+      SecurityContextHolder.clearContext();
+
+      assertThatThrownBy(() -> authService.getAuthentication())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("No authentication found");
+      assertThat(
+              AuthService.class
+                  .getMethod("getAuthentication")
+                  .isAnnotationPresent(Deprecated.class))
+          .isFalse();
     }
   }
 }

@@ -130,6 +130,24 @@
  * bookDataService.delete(created.id());
  * }</pre>
  *
+ * <h2>Database reachability</h2>
+ *
+ * <p>Besides the abstractions above, the package ships one ready-to-use bean:
+ * {@link com.openelements.spring.base.data.DbHealthService}, registered by
+ * {@link com.openelements.spring.base.data.DataConfig}. It answers whether the configured
+ * {@code DataSource} is reachable <em>right now</em> by borrowing a connection and executing a
+ * validation query on it, so an application that booted against a database that has since died
+ * reports the truth instead of a cached "up":
+ *
+ * <pre>{@code
+ * if (!dbHealthService.isDatabaseReachable()) {
+ *   return new HealthDTO(HealthStatus.DOWN);
+ * }
+ * }</pre>
+ *
+ * <p>The health endpoint itself — its path, authorization and response shape — stays with the
+ * application; the library only supplies the fact.
+ *
  * <h2>Tenant-aware variants</h2>
  *
  * <p>For multi-tenant services, see the {@code spring-services-tenant} module (package

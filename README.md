@@ -190,6 +190,11 @@ from committed configuration.
 - **Generic Data Layer** — Reusable abstractions (`AbstractEntity` with UUID primary key and
   audit timestamps, `AbstractDbBackedDataService` template) that wire CRUD, transactions and
   lifecycle events for any domain object.
+- **Database Reachability Check** — `DbHealthService.isDatabaseReachable()` borrows a connection
+  from the pool and executes a `SELECT 1` round-trip, so an application whose database died after
+  startup reports `DOWN` instead of a bean-level "up". Never throws; failures (including a pool
+  connection-acquisition timeout) are logged and returned as `false`. The library ships no endpoint
+  and no status enum — path, authorization and response shape stay with the application.
 - **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
   synchronously inside the originating transaction; consumers opt into post-commit behaviour
   with `@TransactionalEventListener`.
