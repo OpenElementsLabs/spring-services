@@ -85,17 +85,94 @@ reaches spring-services.
 **Context:** Module-usage question that needs investigation before we can rely on the `name`
 claim.
 
-## Evaluate Spring Modulith for real module boundaries
+## Machine-readable module boundaries — ArchUnit as the option, Spring Modulith rejected
 
-After the multi-module restructuring, module boundaries are pure convention: plain Maven classpath
-modules without JPMS (chosen deliberately, since Spring interacts poorly with JPMS), so every
-`public` type in `spring-services-core` is reachable across modules. Spring Modulith could declare
-the logical module boundaries explicitly and verify them via an `ApplicationModules` test (allowed
-dependencies, no access to internal packages).
+Module boundaries in the reactor are pure convention: plain Maven classpath modules without JPMS
+(chosen deliberately, since Spring interacts poorly with JPMS), so every `public` type in
+`spring-services-core` is reachable from every other module. The gap that actually matters is
+**core-internal**: feature-to-feature dependencies are already impossible at the Maven level, so the
+realistic violation is a class in `data` reaching into `services.user` — inside one artifact, where
+neither the compiler nor the reactor notices. The intended layering (`data` sits *below*
+`services.user`) is written down nowhere; it exists only in the maintainer's head, while the likely
+authors of a violation are coding agents and new contributors who cannot know it.
 
-**Context:** Surfaced in the `/grill-me` session for Spec 014 (multi-module restructuring),
-Branch E (API surface between modules) — JPMS was rejected and Modulith parked as the alternative.
-The former prerequisite (Spec 014) has since landed, so this is unblocked.
+**Spring Modulith was evaluated and rejected** — it adds little over plain ArchUnit here. Verified
+by a throwaway spike against `spring-modulith-core` 1.4.13 on this reactor (2026-09-10, reverted):
+
+| Module model | Modules detected | Violations today |
+| --- | --- | --- |
+| Default (`direct-sub-packages` of `com.openelements.spring.base`) | 11 — including a `services` blob of 129 types spanning 6 Maven modules | 33 (2 cycles + 31 non-exposed-type hits, incl. every feature's own auto-config reaching its own `services.<feature>` package) |
+| Fine-grained (every logical package declared a module) | 25 | 4 |
+| Features-only (core left unmodularized) | 12 | 0 — adoptable without any refactor, but enforces nothing core-internal |
+
+The four fine-grained violations: cycle `data ↔ events`; cycle
+`security → services.apikey → services.user → security`; cycle `security → services.user → security`;
+and `mcp → security.apikey.ApiKeyAuthenticationFilter` (non-exposed, because `security` has
+sub-packages).
+
+Why it was rejected:
+
+- **No consumer concept.** The reference is explicit — Modulith is *"an opinionated toolkit to build
+  domain-driven, modular **applications** with Spring Boot"*; there is no library guidance, and
+  `@NamedInterface` opens a package only to *other application modules*, never to external consumers.
+  Nothing in a library-side test can police consumer access.
+- **The model would permanently disagree with the artifacts.** The Maven modules deliberately do not
+  own package subtrees, so a Modulith decomposition never matches the jars — every future reader has
+  to hold both models in their head.
+- **Cost in main sources.** The annotations live in `package-info.java`, which makes
+  `spring-modulith-api` a `provided`-scope compile dependency of ~9 modules; the detection strategy is
+  the global property `spring.modulith.detection-strategy` (safe only in test scope — in a library
+  `application.properties` it would leak into consumer apps); and 1.4.x is pinned to the Boot 3.5 line
+  (Boot 4 requires Modulith 2.x).
+- **The two benefits that remain are free elsewhere.** A declared dependency direction and a cycle
+  guard are fully expressible in plain ArchUnit; only the `@NamedInterface` "exports list" would be
+  lost, and nobody enforces it against consumers anyway.
+
+Recorded mechanics, so nobody has to re-spike: `ApplicationModules.of(String package)` needs no
+`@SpringBootApplication`; `verify()` *always* asserts freedom of cycles (`beFreeOfCycles`), so it
+cannot be adopted while the two cycles exist; `explicitly-annotated` detection resolves
+`@ApplicationModule` at any package depth (not just direct sub-packages); `allowedDependencies`
+enforcement works and reports precisely.
+
+**The option for later — a plain ArchUnit test** (ArchUnit 1.5.0, test scope only, no main-source
+changes, hosted in `spring-services-all/src/test` where the full classpath is present):
+
+- Write the layering down first — that step is independently useful and the cheapest thing here,
+  since agents read `CLAUDE.md`. A rule nobody has stated cannot be verified.
+- Rule 1: the declared direction, e.g. no class in `..base.data..` may depend on `..base.services..`.
+  The parts that are already clean can be enforced immediately.
+- Rule 2: `slices().should().beFreeOfCycles()` — red today because of the two known cycles, so it
+  either waits for the cycle repayment below or ships `@Disabled` with that reason.
+- An encapsulation rule (`..internal..` unreachable from outside its module) presupposes an
+  API/internal split that **does not exist today**: every type in the library is public and flat.
+  Unresolved: whether consumer apps already import packages that would become internal (e.g.
+  `services.webhook.payload`, `services.scim.model`, `data.image.util`).
+
+**Context:** Surfaced in the `/grill-me` session for Spec 014 (multi-module restructuring), Branch E
+(API surface between modules), where JPMS was rejected and Modulith parked as the alternative.
+Re-examined in a dedicated `/grill-me` session on 2026-09-10 that ran the spike above and concluded:
+no spec, keep ArchUnit as the option, and keep this entry as the record.
+
+## Repay the two package cycles in `spring-services-core` (breaking)
+
+`data ↔ events` and `security ↔ services.user` are real import cycles inside
+`spring-services-core`. Spec 014 accepted them as permanent design ("cyclically entangled clusters —
+each must stay in one module"); that reading is hereby reversed — they are **debt to be repaid**, and
+they are the reason no cycle-based architecture test can be switched on today.
+
+- `data → events`: `AbstractDbBackedDataService` constructs `OnObject{Create,Update,Delete}`;
+  `events → data`: every event type is parameterized on `WithId` and calls it.
+- `security → services.user` / `services.apikey`: `SecurityConfig` `@Import`s `UserConfig` and
+  `ApiKeyConfig` and takes `ApiKeyDataService`; `ApiKeyAuthenticationFilter` uses `ApiKeyDataService`
+  and `ApiKeyEntity`. Back: `UserService` depends on `AuthService`, `UserProvisioner` and
+  `UserService` on `UserInformation`.
+- Repaying it means moving public types (`WithId`, `AuthService`, `UserInformation`) into neutral
+  packages, so consumer imports break — this needs its own spec and a release that may break.
+  The `SecurityConfig` `@Import` half is the cheap part and may be separable: config wiring belongs
+  to the auto-configuration, not to `SecurityConfig`.
+
+**Context:** Split out of the Spring Modulith grill session on 2026-09-10 (previous entry), which
+required its own spec to stay non-breaking and therefore could not fix the cycles.
 
 ## SCIM Groups + membership
 
