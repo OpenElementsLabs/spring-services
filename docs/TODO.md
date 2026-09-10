@@ -10,9 +10,11 @@ and a coherent toggle plan first.
 - Module-level guards already exist (`@ConditionalOnClass` on core/email/slack/mcp;
   `@ConditionalOnProperty` on scim/db-backup/search/mcp), absorbed from Spec 014's per-module
   `@AutoConfiguration` guarding.
-- Still missing (verified 2026-07-31: no `@ConditionalOnMissingBean` exists anywhere in the
-  reactor): property toggles and `@ConditionalOnMissingBean` overridability for the **core security
-  beans** — the API-key chain and `JwtAuthenticationConverter`.
+- Still missing: property toggles and `@ConditionalOnMissingBean` overridability for the **core
+  security beans** — the API-key chain and `JwtAuthenticationConverter`. (The earlier note that no
+  `@ConditionalOnMissingBean` existed anywhere in the reactor, verified 2026-07-31, no longer holds:
+  spec 018's `ApplicationInfoAutoConfiguration` guards its bean that way, and it is the pattern to
+  follow here.)
 
 **Context:** Deferred from the `/spec-review` of Spec 011 (security-config-hygiene, done); should
 reconcile with the Spec 013/014 autoconfiguration setup.
@@ -225,14 +227,15 @@ every `@ConfigurationProperties` in the reactor:
 | `openelements.scim` | `spring-services-scim` |
 | `openelements.db-backup` | `spring-services-dbbackup` |
 | `openelements.meilisearch` | `spring-services-search` |
+| `openelements.info` | `spring-services-core` (spec 018) |
 
-Two spellings of the vendor prefix, and the leaf name follows neither the module name
+Two spellings of the vendor prefix (5:2 for `openelements`), and the leaf name follows neither the module name
 (`dbbackup` → `db-backup`) nor the technology consistently (`search` → `meilisearch`, i.e. the
 implementation leaks into the configuration surface).
 
 This needs its own spec, because it is a coordinated rename across modules:
 
-- Decide the vendor prefix (`openelements` is the majority, 4:2) and the leaf-naming rule — module
+- Decide the vendor prefix (`openelements` is the majority, 5:2) and the leaf-naming rule — module
   name or feature name, and whether an implementation may appear in a property name at all.
 - Decide the deprecation mechanism. Renaming a property is breaking for every consumer; Spring Boot
   offers `additional-spring-configuration-metadata.json` with `deprecation.replacement`, plus

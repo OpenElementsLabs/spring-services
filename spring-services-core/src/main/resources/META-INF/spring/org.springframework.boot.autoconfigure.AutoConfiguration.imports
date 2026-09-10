@@ -1,1 +1,2 @@
 com.openelements.spring.base.SpringServicesCoreAutoConfiguration
+com.openelements.spring.base.info.ApplicationInfoAutoConfiguration

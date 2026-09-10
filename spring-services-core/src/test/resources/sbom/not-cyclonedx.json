@@ -1,0 +1,6 @@
+{
+  "bomFormat": "SPDX",
+  "spdxVersion": "SPDX-2.3",
+  "name": "some-spdx-doc",
+  "packages": []
+}
