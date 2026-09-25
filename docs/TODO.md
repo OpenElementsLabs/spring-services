@@ -10,6 +10,19 @@ is everything below the wiring:
   reads past the end, and the incomplete-upload sweep. `S3ObjectStore`'s multipart boundary (the
   switch from a single `PutObject` to a multipart upload at exactly `PART_SIZE_BYTES`) is the other
   untested edge that matters.
+- **Ranged reads diverge between the implementations, against the interface's own contract.**
+  `ObjectStore#get(String, long, long)` documents that "a range extending past the end returns the
+  available bytes rather than failing". `FileObjectStore` implements that — `offset >= size` yields
+  an empty stream. `S3ObjectStore` does not: it sends `Range: bytes=offset-last` and catches only
+  `NoSuchKeyException`, so a first-byte position at or past the object's length comes back as a raw
+  `S3Exception` (HTTP 416), not even wrapped as `ObjectStoreException`. A second divergence sits next
+  to it: for `length == 0` the file store throws `ObjectNotFoundException` when the key does not
+  exist ("a zero-length read of a missing key is a wrong key, not 'no bytes'"), while the S3 store
+  returns an empty stream without checking. Two backends behind one interface must not answer the
+  same call differently. **Fix before 1.5.0 ships** — the storage module is new in it, so this is
+  still cheap to correct. Found by reading the code while writing `docs/releases/upgrade-to-1.5.md`;
+  the 416 behaviour is the standard range semantics, not something that was run against a live
+  endpoint.
 - **`InMemoryObjectStore` is public API here, not a test fixture.** Its `failDeletes`, `failPuts`,
   `lastGetOffset` and `lastGetLength` are public mutable fields — fine inside one application, not as
   a published surface. `openelements.storage.type=memory` now makes it selectable in configuration,
