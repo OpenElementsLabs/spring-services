@@ -55,16 +55,21 @@ distinguishes them — and classpath order must not be what decides where your o
 ```properties
 openelements.storage.type=s3
 openelements.storage.s3.endpoint=https://s3.eu-central-1.amazonaws.com
-openelements.storage.s3.region=eu-central-1
 openelements.storage.s3.bucket=my-objects
 openelements.storage.s3.access-key=${S3_ACCESS_KEY}
 openelements.storage.s3.secret-key=${S3_SECRET_KEY}
+
+# Optional. Defaults to us-east-1, which providers that ignore the region accept.
+openelements.storage.s3.region=eu-central-1
 ```
 
-All five are required for `type=s3`. Credentials are high-value secrets — provide them from
-environment variables or a secret manager, never in plaintext config. Path-style addressing is forced
-and chunked encoding is disabled, because several S3-compatible providers support neither
-virtual-host addressing nor trailing checksums.
+Endpoint, bucket and credentials are required for `type=s3`. The **region is optional**: it belongs
+to the request *signature*, not to the address, so SigV4 needs some string there but only AWS derives
+meaning from it — on AWS it must match the bucket's region, while Hetzner Object Storage and similar
+providers accept whatever is sent. Credentials are high-value secrets — provide them from environment
+variables or a secret manager, never in plaintext config. Path-style addressing is forced and chunked
+encoding is disabled, because several S3-compatible providers support neither virtual-host addressing
+nor trailing checksums.
 
 **A local directory:**
 

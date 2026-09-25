@@ -77,6 +77,32 @@ class StorageAutoConfigurationTest {
         }
 
         @Test
+        @DisplayName("type=s3 works without a region, which only AWS derives meaning from")
+        void s3WithoutARegion() {
+            contextRunner.withPropertyValues(
+                            "openelements.storage.type=s3",
+                            "openelements.storage.s3.endpoint=https://fsn1.your-objectstorage.com",
+                            "openelements.storage.s3.bucket=objects",
+                            "openelements.storage.s3.access-key=key",
+                            "openelements.storage.s3.secret-key=secret")
+                    .run(context -> {
+                        assertThat(context).hasNotFailed().hasSingleBean(ObjectStore.class);
+                        assertThat(context.getBean(StorageProperties.class).requiredS3().region())
+                                .isEqualTo(StorageProperties.S3.DEFAULT_REGION);
+                    });
+        }
+
+        @Test
+        @DisplayName("A configured region is kept, for the providers that do care")
+        void s3WithAnExplicitRegion() {
+            contextRunner.withPropertyValues(s3Properties())
+                    .run(context -> assertThat(context).hasNotFailed()
+                            .getBean(StorageProperties.class)
+                            .extracting(properties -> properties.requiredS3().region())
+                            .isEqualTo("eu-central-1"));
+        }
+
+        @Test
         @DisplayName("Only the selected store is registered, not the other two")
         void onlyTheSelectedOne() {
             contextRunner.withPropertyValues("openelements.storage.type=memory")
@@ -110,7 +136,7 @@ class StorageAutoConfigurationTest {
                     .run(context -> assertThat(context).hasFailed()
                             .getFailure()
                             .rootCause()
-                            .hasMessageContaining("openelements.storage.s3.region is required"));
+                            .hasMessageContaining("openelements.storage.s3.bucket is required"));
         }
 
         @Test

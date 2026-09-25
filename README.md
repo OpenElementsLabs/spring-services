@@ -138,11 +138,11 @@ register. With the property unset no `ObjectStore` bean exists at all.
 ```properties
 # S3 or any S3-compatible endpoint
 openelements.storage.type=s3
-openelements.storage.s3.endpoint=https://s3.eu-central-1.amazonaws.com   # all five required for type=s3
-openelements.storage.s3.region=eu-central-1
-openelements.storage.s3.bucket=my-objects
-openelements.storage.s3.access-key=${S3_ACCESS_KEY}
-openelements.storage.s3.secret-key=${S3_SECRET_KEY}
+openelements.storage.s3.endpoint=https://s3.eu-central-1.amazonaws.com   # required for type=s3
+openelements.storage.s3.bucket=my-objects                                # required
+openelements.storage.s3.access-key=${S3_ACCESS_KEY}                      # required
+openelements.storage.s3.secret-key=${S3_SECRET_KEY}                      # required
+openelements.storage.s3.region=eu-central-1                              # optional, default us-east-1
 
 # …or a local directory
 openelements.storage.type=file
