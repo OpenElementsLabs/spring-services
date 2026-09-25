@@ -32,7 +32,7 @@ coordinate is the reactor parent (a `pom`, no classes) — depend on one of the 
 **À la carte:** import the BOM once, then declare `spring-services-core` plus only the feature
 modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-services-email`,
 `spring-services-search`, `spring-services-dbbackup`, `spring-services-scim`,
-`spring-services-tenant`) without versions:
+`spring-services-tenant`, `spring-services-storage`) without versions:
 
 ```xml
 <dependencyManagement>
@@ -353,12 +353,17 @@ spring-services/                    — reactor parent (packaging=pom)
 ├── spring-services-dbbackup        — db-backup sidecar client (RestClient, no extra dep)
 ├── spring-services-scim            — SCIM 2.0 Users provider (opt-in via openelements.scim.token)
 ├── spring-services-tenant          — row-level multi-tenancy (self-activates on the classpath)
+├── spring-services-storage         — object store: S3, file system, in-memory (→ AWS SDK v2)
 ├── spring-services-all             — everything bundle (depends on all modules; no config of its own)
 └── spring-services-bom             — bill of materials for lockstep versioning
 ```
 
 Each optional feature module ships its own `@AutoConfiguration` guarded by `@ConditionalOnClass`, so
 it self-activates when present and never pulls its heavy dependency into a consumer that skips it.
+
+`spring-services-storage` is the one exception so far: it ships the `ObjectStore` implementations but
+no auto-configuration, because an application has to choose one of them — declaring the implementation
+it wants as a bean is that choice. Picking by classpath order would make it by accident.
 
 ## Release Process
 
