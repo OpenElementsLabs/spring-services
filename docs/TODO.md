@@ -1,5 +1,36 @@
 # TODO
 
+## Finish the storage module (spring-services-storage)
+
+The module currently holds the `ObjectStore` API and its three implementations, lifted from an
+application that used them, and nothing more: it compiles and is part of the reactor, but it is not
+yet a spring-services feature module in the sense the other nine are. Open work, roughly in order:
+
+- **Auto-configuration.** `S3Config` is a plain `@Configuration` that no
+  `AutoConfiguration.imports` file names, so it is inert unless a consumer component-scans it. It
+  needs a `StorageAutoConfiguration` like every other module, and that raises the question the
+  README note already records: which implementation activates, and on what condition. `s3` vs
+  `file` cannot be decided by `@ConditionalOnClass` — both are always on the classpath.
+- **Property namespace.** The `@Value` placeholders are `storage.s3.endpoint`, `.region`,
+  `.access-key`, `.secret-key` and `.bucket` — the origin application's namespace. The repo's is
+  `openelements.*`, and the values belong in a `@ConfigurationProperties` record rather than five
+  `@Value` parameters.
+- **Tests.** The sources arrived without any. `FileObjectStore` alone justifies several: the
+  traversal guard on keys, the scratch-then-move visibility guarantee, ranged reads past the end,
+  and the incomplete-upload sweep.
+- **`InMemoryObjectStore` is public API here, not a test fixture.** Its `failDeletes`, `failPuts`,
+  `lastGetOffset` and `lastGetLength` are public mutable fields — fine inside one application, not
+  as a published surface. Either give it a proper test-control API or move it to a test artifact.
+- **The AWS SDK is a hard dependency.** A consumer that only wants `FileObjectStore` still pulls
+  `software.amazon.awssdk:s3`. `optional` would stop that, at the cost of making the S3 path require
+  an explicit declaration.
+- **Javadoc still describes the origin application.** It refers to `OrphanSweep`, to "audio" as the
+  payload, and to Record Store as the target — none of which mean anything to a reader of this
+  library. The reasoning behind the prose is worth keeping; the nouns are not.
+
+**Context:** The module was created by moving the sources in as a deliberate first step — get
+everything into the reactor compiling, decide the Spring-facing design afterwards.
+
 ## Property toggles and consumer overridability for core security beans
 
 Per-feature `@ConditionalOnMissingBean` / `@ConditionalOnProperty` for all library beans, so
