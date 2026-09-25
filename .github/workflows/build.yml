@@ -19,6 +19,20 @@ jobs:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: maven-
+      - name: Check POMs against the Maven Central rules
+        # Same PomChecker rules JReleaser applies during the release, run on every
+        # PR so a POM that Maven Central would reject fails here instead of after
+        # the tag is already pushed. A module missing <url> broke the 1.4.0 release
+        # exactly this way: Maven silently derives the value from the parent, and
+        # PomChecker rejects the derived one.
+        #
+        # fail.on.warning is what makes the check bite — PomChecker reports the
+        # derived-value cases as warnings, and JReleaser treats them as fatal.
+        # release=false skips the "no -SNAPSHOT" rule, which main must violate;
+        # the release workflow verifies the version against the tag instead.
+        run: >
+          ./mvnw -B org.kordamp.maven:pomchecker-maven-plugin:1.14.0:check-maven-central
+          -Dchecker.release=false -Dchecker.fail.on.warning=true
       - name: Build and test
         # -Pfull-build is the release-equivalent build: besides tests it generates
         # the Javadoc jar, sources jar and CycloneDX SBOM, so CI catches Javadoc/
