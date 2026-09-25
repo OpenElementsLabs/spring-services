@@ -12,6 +12,7 @@
 
     <name>Spring Services SCIM</name>
     <description>Optional SCIM 2.0 Users service-provider feature module for spring-services</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
 
     <dependencies>
         <dependency>
