@@ -130,6 +130,9 @@ Both are unchecked.
 - A write that never becomes visible half-finished. The S3 store aborts its multipart upload on
   failure; the file store streams into a scratch file and moves it into place, so a reader sees
   either the previous object or the complete new one, never a truncated one.
+- The same answers from every backend. A shared contract suite runs the interface's promises against
+  all three implementations, so a ranged read past the end, a zero-length read of a missing key or a
+  negative offset behaves identically whether you configured `s3`, `file` or `memory`.
 - Declaring your own `ObjectStore` bean makes the library back off, whatever `type` says.
 
 ### Guard rails / Don't do this
@@ -162,11 +165,10 @@ Both are unchecked.
   surrounding database transaction fails. If you need the two to agree, write the object first and
   record it second, then reconcile orphans with `list` — which is what
   `abortIncompleteUploadsOlderThan` complements rather than replaces.
-- **Maturity: the implementations themselves are not yet covered by tests.** The auto-configuration
-  is (activation, selection, misconfiguration), but the S3, file and in-memory stores arrived from an
-  application that exercised them in its own suite and the tests did not come along. Treat the file
-  and S3 stores as proven in one deployment rather than in this library, and weigh that before
-  adopting them for a new one.
+- **Maturity: the module is new in 1.5.0.** The implementations arrived from an application that ran
+  them in production, and they are covered here by a shared contract suite — the S3 store against a
+  real S3 server, including its multipart path. Two edges are still untested: aborting an actually
+  interrupted multipart upload, and the S3 store's own abort-on-failure path during `put`.
 - **The AWS SDK comes along even if you only use `type=file`.** `software.amazon.awssdk:s3` is a
   hard dependency of the module today. Making it optional is planned; until then, budget for it in
   your dependency footprint.

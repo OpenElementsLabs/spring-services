@@ -5,24 +5,16 @@
 The module has its auto-configuration and its `openelements.storage.*` namespace. What is still open
 is everything below the wiring:
 
-- **Tests for the implementations.** Only the auto-configuration is covered. `FileObjectStore` alone
-  justifies several: the traversal guard on keys, the scratch-then-move visibility guarantee, ranged
-  reads past the end, and the incomplete-upload sweep. `S3ObjectStore`'s multipart boundary (the
-  switch from a single `PutObject` to a multipart upload at exactly `PART_SIZE_BYTES`) is the other
-  untested edge that matters.
-- **Ranged reads diverge between the implementations, against the interface's own contract.**
-  `ObjectStore#get(String, long, long)` documents that "a range extending past the end returns the
-  available bytes rather than failing". `FileObjectStore` implements that — `offset >= size` yields
-  an empty stream. `S3ObjectStore` does not: it sends `Range: bytes=offset-last` and catches only
-  `NoSuchKeyException`, so a first-byte position at or past the object's length comes back as a raw
-  `S3Exception` (HTTP 416), not even wrapped as `ObjectStoreException`. A second divergence sits next
-  to it: for `length == 0` the file store throws `ObjectNotFoundException` when the key does not
-  exist ("a zero-length read of a missing key is a wrong key, not 'no bytes'"), while the S3 store
-  returns an empty stream without checking. Two backends behind one interface must not answer the
-  same call differently. **Fix before 1.5.0 ships** — the storage module is new in it, so this is
-  still cheap to correct. Found by reading the code while writing `docs/releases/upgrade-to-1.5.md`;
-  the 416 behaviour is the standard range semantics, not something that was run against a live
-  endpoint.
+- **Two untested edges remain.** The contract suite covers the interface's promises against all three
+  implementations, and the S3 store runs against a real server (`adobe/s3mock`) including its
+  multipart path. Not covered: `abortIncompleteUploadsOlderThan` against an actually interrupted
+  multipart upload (the S3 test only asserts that nothing pending means nothing reclaimed), and
+  `S3ObjectStore`'s abort-on-failure path when the source stream dies mid-upload.
+- **`S3ObjectStore` lets raw SDK exceptions escape.** `get`, `size`, `delete` and `list` catch only
+  `NoSuchKeyException` (and now 416), so any other `S3Exception` — a refused credential, a missing
+  bucket — reaches the caller as an AWS type rather than the `ObjectStoreException` the package
+  documents as "thrown when an object-store operation fails". The file store wraps consistently.
+  Left alone while fixing the range contract, to keep that change surgical.
 - **`InMemoryObjectStore` is public API here, not a test fixture.** Its `failDeletes`, `failPuts`,
   `lastGetOffset` and `lastGetLength` are public mutable fields — fine inside one application, not as
   a published surface. `openelements.storage.type=memory` now makes it selectable in configuration,
