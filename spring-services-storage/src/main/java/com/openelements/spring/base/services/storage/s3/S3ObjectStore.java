@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 /**
@@ -34,6 +35,9 @@ public class S3ObjectStore implements ObjectStore {
 
     /** Part size for multipart uploads (8 MiB, above S3's 5 MiB minimum for non-final parts). */
     static final int PART_SIZE_BYTES = 8 * 1024 * 1024;
+
+    /** HTTP 416, the answer to a range whose first byte lies at or past the object's end. */
+    private static final int RANGE_NOT_SATISFIABLE = 416;
 
     private final S3Client s3;
     private final String bucket;
@@ -138,18 +142,44 @@ public class S3ObjectStore implements ObjectStore {
         if (offset < 0) {
             throw new IllegalArgumentException("offset must not be negative");
         }
-        if(length < 0) {
+        if (length < 0) {
             throw new IllegalArgumentException("length must not be negative");
         }
         if (length == 0) {
-            return new ByteArrayInputStream(new byte[0]);
+            // Empty, but only for an object that exists: a zero-length read of a missing key is a
+            // wrong key, not "no bytes". The extra HEAD is paid by this rare case alone.
+            if (size(key).isEmpty()) {
+                throw new ObjectNotFoundException(key);
+            }
+            return InputStream.nullInputStream();
         }
-        long last = offset + length - 1;
         try {
-            return s3.getObject(b -> b.bucket(bucket).key(key).range("bytes=" + offset + "-" + last));
+            return s3.getObject(b -> b.bucket(bucket).key(key).range(range(offset, length)));
         } catch (final NoSuchKeyException e) {
             throw new ObjectNotFoundException(key, e);
+        } catch (final S3Exception e) {
+            if (e.statusCode() == RANGE_NOT_SATISFIABLE) {
+                // A range starting past the end yields the available bytes — none — as the interface
+                // specifies. HTTP answers 416 to that, which is where this store used to diverge from
+                // the file one: it let the SDK's exception out instead of returning nothing.
+                return InputStream.nullInputStream();
+            }
+            throw e;
         }
+    }
+
+    /**
+     * The {@code Range} header for a slice, left open-ended when the last byte would overflow.
+     *
+     * <p>{@code length} is a maximum, so {@link Long#MAX_VALUE} is a legitimate way to ask for
+     * "everything from here". Computing {@code offset + length - 1} for that wraps negative and would
+     * make the store ask for a range no server can answer.
+     */
+    private static String range(final long offset, final long length) {
+        if (length > Long.MAX_VALUE - offset) {
+            return "bytes=" + offset + "-";
+        }
+        return "bytes=" + offset + "-" + (offset + length - 1);
     }
 
     @Override

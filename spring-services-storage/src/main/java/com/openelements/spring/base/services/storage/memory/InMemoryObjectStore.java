@@ -76,17 +76,23 @@ public class InMemoryObjectStore implements ObjectStore {
 
     @Override
     public InputStream get(String key, long offset, long length) {
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must not be negative");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("length must not be negative");
+        }
         lastGetOffset = offset;
         lastGetLength = length;
         byte[] bytes = objects.get(key);
         if (bytes == null) {
             throw new ObjectNotFoundException(key);
         }
+        // Clamped in long arithmetic: offset + length overflows for a caller asking "everything from
+        // here" with Long.MAX_VALUE, and the wrapped value used to produce a negative slice size.
         int from = (int) Math.min(offset, bytes.length);
-        int to = (int) Math.min(offset + length, bytes.length);
-        byte[] slice = new byte[to - from];
-        System.arraycopy(bytes, from, slice, 0, to - from);
-        return new ByteArrayInputStream(slice);
+        int count = (int) Math.min(length, bytes.length - (long) from);
+        return new ByteArrayInputStream(bytes, from, count);
     }
 
     @Override
