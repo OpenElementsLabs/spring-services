@@ -131,6 +131,29 @@ openelements.db-backup.base-url=https://db-backup.internal:8081   # required whe
 openelements.db-backup.api-token=${DB_BACKUP_API_TOKEN}          # required for authenticated calls
 ```
 
+The **object store** (`spring-services-storage`) opts in the same way, but with a choice rather than a
+switch: the module ships three implementations and `openelements.storage.type` says which one to
+register. With the property unset no `ObjectStore` bean exists at all.
+
+```properties
+# S3 or any S3-compatible endpoint
+openelements.storage.type=s3
+openelements.storage.s3.endpoint=https://s3.eu-central-1.amazonaws.com   # all five required for type=s3
+openelements.storage.s3.region=eu-central-1
+openelements.storage.s3.bucket=my-objects
+openelements.storage.s3.access-key=${S3_ACCESS_KEY}
+openelements.storage.s3.secret-key=${S3_SECRET_KEY}
+
+# …or a local directory
+openelements.storage.type=file
+openelements.storage.file.root=/var/lib/my-app/objects                   # required for type=file
+
+# …or on the heap, for tests and local development only — objects do not survive a restart
+openelements.storage.type=memory
+```
+
+Declaring your own `ObjectStore` bean makes the library back off, whatever `type` says.
+
 If a feature stays disabled, none of its beans are created and no connection settings are needed.
 Secrets (`master-key`, `api-token`) must come from environment variables or secret management, never
 from committed configuration.
@@ -353,7 +376,7 @@ spring-services/                    — reactor parent (packaging=pom)
 ├── spring-services-dbbackup        — db-backup sidecar client (RestClient, no extra dep)
 ├── spring-services-scim            — SCIM 2.0 Users provider (opt-in via openelements.scim.token)
 ├── spring-services-tenant          — row-level multi-tenancy (self-activates on the classpath)
-├── spring-services-storage         — object store: S3, file system, in-memory (→ AWS SDK v2)
+├── spring-services-storage         — object store: S3, file, in-memory (opt-in via openelements.storage.type)
 ├── spring-services-all             — everything bundle (depends on all modules; no config of its own)
 └── spring-services-bom             — bill of materials for lockstep versioning
 ```
@@ -361,9 +384,10 @@ spring-services/                    — reactor parent (packaging=pom)
 Each optional feature module ships its own `@AutoConfiguration` guarded by `@ConditionalOnClass`, so
 it self-activates when present and never pulls its heavy dependency into a consumer that skips it.
 
-`spring-services-storage` is the one exception so far: it ships the `ObjectStore` implementations but
-no auto-configuration, because an application has to choose one of them — declaring the implementation
-it wants as a bean is that choice. Picking by classpath order would make it by accident.
+`spring-services-storage` is guarded differently, because `@ConditionalOnClass` cannot help there: its
+three `ObjectStore` implementations are all on the classpath at once, so nothing about the classpath
+distinguishes them. `openelements.storage.type` makes the choice explicit instead, and an application
+that declares its own `ObjectStore` overrides it.
 
 ## Release Process
 

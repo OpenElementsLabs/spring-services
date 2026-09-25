@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.openelements.spring.base.mcp.McpProperties;
 import com.openelements.spring.base.services.email.EmailService;
 import com.openelements.spring.base.services.slack.SlackService;
+import com.openelements.spring.base.services.storage.ObjectStore;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +29,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  *   <li>the core library persistence resolves ({@link UserRepository}, System User bootstrapped);
  *   <li>representative beans from multiple optional feature modules are present — {@link SlackService}
  *       (slack), {@link EmailService} (email), and {@link McpProperties} (mcp) — proving every module
- *       self-activated by classpath presence without any {@code @Import}.
+ *       self-activated by classpath presence without any {@code @Import};
+ *   <li>the storage module, which deliberately does <em>not</em> self-activate by classpath presence,
+ *       registers no {@link ObjectStore}.
  * </ul>
  */
 @SpringBootTest(classes = AggregateApp.class)
@@ -68,5 +71,13 @@ class AggregateStarterIntegrationTest {
     assertThat(context.getBeanNamesForType(McpProperties.class))
         .as("mcp module must self-activate (properties bound unconditionally)")
         .isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("The storage module registers no ObjectStore until a type is configured")
+  void storageStaysInertWithoutAType() {
+    assertThat(context.getBeanNamesForType(ObjectStore.class))
+        .as("three implementations are on the classpath; none may be picked by classpath presence")
+        .isEmpty();
   }
 }
