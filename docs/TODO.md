@@ -2,34 +2,32 @@
 
 ## Finish the storage module (spring-services-storage)
 
-The module currently holds the `ObjectStore` API and its three implementations, lifted from an
-application that used them, and nothing more: it compiles and is part of the reactor, but it is not
-yet a spring-services feature module in the sense the other nine are. Open work, roughly in order:
+The module has its auto-configuration and its `openelements.storage.*` namespace. What is still open
+is everything below the wiring:
 
-- **Auto-configuration.** `S3Config` is a plain `@Configuration` that no
-  `AutoConfiguration.imports` file names, so it is inert unless a consumer component-scans it. It
-  needs a `StorageAutoConfiguration` like every other module, and that raises the question the
-  README note already records: which implementation activates, and on what condition. `s3` vs
-  `file` cannot be decided by `@ConditionalOnClass` — both are always on the classpath.
-- **Property namespace.** The `@Value` placeholders are `storage.s3.endpoint`, `.region`,
-  `.access-key`, `.secret-key` and `.bucket` — the origin application's namespace. The repo's is
-  `openelements.*`, and the values belong in a `@ConfigurationProperties` record rather than five
-  `@Value` parameters.
-- **Tests.** The sources arrived without any. `FileObjectStore` alone justifies several: the
-  traversal guard on keys, the scratch-then-move visibility guarantee, ranged reads past the end,
-  and the incomplete-upload sweep.
+- **Tests for the implementations.** Only the auto-configuration is covered. `FileObjectStore` alone
+  justifies several: the traversal guard on keys, the scratch-then-move visibility guarantee, ranged
+  reads past the end, and the incomplete-upload sweep. `S3ObjectStore`'s multipart boundary (the
+  switch from a single `PutObject` to a multipart upload at exactly `PART_SIZE_BYTES`) is the other
+  untested edge that matters.
 - **`InMemoryObjectStore` is public API here, not a test fixture.** Its `failDeletes`, `failPuts`,
-  `lastGetOffset` and `lastGetLength` are public mutable fields — fine inside one application, not
-  as a published surface. Either give it a proper test-control API or move it to a test artifact.
+  `lastGetOffset` and `lastGetLength` are public mutable fields — fine inside one application, not as
+  a published surface. `openelements.storage.type=memory` now makes it selectable in configuration,
+  which sharpens the question: either give it a proper test-control API or move it to a test artifact
+  and drop the `memory` type.
 - **The AWS SDK is a hard dependency.** A consumer that only wants `FileObjectStore` still pulls
   `software.amazon.awssdk:s3`. `optional` would stop that, at the cost of making the S3 path require
-  an explicit declaration.
-- **Javadoc still describes the origin application.** It refers to `OrphanSweep`, to "audio" as the
-  payload, and to Record Store as the target — none of which mean anything to a reader of this
-  library. The reasoning behind the prose is worth keeping; the nouns are not.
+  an explicit declaration — and the S3 beans would then need moving into a nested
+  `@ConditionalOnClass(S3Client.class)` configuration, since `StorageAutoConfiguration` names
+  `S3Client` in a method signature today.
+- **Javadoc still describes the origin application.** `ObjectStore`, `FileObjectStore` and
+  `InMemoryObjectStore` refer to `OrphanSweep`, to "audio" as the payload, and to Record Store as the
+  target — none of which mean anything to a reader of this library. The reasoning behind the prose is
+  worth keeping; the nouns are not. (`S3Clients` was cleaned up when it was split out of the former
+  `S3Config`.)
 
-**Context:** The module was created by moving the sources in as a deliberate first step — get
-everything into the reactor compiling, decide the Spring-facing design afterwards.
+**Context:** The module arrived by moving sources in from an application (step 1), then got its
+Spring-facing design (step 2). The remainder is the cleanup that neither step needed.
 
 ## Property toggles and consumer overridability for core security beans
 
