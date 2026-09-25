@@ -30,8 +30,11 @@ jobs:
         # derived-value cases as warnings, and JReleaser treats them as fatal.
         # release=false skips the "no -SNAPSHOT" rule, which main must violate;
         # the release workflow verifies the version against the tag instead.
+        #
+        # No version on the plugin coordinates: java-parent pins it in its
+        # pluginManagement, and naming one here would be a second place to bump.
         run: >
-          ./mvnw -B org.kordamp.maven:pomchecker-maven-plugin:1.14.0:check-maven-central
+          ./mvnw -B org.kordamp.maven:pomchecker-maven-plugin:check-maven-central
           -Dchecker.release=false -Dchecker.fail.on.warning=true
       - name: Build and test
         # -Pfull-build is the release-equivalent build: besides tests it generates
