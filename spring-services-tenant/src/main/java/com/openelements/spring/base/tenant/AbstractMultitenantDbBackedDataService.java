@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
  * </ol>
  *
  * <p>As with the non-tenant variant, {@link OnObjectCreate}, {@link OnObjectUpdate} and {@link
- * OnObjectDelete} events are published from the {@code preSave} / {@code postSave} / {@code
- * preDelete} / {@code postDelete} hooks.
+ * OnObjectDelete} events are published from the {@code postInsert} / {@code postUpdate} / {@code
+ * postDelete} hooks. Update events carry the state before and after the update; an update that
+ * changes nothing publishes no event.
  *
  * @param <E> the multitenant JPA entity type
  * @param <D> the DTO type exposed by this service
@@ -38,6 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
 public abstract class AbstractMultitenantDbBackedDataService<
         E extends AbstractMultitenantEntity, D extends WithId>
     implements DbBackedDataService<E, D> {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(AbstractMultitenantDbBackedDataService.class);
 
   private final ApplicationEventPublisher eventPublisher;
 
@@ -85,7 +91,7 @@ public abstract class AbstractMultitenantDbBackedDataService<
       updateEntity(entity, data);
       final E savedEntity = getRepository().save(entity);
       final D savedData = mapToData(savedEntity);
-      postSave(true, savedData);
+      postInsert(savedData);
       return savedData;
     } else {
       final E entity =
@@ -95,11 +101,11 @@ public abstract class AbstractMultitenantDbBackedDataService<
                   () ->
                       new IllegalArgumentException(
                           "Entity with id " + id + " not found for tenant " + tenantId));
+      final D previous = mapToData(entity);
       updateEntity(entity, data);
-      getRepository().save(entity);
       final E savedEntity = getRepository().save(entity);
       final D savedData = mapToData(savedEntity);
-      postSave(false, savedData);
+      postUpdate(previous, savedData);
       return savedData;
     }
   }
@@ -193,6 +199,10 @@ public abstract class AbstractMultitenantDbBackedDataService<
   /**
    * Maps a persisted entity to its DTO representation.
    *
+   * <p>The returned DTO must be a snapshot that shares no mutable state (such as a collection) with
+   * the entity, because on update it is also used to capture the state before {@link
+   * #updateEntity(AbstractMultitenantEntity, WithId)} runs.
+   *
    * @param entity the persisted entity
    * @return the corresponding DTO
    */
@@ -252,17 +262,28 @@ public abstract class AbstractMultitenantDbBackedDataService<
   }
 
   /**
-   * Hook invoked after a successful save. Default implementation publishes an {@link
-   * OnObjectCreate} event for inserts and an {@link OnObjectUpdate} event for updates.
+   * Hook invoked after a successful insert. Default implementation publishes an {@link
+   * OnObjectCreate} event.
    *
-   * @param insert {@code true} if the operation was an insert, {@code false} for an update
-   * @param data the DTO that was just persisted
+   * @param data the DTO that was just inserted
    */
-  protected void postSave(final boolean insert, D data) {
-    if (insert) {
-      eventPublisher.publishEvent(new OnObjectCreate<>(data));
-    } else {
-      eventPublisher.publishEvent(new OnObjectUpdate<>(data));
+  protected void postInsert(final D data) {
+    eventPublisher.publishEvent(new OnObjectCreate<>(data));
+  }
+
+  /**
+   * Hook invoked after a successful update. Default implementation publishes an {@link
+   * OnObjectUpdate} event carrying both states — unless they are {@linkplain Object#equals(Object)
+   * equal}, in which case the update changed nothing and no event is published.
+   *
+   * @param previous the DTO as it was before the update
+   * @param current the DTO that was just persisted
+   */
+  protected void postUpdate(final D previous, final D current) {
+    if (previous.equals(current)) {
+      LOG.debug("Update of {} changed nothing, no event published", current);
+      return;
     }
+    eventPublisher.publishEvent(new OnObjectUpdate<>(previous, current));
   }
 }

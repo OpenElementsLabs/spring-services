@@ -32,13 +32,14 @@
  *   <li>{@link com.openelements.spring.base.events.OnObjectCreate} — published after a newly
  *       inserted entity has been persisted.
  *   <li>{@link com.openelements.spring.base.events.OnObjectUpdate} — published after an existing
- *       entity has been updated.
+ *       entity has been updated and carries its state before and after; an update that changes
+ *       nothing publishes no event.
  *   <li>{@link com.openelements.spring.base.events.OnObjectDelete} — published after an entity has
  *       been removed.
  * </ul>
  *
- * <p>Subclasses can hook in by overriding the {@code preSave}, {@code postSave}, {@code preDelete}
- * and {@code postDelete} template methods.
+ * <p>Subclasses can hook in by overriding the {@code preSave}, {@code postInsert}, {@code
+ * postUpdate}, {@code preDelete} and {@code postDelete} template methods.
  *
  * <h2>Example: implementing a data service for a {@code Book} domain object</h2>
  *

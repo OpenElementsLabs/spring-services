@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEvent;
+import org.springframework.core.ResolvableType;
+import org.springframework.core.ResolvableTypeProvider;
 
 /**
  * Base class for all lifecycle events fired by the platform's data services.
@@ -16,13 +18,19 @@ import org.springframework.context.ApplicationEvent;
  * parameter at runtime — without an explicit class reference there is no way to ask "is this an
  * event about a {@code BookDto}?".
  *
+ * <p>The captured type is also reported to Spring through {@link ResolvableTypeProvider}, so that a
+ * listener declared for {@code OnObjectUpdate<BookDto>} is only invoked for book events. Without it,
+ * Spring could not resolve the type parameter of an event instance and would dispatch every {@code
+ * OnObjectUpdate} to that listener.
+ *
  * <p>Application code should normally not extend this class directly — use one of the concrete
  * subtypes {@link OnObjectCreate}, {@link OnObjectUpdate} or {@link OnObjectDelete} so that
  * listeners can distinguish the kind of change that occurred.
  *
  * @param <T> the DTO type this event refers to
  */
-public abstract class GenericDataEvent<T extends WithId> extends ApplicationEvent {
+public abstract class GenericDataEvent<T extends WithId> extends ApplicationEvent
+    implements ResolvableTypeProvider {
 
   /** The runtime DTO type this event refers to, captured to survive generic type erasure. */
   private final Class<T> type;
@@ -88,5 +96,23 @@ public abstract class GenericDataEvent<T extends WithId> extends ApplicationEven
   @NonNull
   public UUID entityId() {
     return getData().id();
+  }
+
+  /**
+   * Returns the full generic type of this event, e.g. {@code OnObjectUpdate<BookDto>}, so that
+   * Spring dispatches it only to listeners declared for the matching DTO type.
+   *
+   * <p>A subclass that fixes the type parameter itself (such as {@code class BookUpdated extends
+   * OnObjectUpdate<BookDto>}) already carries it in its class signature and is returned as is.
+   *
+   * @return the resolvable type of this event
+   */
+  @NonNull
+  @Override
+  public ResolvableType getResolvableType() {
+    if (getClass().getTypeParameters().length != 1) {
+      return ResolvableType.forClass(getClass());
+    }
+    return ResolvableType.forClassWithGenerics(getClass(), type);
   }
 }

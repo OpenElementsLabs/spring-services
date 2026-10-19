@@ -13,7 +13,9 @@
  *   <li>{@link com.openelements.spring.base.events.OnObjectCreate} — published after a new entity
  *       has been inserted.
  *   <li>{@link com.openelements.spring.base.events.OnObjectUpdate} — published after an existing
- *       entity has been updated.
+ *       entity has been updated. It carries the state before the update when the publisher knows it
+ *       (see {@link com.openelements.spring.base.events.OnObjectUpdate#isPreviousKnown()}); the data
+ *       services always supply it and publish no event for an update that changed nothing.
  *   <li>{@link com.openelements.spring.base.events.OnObjectDelete} — published after an entity has
  *       been deleted.
  * </ul>
@@ -42,6 +44,19 @@
  *   public void onBookDeleted(OnObjectDelete<BookDto> event) {
  *     removeFromIndex(event.entityId());
  *   }
+ * }
+ * }</pre>
+ *
+ * <p>A listener is only invoked for events of the DTO type it declares — the events report their
+ * full generic type to Spring. To react to a specific change, compare the previous with the current
+ * state:
+ *
+ * <pre>{@code
+ * @EventListener
+ * public void onBookUpdated(OnObjectUpdate<BookDto> event) {
+ *   event.getPrevious()
+ *       .filter(previous -> !previous.author().equals(event.getData().author()))
+ *       .ifPresent(previous -> reindexAuthor(event.getData()));
  * }
  * }</pre>
  *

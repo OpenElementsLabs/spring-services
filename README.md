@@ -220,7 +220,10 @@ from committed configuration.
   and no status enum — path, authorization and response shape stay with the application.
 - **Lifecycle Events** — `OnObjectCreate`, `OnObjectUpdate` and `OnObjectDelete` are published
   synchronously inside the originating transaction; consumers opt into post-commit behaviour
-  with `@TransactionalEventListener`.
+  with `@TransactionalEventListener`. `OnObjectUpdate` carries the state before the update
+  (`getPrevious()`) when the publisher knows it, and the data services publish no event for an
+  update that changed nothing. Typed listeners (`OnObjectUpdate<BookDto>`) receive only their own
+  DTO type.
 - **Application Build & SBOM Info** — `ApplicationInfoService` answers *"which build is running,
   and what is it made of?"* from build-produced metadata: artifact coordinates and Git commit
   (from Spring Boot's `BuildProperties` / `GitProperties`) plus a parsed CycloneDX SBOM.

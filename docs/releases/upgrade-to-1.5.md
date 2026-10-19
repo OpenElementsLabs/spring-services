@@ -3,12 +3,13 @@
 > **Draft — 1.5.0 is unreleased.** This document is written as the release takes shape; sections are
 > added as features land. Everything described here is on `main` today.
 
-`spring-services` 1.5.0 brings one change so far. Every section below stands on its own — apply only
+`spring-services` 1.5.0 brings two changes so far. Every section below stands on its own — apply only
 the ones you need:
 
 | Change | Spec | Nature |
 | --- | --- | --- |
 | Optional **object store** `ObjectStore` | — | new optional module, off by default, no schema change |
+| **Previous state on `OnObjectUpdate`**, no-op updates suppressed, typed listeners fixed | 022 | source break for `postSave` overrides, behaviour change, no schema change |
 
 ## Object store (`spring-services-storage`)
 
@@ -177,3 +178,93 @@ Both are unchecked.
 - **The AWS SDK comes along even if you only use `type=file`.** `software.amazon.awssdk:s3` is a
   hard dependency of the module today. Making it optional is planned; until then, budget for it in
   your dependency footprint.
+
+---
+
+## Previous state on update events (spec 022)
+
+`OnObjectUpdate` now carries the state **before** the update when the publisher knows it.
+`AbstractDbBackedDataService` and `AbstractMultitenantDbBackedDataService` always supply it.
+Publishers that cannot know it (for example data from an external system) keep using
+`new OnObjectUpdate<>(current)`:
+
+```java
+@EventListener
+public void onTaskUpdated(OnObjectUpdate<TaskDto> event) {
+  if (!event.isPreviousKnown()) {
+    return; // or: treat as "something changed"
+  }
+  final TaskDto previous = event.getPrevious().orElseThrow();
+  final TaskDto current = event.getData();
+  if (!previous.columnId().equals(current.columnId())) { /* moved */ }
+}
+```
+
+The event computes no diff and carries no actor. Compare the fields you care about yourself, and
+resolve the actor through `AuthService`, as `AuditLogEventListener` does.
+
+This file is a self-contained prompt for an agent to run inside a consumer repo.
+
+### Prompt
+
+You are working inside a Spring Boot service that depends on `spring-services` 1.5.0.
+
+#### 1. Replace `postSave` overrides
+
+`postSave(boolean insert, D data)` no longer exists on either data service base class. Any
+`@Override` of it now fails to compile. Split it:
+
+| Before | After |
+| --- | --- |
+| `postSave(true, data)` branch | `protected void postInsert(D data)` |
+| `postSave(false, data)` branch | `protected void postUpdate(D previous, D current)` |
+
+Call `super.postInsert(...)` / `super.postUpdate(...)` wherever the old override called
+`super.postSave(...)`, otherwise the lifecycle events are no longer published.
+
+#### 2. Make `toData` / `mapToData` return a snapshot
+
+On update, the base class calls `toData(entity)` **before** `updateEntity` mutates the entity, to
+capture the previous state. A DTO that holds the entity's own collection changes along with the
+entity, so the previous state becomes equal to the new one and the update event is **silently
+dropped** (see step 3). Search every `toData` / `mapToData` for collections passed through
+unchanged and copy them:
+
+```java
+// wrong: shares the entity's mutable set
+return new TaskDto(entity.getId(), entity.getAssignees());
+// right
+return new TaskDto(entity.getId(), Set.copyOf(entity.getAssignees()));
+```
+
+Mapping to a new collection (`stream().map(...).toList()`) is already a copy.
+
+#### 3. Expect no event for no-op updates
+
+An update where `previous.equals(current)` no longer publishes `OnObjectUpdate`. As a result, no
+audit-log row is written and no webhook fires for it. Remove any listener code that only filtered
+these events out. DTOs that are not records and do not implement `equals` are never equal and
+behave as before.
+
+#### 4. Check typed listeners
+
+Before 1.5.0, a listener declared for `OnObjectUpdate<BookDto>` (or `OnObjectCreate<…>` /
+`OnObjectDelete<…>`) was invoked for **every** DTO type, because Spring could not resolve the
+type parameter. The events now implement `ResolvableTypeProvider`, so such listeners receive only
+their own type. Search for listeners that relied on the old behaviour: a typed parameter combined
+with an `event.getType()` check for a *different* type. Move them to `GenericDataEvent<?>`.
+Listeners on `GenericDataEvent<?>` or raw types are unaffected.
+
+#### 5. Optional: replace hand-written snapshots
+
+If the application snapshots an entity before `save(...)` to diff it afterwards (like open-tasks'
+`TaskSnapshot`), it can listen to `OnObjectUpdate` and compare `getPrevious()` with `getData()`
+instead.
+
+### Guard rails / Don't do this
+
+- Do not treat `isPreviousKnown() == false` as "nothing changed". It means the publisher did not
+  know the previous state.
+- Do not persist `getPrevious()` without checking it for personal data that the update just
+  removed.
+
