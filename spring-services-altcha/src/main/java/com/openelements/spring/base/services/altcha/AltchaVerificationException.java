@@ -15,6 +15,9 @@ public class AltchaVerificationException extends RuntimeException {
 
     private static final String BUNDLE = "com/openelements/spring/base/services/altcha/messages";
 
+    /**
+     * The failed verification result.
+     */
     private final AltchaVerifier.VerificationResult result;
 
     /**
