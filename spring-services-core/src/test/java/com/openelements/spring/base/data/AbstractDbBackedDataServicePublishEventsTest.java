@@ -8,11 +8,14 @@ import com.openelements.spring.base.events.OnObjectCreate;
 import com.openelements.spring.base.events.OnObjectDelete;
 import com.openelements.spring.base.events.OnObjectUpdate;
 import jakarta.persistence.Entity;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 /**
@@ -24,15 +27,18 @@ import org.springframework.context.ApplicationEventPublisher;
  * com.openelements.spring.base.events.OnObjectCreate}, {@link
  * com.openelements.spring.base.events.OnObjectUpdate} and {@link
  * com.openelements.spring.base.events.OnObjectDelete} on the {@link ApplicationEventPublisher}
- * during {@code save(...)} and {@code delete(...)}. Two scenarios are verified: default
- * behaviour (events are emitted) and opt-out behaviour (no events at all).
+ * during {@code save(...)} and {@code delete(...)}. Verified are: default behaviour (events are
+ * emitted), opt-out behaviour (no events at all), an update carrying the state before and after,
+ * and an update that changes nothing (no event).
  *
  * <h2>How it is tested</h2>
  *
  * <p>Mockito-based unit test. Two collaborators are mocked: {@link ApplicationEventPublisher}
  * (verified via {@code verify(publisher).publishEvent(any(...))}) and {@link EntityRepository}
- * (stubbed to assign a UUID on first save and echo the entity back on subsequent calls — the
- * helper {@code repositoryThatPersists()} encapsulates this in-memory pseudo-persistence).
+ * (backed by an in-memory map that assigns a UUID on first save and hands out the same managed
+ * instance on {@code findById} — the helper {@code repositoryThatPersists()} encapsulates this
+ * pseudo-persistence, so {@code updateEntity} mutates the instance the previous state was taken
+ * from, exactly like a JPA persistence context).
  *
  * <p>An anonymous {@code FakeService extends AbstractDbBackedDataService} stands in for any
  * real subclass so the test does not couple to a domain entity. The flag itself is the unit
@@ -47,6 +53,7 @@ class AbstractDbBackedDataServicePublishEventsTest {
 
   @SuppressWarnings("unchecked")
   private static EntityRepository<TestEntity> repositoryThatPersists() {
+    final Map<UUID, TestEntity> store = new HashMap<>();
     final EntityRepository<TestEntity> repository = mock(EntityRepository.class);
     when(repository.save(any(TestEntity.class)))
         .thenAnswer(
@@ -55,15 +62,11 @@ class AbstractDbBackedDataServicePublishEventsTest {
               if (entity.getId() == null) {
                 entity.setId(UUID.randomUUID());
               }
+              store.put(entity.getId(), entity);
               return entity;
             });
     when(repository.findById(any(UUID.class)))
-        .thenAnswer(
-            invocation -> {
-              final TestEntity entity = new TestEntity();
-              entity.setId(invocation.getArgument(0));
-              return Optional.of(entity);
-            });
+        .thenAnswer(invocation -> Optional.ofNullable(store.get(invocation.getArgument(0))));
     return repository;
   }
 
@@ -77,8 +80,8 @@ class AbstractDbBackedDataServicePublishEventsTest {
     final FakeService service = new FakeService(publisher, repositoryThatPersists());
 
     // WHEN
-    final TestDto saved = service.save(new TestDto(null));
-    service.save(new TestDto(saved.id()));
+    final TestDto saved = service.save(new TestDto(null, "old"));
+    service.save(new TestDto(saved.id(), "new"));
     service.delete(saved);
 
     // THEN
@@ -97,8 +100,8 @@ class AbstractDbBackedDataServicePublishEventsTest {
     final FakeService service = new FakeService(publisher, false, repositoryThatPersists());
 
     // WHEN
-    final TestDto saved = service.save(new TestDto(null));
-    service.save(new TestDto(saved.id()));
+    final TestDto saved = service.save(new TestDto(null, "old"));
+    service.save(new TestDto(saved.id(), "new"));
     service.delete(saved);
 
     // THEN
@@ -106,10 +109,55 @@ class AbstractDbBackedDataServicePublishEventsTest {
     assertThat(saved.id()).isNotNull();
   }
 
-  @Entity
-  static class TestEntity extends AbstractEntity {}
+  @Test
+  @DisplayName(
+      "An update publishes one OnObjectUpdate whose previous state is the DTO before the update "
+          + "and whose data is the DTO after it.")
+  @SuppressWarnings("unchecked")
+  void shouldPublishPreviousAndCurrentStateOnUpdate() {
+    // GIVEN
+    final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+    final FakeService service = new FakeService(publisher, repositoryThatPersists());
+    final TestDto saved = service.save(new TestDto(null, "old"));
+    clearInvocations(publisher);
 
-  record TestDto(UUID id) implements WithId {}
+    // WHEN
+    service.save(new TestDto(saved.id(), "new"));
+
+    // THEN
+    final ArgumentCaptor<OnObjectUpdate<TestDto>> captor =
+        ArgumentCaptor.forClass(OnObjectUpdate.class);
+    verify(publisher).publishEvent(captor.capture());
+    final OnObjectUpdate<TestDto> event = captor.getValue();
+    assertThat(event.getPrevious()).contains(new TestDto(saved.id(), "old"));
+    assertThat(event.getData()).isEqualTo(new TestDto(saved.id(), "new"));
+  }
+
+  @Test
+  @DisplayName(
+      "An update that changes nothing publishes no event but still returns the saved DTO.")
+  void shouldNotPublishOnNoOpUpdate() {
+    // GIVEN
+    final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+    final FakeService service = new FakeService(publisher, repositoryThatPersists());
+    final TestDto saved = service.save(new TestDto(null, "same"));
+    clearInvocations(publisher);
+
+    // WHEN
+    final TestDto result = service.save(new TestDto(saved.id(), "same"));
+
+    // THEN
+    verify(publisher, never()).publishEvent(any());
+    assertThat(result).isEqualTo(saved);
+  }
+
+  @Entity
+  static class TestEntity extends AbstractEntity {
+
+    private String name;
+  }
+
+  record TestDto(UUID id, String name) implements WithId {}
 
   private static class FakeService extends AbstractDbBackedDataService<TestEntity, TestDto> {
 
@@ -136,11 +184,13 @@ class AbstractDbBackedDataServicePublishEventsTest {
     }
 
     @Override
-    protected void updateEntity(@NonNull final TestEntity entity, @NonNull final TestDto data) {}
+    protected void updateEntity(@NonNull final TestEntity entity, @NonNull final TestDto data) {
+      entity.name = data.name();
+    }
 
     @Override
     protected @NonNull TestDto toData(@NonNull final TestEntity entity) {
-      return new TestDto(entity.getId());
+      return new TestDto(entity.getId(), entity.name);
     }
 
     @Override

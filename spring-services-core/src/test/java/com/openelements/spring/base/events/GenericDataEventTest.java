@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ResolvableType;
 
 /**
  * Unit tests for the three concrete lifecycle event records that extend {@link GenericDataEvent}:
@@ -32,6 +33,14 @@ import org.junit.jupiter.api.Test;
 class GenericDataEventTest {
 
   private record TestData(UUID id, String value) implements WithId {}
+
+  private record OtherData(UUID id, String value) implements WithId {}
+
+  private static class TestDataUpdated extends OnObjectUpdate<TestData> {
+    TestDataUpdated(final TestData current) {
+      super(current);
+    }
+  }
 
   @Nested
   @DisplayName("OnObjectCreate")
@@ -77,6 +86,113 @@ class GenericDataEventTest {
       // THEN
       assertThat(event.getSource()).isSameAs(data);
       assertThat(event.getType()).isEqualTo(TestData.class);
+    }
+
+    @Test
+    @DisplayName("Without a previous state, isPreviousKnown() is false and getPrevious() is empty.")
+    void shouldReportUnknownPreviousState() {
+      // GIVEN
+      final TestData current = new TestData(UUID.randomUUID(), "updated");
+
+      // WHEN
+      final OnObjectUpdate<TestData> event = new OnObjectUpdate<>(current);
+
+      // THEN
+      assertThat(event.getData()).isSameAs(current);
+      assertThat(event.isPreviousKnown()).isFalse();
+      assertThat(event.getPrevious()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("With a previous state, the event carries both states.")
+    void shouldCarryPreviousState() {
+      // GIVEN
+      final UUID id = UUID.randomUUID();
+      final TestData previous = new TestData(id, "old");
+      final TestData current = new TestData(id, "new");
+
+      // WHEN
+      final OnObjectUpdate<TestData> event = new OnObjectUpdate<>(previous, current);
+
+      // THEN
+      assertThat(event.getData()).isSameAs(current);
+      assertThat(event.isPreviousKnown()).isTrue();
+      assertThat(event.getPrevious()).containsSame(previous);
+    }
+
+    @Test
+    @DisplayName("A previous state equal to the current state is accepted — no-op filtering is not the event's job.")
+    void shouldAcceptEqualPreviousState() {
+      // GIVEN
+      final UUID id = UUID.randomUUID();
+
+      // WHEN
+      final OnObjectUpdate<TestData> event =
+          new OnObjectUpdate<>(new TestData(id, "same"), new TestData(id, "same"));
+
+      // THEN
+      assertThat(event.isPreviousKnown()).isTrue();
+    }
+
+    @Test
+    @DisplayName("A null previous state is rejected with NullPointerException.")
+    void shouldRejectNullPreviousState() {
+      final TestData current = new TestData(UUID.randomUUID(), "new");
+      assertThatThrownBy(() -> new OnObjectUpdate<>(null, current))
+          .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("A previous state with a different id is rejected with IllegalArgumentException.")
+    void shouldRejectPreviousStateWithDifferentId() {
+      final TestData previous = new TestData(UUID.randomUUID(), "old");
+      final TestData current = new TestData(UUID.randomUUID(), "new");
+      assertThatThrownBy(() -> new OnObjectUpdate<>(previous, current))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("A previous state of a different class is rejected with IllegalArgumentException.")
+    void shouldRejectPreviousStateOfDifferentClass() {
+      final UUID id = UUID.randomUUID();
+      final WithId previous = new OtherData(id, "old");
+      final WithId current = new TestData(id, "new");
+      assertThatThrownBy(() -> new OnObjectUpdate<>(previous, current))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Resolvable type")
+  class ResolvableTypeTest {
+
+    @Test
+    @DisplayName("getResolvableType() reports the event class with the DTO type as generic.")
+    void shouldReportDtoTypeAsGeneric() {
+      // GIVEN
+      final OnObjectUpdate<TestData> event =
+          new OnObjectUpdate<>(new TestData(UUID.randomUUID(), "updated"));
+
+      // WHEN
+      final ResolvableType type = event.getResolvableType();
+
+      // THEN
+      assertThat(type.resolve()).isEqualTo(OnObjectUpdate.class);
+      assertThat(type.getGeneric(0).resolve()).isEqualTo(TestData.class);
+    }
+
+    @Test
+    @DisplayName("A subclass that fixes the type parameter resolves to itself without failing.")
+    void shouldResolveSubclassWithFixedTypeParameter() {
+      // GIVEN
+      final TestDataUpdated event = new TestDataUpdated(new TestData(UUID.randomUUID(), "x"));
+
+      // WHEN
+      final ResolvableType type = event.getResolvableType();
+
+      // THEN
+      assertThat(type.resolve()).isEqualTo(TestDataUpdated.class);
+      assertThat(type.as(OnObjectUpdate.class).getGeneric(0).resolve()).isEqualTo(TestData.class);
     }
   }
 

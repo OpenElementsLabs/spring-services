@@ -24,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Distinguishing inserts from updates based on the DTO's id.
  *   <li>Wrapping all mutating operations in a Spring {@link Transactional} boundary.
  *   <li>Publishing {@link OnObjectCreate}, {@link OnObjectUpdate} and {@link OnObjectDelete} events
- *       so other components can react asynchronously to data changes.
+ *       so other components can react asynchronously to data changes. Update events carry the state
+ *       before and after the update; an update that changes nothing publishes no event.
  * </ul>
  *
  * <h2>Subclass responsibilities</h2>
@@ -41,11 +42,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h2>Hook points</h2>
  *
- * <p>Subclasses may override the {@code preSave} / {@code postSave} / {@code preDelete} / {@code
- * postDelete} methods to implement additional validation, projection updates or custom event
- * publishing. When overriding {@code postSave} or {@code postDelete}, remember to delegate to
- * {@code super} (or to publish equivalent events) if the standard lifecycle events should still be
- * fired.
+ * <p>Subclasses may override the {@code preSave} / {@code postInsert} / {@code postUpdate} / {@code
+ * preDelete} / {@code postDelete} methods to implement additional validation, projection updates or
+ * custom event publishing. When overriding {@code postInsert}, {@code postUpdate} or {@code
+ * postDelete}, remember to delegate to {@code super} (or to publish equivalent events) if the
+ * standard lifecycle events should still be fired.
  *
  * <h2>Example</h2>
  *
@@ -135,6 +136,12 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
   /**
    * Maps a persisted entity to its DTO representation.
    *
+   * <p>The returned DTO must be a snapshot: it must not share mutable state (such as a collection)
+   * with the entity. On update, this method is called once before {@link #updateEntity(DbEntity,
+   * WithId)} to capture the previous state; a DTO that still references the entity's collections
+   * would change along with it, compare equal to the updated DTO, and the update event would be
+   * suppressed. Copy collections with {@code List.copyOf(...)} or {@code Set.copyOf(...)}.
+   *
    * @param entity the persisted entity
    * @return the corresponding DTO
    */
@@ -180,30 +187,46 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
   }
 
   /**
-   * Hook invoked after a successful save. Default implementation publishes an {@link
-   * OnObjectCreate} event for inserts and an {@link OnObjectUpdate} event for updates.
+   * Hook invoked after a successful insert. Default implementation publishes an {@link
+   * OnObjectCreate} event.
    *
-   * @param insert {@code true} if the operation was an insert, {@code false} for an update
-   * @param data the DTO that was just persisted
+   * @param data the DTO that was just inserted
    */
-  protected void postSave(final boolean insert, @NonNull final D data) {
+  protected void postInsert(@NonNull final D data) {
     Objects.requireNonNull(data, "data must not be null");
     if (!publishEvents) {
       return;
     }
-    if (insert) {
-      eventPublisher.publishEvent(new OnObjectCreate<>(data));
-    } else {
-      eventPublisher.publishEvent(new OnObjectUpdate<>(data));
+    eventPublisher.publishEvent(new OnObjectCreate<>(data));
+  }
+
+  /**
+   * Hook invoked after a successful update. Default implementation publishes an {@link
+   * OnObjectUpdate} event carrying both states — unless they are {@linkplain Object#equals(Object)
+   * equal}, in which case the update changed nothing and no event is published.
+   *
+   * @param previous the DTO as it was before the update
+   * @param current the DTO that was just persisted
+   */
+  protected void postUpdate(@NonNull final D previous, @NonNull final D current) {
+    Objects.requireNonNull(previous, "previous must not be null");
+    Objects.requireNonNull(current, "current must not be null");
+    if (!publishEvents) {
+      return;
     }
+    if (previous.equals(current)) {
+      LOG.debug("Update of {} changed nothing, no event published", current);
+      return;
+    }
+    eventPublisher.publishEvent(new OnObjectUpdate<>(previous, current));
   }
 
   /**
    * {@inheritDoc}
    *
    * <p>Performs an upsert: a new entity is created when the DTO has no id; otherwise the existing
-   * entity is loaded, updated and saved. The matching {@code preSave} / {@code postSave} hooks are
-   * invoked before and after the database round-trip.
+   * entity is loaded, updated and saved. {@code preSave} is invoked before the database round-trip,
+   * {@code postInsert} or {@code postUpdate} after it.
    *
    * @throws IllegalArgumentException if the DTO carries an id but no entity with that id exists
    */
@@ -218,7 +241,7 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
       updateEntity(entity, data);
       final D saved = toData(getRepository().save(entity));
       LOG.debug("New entity inserted: {}", saved);
-      postSave(true, saved);
+      postInsert(saved);
       return saved;
     } else {
       LOG.debug("Update entity: {}", data);
@@ -227,10 +250,11 @@ public abstract class AbstractDbBackedDataService<E extends DbEntity, D extends 
               .findById(data.id())
               .orElseThrow(
                   () -> new IllegalArgumentException("Entity with id " + data.id() + " not found"));
+      final D previous = toData(entity);
       updateEntity(entity, data);
       final D saved = toData(getRepository().save(entity));
       LOG.debug("entity updated: {}", data);
-      postSave(false, saved);
+      postUpdate(previous, saved);
       return saved;
     }
   }
