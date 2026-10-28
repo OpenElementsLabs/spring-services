@@ -62,6 +62,11 @@
             <artifactId>spring-services-storage</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.open-elements</groupId>
+            <artifactId>spring-services-altcha</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Test dependencies: the aggregate test boots the full classpath against Postgres. -->
         <dependency>

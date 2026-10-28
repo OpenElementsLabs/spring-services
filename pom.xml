@@ -48,6 +48,7 @@
         <module>spring-services-scim</module>
         <module>spring-services-tenant</module>
         <module>spring-services-storage</module>
+        <module>spring-services-altcha</module>
         <module>spring-services-all</module>
         <module>spring-services-bom</module>
     </modules>
@@ -62,6 +63,7 @@
         <wiremock.version>3.10.0</wiremock.version>
         <mcp-sdk.version>0.18.3</mcp-sdk.version>
         <awssdk.version>2.55.5</awssdk.version>
+        <altcha.version>2.1.1</altcha.version>
     </properties>
 
 </project>

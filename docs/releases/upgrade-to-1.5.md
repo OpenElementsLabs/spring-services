@@ -3,13 +3,14 @@
 > **Draft — 1.5.0 is unreleased.** This document is written as the release takes shape; sections are
 > added as features land. Everything described here is on `main` today.
 
-`spring-services` 1.5.0 brings two changes so far. Every section below stands on its own — apply only
+`spring-services` 1.5.0 brings three changes so far. Every section below stands on its own — apply only
 the ones you need:
 
 | Change | Spec | Nature |
 | --- | --- | --- |
 | Optional **object store** `ObjectStore` | — | new optional module, off by default, no schema change |
 | **Previous state on `OnObjectUpdate`**, no-op updates suppressed, typed listeners fixed | 022 | source break for `postSave` overrides, behaviour change, no schema change |
+| Optional **ALTCHA bot protection** for public forms | 023 | new optional module, off by default, no schema change |
 
 ## Object store (`spring-services-storage`)
 
@@ -268,3 +269,89 @@ instead.
 - Do not persist `getPrevious()` without checking it for personal data that the update just
   removed.
 
+---
+
+## ALTCHA bot protection (`spring-services-altcha`, spec 023)
+
+`spring-services` 1.5.0 adds an **optional** module that protects endpoints without authentication —
+contact, sign-up or lead forms — against automated submissions with [ALTCHA](https://altcha.org): a
+self-hosted proof of work, without an external service and without cookies.
+
+The feature is **off by default** and there is no database migration. Unless
+`openelements.altcha.enabled=true` is configured, the module registers no bean and needs no secret.
+
+> Not a Java-API break: nothing existing changes. The module is purely additive.
+
+This file is a self-contained prompt for an agent to run inside a consumer repo.
+
+### Prompt
+
+You are working inside a Spring Boot service that depends on `spring-services` and has a public form
+that bots should not be able to submit.
+
+#### 1. Depend on the module
+
+If you use `spring-services-all`, the module is already on the classpath — skip to step 2. Otherwise
+add it (version managed by `spring-services-bom`):
+
+```xml
+<dependency>
+    <groupId>com.open-elements</groupId>
+    <artifactId>spring-services-altcha</artifactId>
+</dependency>
+```
+
+#### 2. Enable it
+
+```properties
+openelements.altcha.enabled=true
+openelements.altcha.hmac-key=${ALTCHA_HMAC_KEY}   # at least 32 characters, from a secret manager
+```
+
+Optional: `challenge-path` (default `/api/altcha/challenge`), `expires` (default `PT10M`), `cost`
+(default `5000`) and `key-prefix-length` (default `2`). Start-up fails if the module is enabled
+without a key of at least 32 characters.
+
+#### 3. Add the widget to the form
+
+Load the `altcha` widget **3.x** (protocol v2) and point it at the challenge path:
+
+```html
+<script async defer src="https://cdn.jsdelivr.net/npm/altcha@3.3.0/dist/altcha.min.js" type="module"></script>
+<form method="post" action="/api/my-form">
+  …
+  <altcha-widget challengeurl="https://my-service.example/api/altcha/challenge"></altcha-widget>
+</form>
+```
+
+The widget puts its solution into the form field `altcha`.
+
+#### 4. Verify in the endpoint
+
+```java
+@PostMapping("/api/my-form")
+ResponseEntity<Void> submit(@RequestParam(name = "altcha", required = false) String altcha, …) {
+    altchaService.requireVerified(altcha);   // throws AltchaVerificationException
+    …
+}
+```
+
+Call it first, before validation, rate limiting or persistence. A failed check is answered by the
+module with `400` and `{"code": "altcha-missing" | "altcha-invalid" | "altcha-expired" |
+"altcha-reused", "message": "…"}`; the message is English or German depending on `Accept-Language`.
+Match on `code` in the frontend, show `message` to the visitor.
+
+### Guard rails / Don't do this
+
+- **The module opens only the challenge path, not your form.** Your form endpoint is behind the
+  default JWT chain until you permit it yourself (for example with your own `SecurityFilterChain` for
+  its path).
+- **`InMemoryReplayStore` is correct for one instance only.** With several instances a solution can be
+  replayed once per instance. Declare your own `ReplayStore` bean (database, Redis) — the library
+  backs off.
+- **Do not raise `cost` or `key-prefix-length` without measuring on a slow phone.** Each step of
+  `key-prefix-length` multiplies the average work by 16.
+- **Another error format?** Declare your own `AltchaExceptionHandler` bean, or catch
+  `AltchaVerificationException` in your own advice; `code()` and `getMessage()` are public.
+- **Never put the `hmac-key` in committed configuration.** Anyone with the key can sign their own
+  challenges.

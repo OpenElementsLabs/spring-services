@@ -32,7 +32,7 @@ coordinate is the reactor parent (a `pom`, no classes) — depend on one of the 
 **À la carte:** import the BOM once, then declare `spring-services-core` plus only the feature
 modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-services-email`,
 `spring-services-search`, `spring-services-dbbackup`, `spring-services-scim`,
-`spring-services-tenant`, `spring-services-storage`) without versions:
+`spring-services-tenant`, `spring-services-storage`, `spring-services-altcha`) without versions:
 
 ```xml
 <dependencyManagement>
@@ -154,8 +154,24 @@ openelements.storage.type=memory
 
 Declaring your own `ObjectStore` bean makes the library back off, whatever `type` says.
 
+**Bot protection** for public forms (`spring-services-altcha`) is off by default as well. It uses
+[ALTCHA](https://altcha.org), a self-hosted proof of work without an external service or cookies.
+When enabled, the module serves challenges for the widget at the challenge path (anonymous `GET` only,
+through its own filter chain), and the application's form endpoint calls
+`AltchaService.requireVerified(payload)`. A failed check is answered with `400` and
+`{"code": "altcha-missing", "message": "…"}` in the language of the request.
+
+```properties
+openelements.altcha.enabled=true
+openelements.altcha.hmac-key=${ALTCHA_HMAC_KEY}               # required when enabled, >= 32 characters
+openelements.altcha.challenge-path=/api/altcha/challenge     # optional, this is the default
+openelements.altcha.expires=PT10M                            # optional
+openelements.altcha.cost=5000                                # optional, PBKDF2 iterations per attempt
+openelements.altcha.key-prefix-length=2                      # optional
+```
+
 If a feature stays disabled, none of its beans are created and no connection settings are needed.
-Secrets (`master-key`, `api-token`) must come from environment variables or secret management, never
+Secrets (`master-key`, `api-token`, `hmac-key`) must come from environment variables or secret management, never
 from committed configuration.
 
 ## Features
