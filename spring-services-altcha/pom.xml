@@ -1,0 +1,44 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.open-elements</groupId>
+        <artifactId>spring-services</artifactId>
+        <version>1.5.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>spring-services-altcha</artifactId>
+
+    <name>Spring Services ALTCHA</name>
+    <description>Optional bot-protection feature module for spring-services: self-hosted ALTCHA proof of
+        work for endpoints that accept requests without authentication</description>
+    <url>https://github.com/OpenElementsLabs/spring-services</url>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.open-elements</groupId>
+            <artifactId>spring-services-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <!-- ALTCHA protocol v2 (org.altcha.altcha.v2), matches the widget altcha 3.x (MIT) -->
+            <groupId>org.altcha</groupId>
+            <artifactId>altcha</artifactId>
+            <version>${altcha.version}</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

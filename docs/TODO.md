@@ -430,3 +430,11 @@ trap that already forced `generateGitPropertiesFile=false` in `java-parent`'s `f
 separate repository. Its `outputTimestamp` part has since landed (1.3.0, 2026-09-10); the remaining
 bullets — `build-info`, the SBOM output path and `ARG GIT_COMMIT` in the application Dockerfiles —
 are still open, and they are what spec 018 actually needs in order to read anything.
+
+## Shared replay store for the ALTCHA module (spec 023)
+
+`spring-services-altcha` ships only `InMemoryReplayStore`, which accepts a solution once *per
+instance*. An application with several instances has to bring its own `ReplayStore`. Once a consumer
+needs one, a JPA-backed store (table in `oe_spring_services`, cleanup of expired rows) belongs in the
+module, with the SQL in the upgrade guide of that release.
+
