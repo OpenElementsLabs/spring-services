@@ -195,7 +195,7 @@ violation is a server error · Unknown path.
 
 ## Step 7: Auto-configuration
 
-- [ ] `ProblemDetailsAutoConfiguration` — `@AutoConfiguration(before = {WebMvcAutoConfiguration.class,
+- [x] `ProblemDetailsAutoConfiguration` — `@AutoConfiguration(before = {WebMvcAutoConfiguration.class,
       ErrorMvcAutoConfiguration.class})`, `@ConditionalOnWebApplication(type = SERVLET)`,
       `@ConditionalOnProperty(prefix = "openelements.problem-details", name = "enabled",
       havingValue = "true", matchIfMissing = true)`,
@@ -206,19 +206,19 @@ violation is a server error · Unknown path.
       (`@ConditionalOnMissingBean(ErrorController.class)`), and a `WebMvcConfigurer` that inserts
       `ProblemHandlerExceptionResolver` **directly after** `ExceptionHandlerExceptionResolver` in
       `extendHandlerExceptionResolvers`.
-- [ ] `package-info.java` for the problem package.
-- [ ] Register `ProblemDetailsAutoConfiguration` in core's `AutoConfiguration.imports`.
-- [ ] `ProblemDetailsAutoConfigurationTest` — `WebApplicationContextRunner`: all beans present by
+- [x] `package-info.java` for the problem package.
+- [x] Register `ProblemDetailsAutoConfiguration` in core's `AutoConfiguration.imports`.
+- [x] `ProblemDetailsAutoConfigurationTest` — `WebApplicationContextRunner`: all beans present by
       default; none present with `enabled=false` and `BasicErrorController` active instead; an
       application-supplied `ProblemFactory` / `ResponseEntityExceptionHandler` / `TraceIdResolver` wins;
       an invalid `type-base` fails the context.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] The runner test proves Boot's `BasicErrorController` and `ProblemDetailsExceptionHandler` back off
+- [x] Build passes.
+- [x] The runner test proves Boot's `BasicErrorController` and `ProblemDetailsExceptionHandler` back off
       when the library's are active, and come back when `enabled=false`.
-- [ ] The resolver is positioned after `ExceptionHandlerExceptionResolver`, asserted on the real list.
+- [x] The resolver is positioned after `ExceptionHandlerExceptionResolver`, asserted on the real list.
 
 **Related behaviors:** No library error handling registered · Application extends
 `ResponseEntityExceptionHandler` · Application replaces the factory · Custom resolver.

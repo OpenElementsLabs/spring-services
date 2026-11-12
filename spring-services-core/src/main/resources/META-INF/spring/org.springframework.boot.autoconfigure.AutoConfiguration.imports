@@ -1,3 +1,4 @@
 com.openelements.spring.base.SpringServicesCoreAutoConfiguration
 com.openelements.spring.base.info.ApplicationInfoAutoConfiguration
 com.openelements.spring.base.trace.TraceAutoConfiguration
+com.openelements.spring.base.problem.ProblemDetailsAutoConfiguration
