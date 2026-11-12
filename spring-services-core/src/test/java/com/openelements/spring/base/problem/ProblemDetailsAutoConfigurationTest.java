@@ -94,6 +94,22 @@ class ProblemDetailsAutoConfigurationTest {
         });
   }
 
+  /**
+   * Spring MVC decides whether a bean is a request handler from the type the bean factory reports,
+   * which for a {@code @Bean} method is its declared return type. Declaring {@link ErrorController}
+   * there leaves {@code /error} unmapped while every other signal looks healthy — the context
+   * starts, the bean exists, Boot's controller backs off — and every container error answers
+   * {@code 404} instead of its real status. This pins the declared type.
+   */
+  @Test
+  @DisplayName("The error controller is registered under its concrete type, so /error is mapped.")
+  void errorControllerIsRegisteredUnderItsConcreteType() {
+    runner.run(
+        context ->
+            assertThat(context.getType("problemErrorController"))
+                .isEqualTo(ProblemErrorController.class));
+  }
+
   @Test
   @DisplayName("The catch-all resolver is inserted directly after ExceptionHandlerExceptionResolver.")
   void catchAllResolverSitsAfterTheAdviceResolver() {

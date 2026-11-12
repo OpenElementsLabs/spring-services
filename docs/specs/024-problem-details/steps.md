@@ -327,24 +327,24 @@ for a standard MVC exception with `@Order` · Application replaces the factory.
 These need the **real** production chains, so they boot `StarterTestApp` with Testcontainers, following
 `CallerRoleLookupChainIntegrationTest`.
 
-- [ ] `ProblemDetailsChainIntegrationTest` — `401` on the default chain (`WWW-Authenticate: Bearer`),
+- [x] `ProblemDetailsChainIntegrationTest` — `401` on the default chain (`WWW-Authenticate: Bearer`),
       `401` on the external chain with an invalid API key (`ApiKey realm="external"`, detail
       `Invalid API key`), `403` from `denyAll` on the external chain, `403` from method security,
       `403` for a deactivated user, `sendError` from a filter, `instance` on an error dispatch, and the
       trace-ID-for-401 and trace-ID-stability scenarios.
-- [ ] Update `CallerRoleLookupChainIntegrationTest`'s 401 assertion to the problem body (the old
+- [x] Update `CallerRoleLookupChainIntegrationTest`'s 401 assertion to the problem body (the old
       `{status, error}` assertion is part of the breaking change).
-- [ ] `ProblemDetailsDisabledChainIntegrationTest` — the `enabled=false` 401 with the exact old member
+- [x] `ProblemDetailsDisabledChainIntegrationTest` — the `enabled=false` 401 with the exact old member
       set.
-- [ ] MCP chain: extend the MCP module's security test to assert the problem body on `401`.
-- [ ] SCIM: assert in the SCIM module's tests that the RFC 7644 envelope and `application/scim+json` are
+- [x] MCP chain: extend the MCP module's security test to assert the problem body on `401`.
+- [x] SCIM: assert in the SCIM module's tests that the RFC 7644 envelope and `application/scim+json` are
       unchanged, for both the `401` and a controller exception.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Each chain scenario asserts the content type and `type` URI, not only the status.
-- [ ] The SCIM assertions fail if a problem ever leaks into a `/scim/v2/**` response.
+- [x] Build passes.
+- [x] Each chain scenario asserts the content type and `type` URI, not only the status.
+- [x] The SCIM assertions fail if a problem ever leaks into a `/scim/v2/**` response.
 
 **Related behaviors:** Invalid API key · Missing JWT · MCP chain uses the same entry point · SCIM 401 is
 untouched · Deactivated user · Method security · Denied in the filter chain · `sendError` from a filter ·
@@ -355,18 +355,18 @@ available for 401 · Trace ID is stable within a request · 401 as before · SCI
 
 ## Step 12: Trace-ID behaviour tests
 
-- [ ] `TraceContextFilterWebTest` — over HTTP: incoming `traceparent` honoured, all-zero ignored, each
+- [x] `TraceContextFilterWebTest` — over HTTP: incoming `traceparent` honoured, all-zero ignored, each
       malformed form ignored (including two `traceparent` headers), the MDC carries `traceId` during the
       request and is clean afterwards, a custom `TraceIdResolver` bean wins, and the filter still runs
       with `problem-details.enabled=false`.
-- [ ] MDC assertions use a Logback `ListAppender` on the test controller's logger, as in
+- [x] MDC assertions use a Logback `ListAppender` on the test controller's logger, as in
       `EmailConfigTest`.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Every malformed-traceparent form from `behaviors.md` is a separate parameterised case.
-- [ ] The "MDC is clean afterwards" assertion runs on the request thread, not a test-only thread.
+- [x] Build passes.
+- [x] Every malformed-traceparent form from `behaviors.md` is a separate parameterised case.
+- [x] The "MDC is clean afterwards" assertion runs on the request thread, not a test-only thread.
 
 **Related behaviors:** Incoming traceparent is honoured · All-zero trace-id is ignored · Malformed
 traceparent is ignored · Trace ID is in the MDC during the request · Trace filter runs without problem

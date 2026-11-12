@@ -113,6 +113,12 @@ class CallerRoleLookupChainIntegrationTest {
         .andExpect(jsonPath("$", containsInAnyOrder("API_KEY")));
   }
 
+  /**
+   * Spec 024 replaced the {@code {status, error, message}} body with an RFC 9457 problem. The
+   * property this test guards is unchanged — anonymous authentication stays enabled, so a protected
+   * path answers {@code 401} with a {@code WWW-Authenticate} header rather than {@code 403} — only
+   * the body's shape moved.
+   */
   @Test
   @DisplayName("[chain] An unauthenticated request to a protected path is rejected with 401 + WWW-Authenticate: Bearer")
   void unauthenticatedProtectedRequestIsRejectedWith401() throws Exception {
@@ -121,7 +127,10 @@ class CallerRoleLookupChainIntegrationTest {
         .andExpect(status().isUnauthorized())
         .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
         .andExpect(jsonPath("$.status").value(401))
-        .andExpect(jsonPath("$.error").value("Unauthorized"));
+        .andExpect(
+            jsonPath("$.type")
+                .value("https://open-elements.com/problems/spring-services/unauthorized"))
+        .andExpect(jsonPath("$.title").value("Unauthorized"));
   }
 
   private static String bearer(final String token) {

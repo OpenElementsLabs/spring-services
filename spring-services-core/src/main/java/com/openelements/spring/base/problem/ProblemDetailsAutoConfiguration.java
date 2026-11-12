@@ -103,13 +103,23 @@ public class ProblemDetailsAutoConfiguration {
   /**
    * Contributes the error controller that renders the container's {@code ERROR} dispatch.
    *
+   * <p>The declared return type is the concrete class, not {@link ErrorController}. Spring MVC
+   * decides whether a bean is a request handler by looking for {@code @Controller} on the type the
+   * bean factory reports, which for a {@code @Bean} method is its <em>declared</em> return type.
+   * Declaring the interface would leave {@code /error} unmapped: the context would start, the bean
+   * would exist, {@code BasicErrorController} would still back off — and every container error would
+   * answer {@code 404} instead of its real status.
+   *
+   * <p>The method is package-private because its return type is: the class is an implementation
+   * detail, and nothing outside this package has reason to inject it.
+   *
    * @param problemFactory builds the problem
    * @param objectMapper serialises it
    * @return the error controller
    */
   @Bean
   @ConditionalOnMissingBean(ErrorController.class)
-  public ErrorController problemErrorController(
+  ProblemErrorController problemErrorController(
       final ProblemFactory problemFactory, final ObjectMapper objectMapper) {
     return new ProblemErrorController(problemFactory, objectMapper);
   }
