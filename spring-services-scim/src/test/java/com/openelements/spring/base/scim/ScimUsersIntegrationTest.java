@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -75,14 +76,24 @@ class ScimUsersIntegrationTest {
     mvc.perform(get("/scim/v2/Users").header(AUTH, TOKEN)).andExpect(status().isOk());
   }
 
+  /**
+   * Spec 024 made every other error response in the library an RFC 9457 problem and deliberately left
+   * SCIM alone: RFC 7644 defines its own error envelope, and a SCIM client is entitled to it. The
+   * content type and the absence of any problem member are asserted explicitly, because a regression
+   * here would still produce a {@code 401} and would only be noticed by an IdP's provisioning run.
+   */
   @Test
-  @DisplayName("A missing bearer token is rejected with a SCIM 401")
+  @DisplayName("A missing bearer token is rejected with a SCIM 401, not an RFC 9457 problem")
   void missingTokenRejected() throws Exception {
     mvc.perform(get("/scim/v2/Users"))
         .andExpect(status().isUnauthorized())
         .andExpect(header().string("WWW-Authenticate", "Bearer"))
+        .andExpect(content().contentTypeCompatibleWith(SCIM))
         .andExpect(jsonPath("$.schemas[0]", is("urn:ietf:params:scim:api:messages:2.0:Error")))
-        .andExpect(jsonPath("$.status", is("401")));
+        .andExpect(jsonPath("$.status", is("401")))
+        .andExpect(jsonPath("$.type").doesNotExist())
+        .andExpect(jsonPath("$.title").doesNotExist())
+        .andExpect(jsonPath("$.traceId").doesNotExist());
   }
 
   @Test
@@ -200,7 +211,11 @@ class ScimUsersIntegrationTest {
         .andExpect(status().isNotFound());
 
     mvc.perform(get("/scim/v2/Users/" + UUID.randomUUID()).header(AUTH, TOKEN))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentTypeCompatibleWith(SCIM))
+        .andExpect(jsonPath("$.schemas[0]", is("urn:ietf:params:scim:api:messages:2.0:Error")))
+        .andExpect(jsonPath("$.type").doesNotExist())
+        .andExpect(jsonPath("$.traceId").doesNotExist());
   }
 
   // ---- List & filter --------------------------------------------------------------------------

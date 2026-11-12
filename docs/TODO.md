@@ -431,6 +431,44 @@ separate repository. Its `outputTimestamp` part has since landed (1.3.0, 2026-09
 bullets — `build-info`, the SBOM output path and `ARG GIT_COMMIT` in the application Dockerfiles —
 are still open, and they are what spec 018 actually needs in order to read anything.
 
+## Verify that the ALTCHA challenge chain registers in a real application (spec 023)
+
+`AltchaAutoConfiguration.Web#altchaSecurityFilterChain` is guarded by
+`@ConditionalOnBean(HttpSecurity.class)`. `AltchaWebTest` proves it registers under a
+`WebApplicationContextRunner`, where the test lists `SecurityAutoConfiguration` explicitly and
+`AltchaAutoConfiguration`'s `after` clause orders them. Whether the same holds in a real Spring Boot
+application has never been asserted.
+
+While writing spec 024's tests, a `@SpringBootTest` with a real servlet container that excluded
+`SpringServicesCoreAutoConfiguration` (to avoid needing a database) reported:
+
+```
+AltchaAutoConfiguration.Web#altchaSecurityFilterChain:
+   Did not match:
+      - @ConditionalOnBean (types: …HttpSecurity; SearchStrategy: all) did not find any beans of
+        type …HttpSecurity (OnBeanCondition)
+```
+
+even though `HttpSecurity` **is** a registered bean at runtime, and even with `@EnableWebSecurity`
+declared on the application class. That test is **not** evidence of a product defect — excluding the
+core starter removes exactly the auto-configuration the `after` clause names — but it is also not
+evidence that the chain registers. If it does not, the public challenge endpoint sits behind the
+default JWT chain and a visitor cannot fetch a challenge at all: a silent, total failure of the
+module's purpose.
+
+- Write a `@SpringBootTest(webEnvironment = RANDOM_PORT)` against a full spring-services application
+  (Postgres Testcontainer, core starter active, ALTCHA enabled) and assert that `GET` on the
+  challenge path answers `200` without authentication.
+- If it does not register, replace `@ConditionalOnBean(HttpSecurity.class)` with something that does
+  not depend on condition-evaluation ordering — `@ConditionalOnClass` plus injecting `HttpSecurity`,
+  or `@ConditionalOnWebApplication` plus `@ConditionalOnDefaultWebSecurity`-style guarding.
+
+**Context:** Surfaced while writing the spec-024 test for "the ALTCHA chain denies a non-GET request
+with a `403` problem". That scenario's mechanism — a `denyAll` chain with no access-denied handler,
+rendered through the container's `ERROR` dispatch — is covered in core by
+`ProblemErrorDispatchIntegrationTest#denyAllWithoutAHandlerYieldsAProblem`, using a chain of the same
+shape.
+
 ## Shared replay store for the ALTCHA module (spec 023)
 
 `spring-services-altcha` ships only `InMemoryReplayStore`, which accepts a solution once *per

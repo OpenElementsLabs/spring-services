@@ -3,12 +3,15 @@ package com.openelements.spring.base.altcha;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.openelements.spring.base.problem.ProblemDetailsAutoConfiguration;
 import com.openelements.spring.base.services.altcha.AltchaService;
 import com.openelements.spring.base.services.altcha.AltchaSolver;
+import com.openelements.spring.base.trace.TraceAutoConfiguration;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,16 +41,25 @@ import org.springframework.web.context.WebApplicationContext;
  * matcher that demands authentication for everything — plus one public form endpoint. That is the
  * situation the module's own chain exists for: without it the visitor of the form could not fetch a
  * challenge.
+ *
+ * <p>RFC 9457 problem details are active, as they are by default in a real application, so the failure
+ * responses are problems. The slug a client branches on is unchanged from the {@code code} this module
+ * published before — it is now the last segment of the {@code type} URI. The opposite configuration is
+ * covered by {@link AltchaProblemDetailsDisabledWebTest}.
  */
 @DisplayName("ALTCHA over HTTP")
 class AltchaWebTest {
 
     private static final String CHALLENGE = "/api/altcha/challenge";
 
+    /** The default {@code openelements.problem-details.type-base}. */
+    static final String TYPE_BASE = "https://open-elements.com/problems/spring-services/";
+
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AltchaAutoConfiguration.class, SecurityAutoConfiguration.class,
                     WebMvcAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class,
-                    JacksonAutoConfiguration.class))
+                    JacksonAutoConfiguration.class, ProblemDetailsAutoConfiguration.class,
+                    TraceAutoConfiguration.class))
             .withUserConfiguration(Application.class)
             .withPropertyValues("openelements.altcha.enabled=true",
                     "openelements.altcha.hmac-key=web-test-altcha-key-with-at-least-32-characters",
@@ -80,23 +92,46 @@ class AltchaWebTest {
             mvc.perform(post("/api/form").param("altcha", payload)).andExpect(status().isOk());
             mvc.perform(post("/api/form").param("altcha", payload))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("altcha-reused"));
+                    .andExpect(content().contentType("application/problem+json"))
+                    .andExpect(jsonPath("$.type").value(TYPE_BASE + "altcha-reused"))
+                    .andExpect(jsonPath("$.title").value("Bot check reused"))
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.code").doesNotExist());
         });
     }
 
+    /**
+     * The title stays English because it describes the <em>type</em> and must not change from occurrence
+     * to occurrence (RFC 9457 §3.1.2); the visitor-facing sentence is the {@code detail}, and that one
+     * follows the request's language.
+     */
     @Test
-    @DisplayName("Answers a form without a solution with 400, a stable code and a message in the request language")
+    @DisplayName("Answers a form without a solution with a 400 problem whose detail is in the request language")
     void rejectsAFormWithoutSolution() {
         run(mvc -> {
             mvc.perform(post("/api/form").header(HttpHeaders.ACCEPT_LANGUAGE, "de"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("altcha-missing"))
-                    .andExpect(jsonPath("$.message").value(
+                    .andExpect(content().contentType("application/problem+json"))
+                    .andExpect(jsonPath("$.type").value(TYPE_BASE + "altcha-missing"))
+                    .andExpect(jsonPath("$.title").value("Bot check missing"))
+                    .andExpect(jsonPath("$.traceId").value(org.hamcrest.Matchers.matchesPattern("[0-9a-f]{32}")))
+                    .andExpect(jsonPath("$.detail").value(
                             org.hamcrest.Matchers.startsWith("Die Prüfung gegen automatisierte Anfragen fehlt.")));
             mvc.perform(post("/api/form").header(HttpHeaders.ACCEPT_LANGUAGE, "en"))
-                    .andExpect(jsonPath("$.message").value(
+                    .andExpect(jsonPath("$.title").value("Bot check missing"))
+                    .andExpect(jsonPath("$.detail").value(
                             org.hamcrest.Matchers.startsWith("The check against automated requests is missing.")));
         });
+    }
+
+    @Test
+    @DisplayName("Answers an unparseable solution with the altcha-invalid problem")
+    void rejectsAnInvalidSolution() {
+        run(mvc -> mvc.perform(post("/api/form").param("altcha", "not-a-payload"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.type").value(TYPE_BASE + "altcha-invalid"))
+                .andExpect(jsonPath("$.title").value("Bot check invalid")));
     }
 
     private void run(final MvcAssertion assertion) {
