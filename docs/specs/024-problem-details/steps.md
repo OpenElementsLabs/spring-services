@@ -292,19 +292,19 @@ A new test package `com.example.problemapp` in `spring-services-core`, driven by
 `WebApplicationContextRunner` + `MockMvcBuilders.webAppContextSetup` (no database, no Testcontainers), with
 a test controller covering every MVC row.
 
-- [ ] `ProblemDetailsWebTest` — the common shape, type URIs, `ProblemException` over HTTP, validation
+- [x] `ProblemDetailsWebTest` — the common shape, type URIs, `ProblemException` over HTTP, validation
       (body, parameters, both, malformed), standard MVC errors, application exceptions, and the
       application-advice precedence cases.
-- [ ] A test controller with endpoints for each scenario, plus the body records carrying the
+- [x] A test controller with endpoints for each scenario, plus the body records carrying the
       `@JsonProperty` / naming-strategy / map-key / class-level constraints.
-- [ ] `ProblemDetailsDisabledWebTest` — the `enabled=false` counterparts.
+- [x] `ProblemDetailsDisabledWebTest` — the `enabled=false` counterparts.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Every scenario listed below asserts status, `type`, `title`, `status`, `traceId` and
+- [x] Build passes.
+- [x] Every scenario listed below asserts status, `type`, `title`, `status`, `traceId` and
       `Content-Type: application/problem+json`.
-- [ ] The leak tests assert the **absence** of the exception message, class names and rejected values.
+- [x] The leak tests assert the **absence** of the exception message, class names and rejected values.
 
 **Related behaviors:** Every problem carries the mandatory members · `instance` is the path without query
 string · `instance` can be switched off · Problems are JSON even for browsers · Default type base ·

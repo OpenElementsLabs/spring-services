@@ -13,6 +13,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -243,6 +244,12 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
    * these exceptions name the method, the media type or the header, never the payload.
    *
    * <p>The overrides above pass their own {@link ProblemDetail} as {@code body}; it is used as is.
+   *
+   * <p>The response carries {@link ProblemBody#of(ProblemDetail) the problem's map form} and an
+   * explicit {@code application/problem+json} content type, rather than the {@code ProblemDetail}
+   * itself. Returning the object would hand it to Spring MVC, which fills in a missing {@code
+   * instance} with the request URI — and {@code include-instance=false} would then work for the
+   * problems written by the security filters and silently not for these.
    */
   @Override
   protected ResponseEntity<Object> handleExceptionInternal(
@@ -251,8 +258,13 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
       final HttpHeaders headers,
       final HttpStatusCode statusCode,
       final WebRequest request) {
-    final Object problemBody = body instanceof ProblemDetail ? body : asProblem(ex, statusCode, request);
-    return super.handleExceptionInternal(ex, problemBody, headers, statusCode, request);
+    final ProblemDetail problem =
+        body instanceof ProblemDetail detail ? detail : asProblem(ex, statusCode, request);
+    final HttpHeaders responseHeaders = new HttpHeaders();
+    responseHeaders.addAll(headers);
+    responseHeaders.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+    return super.handleExceptionInternal(
+        ex, ProblemBody.of(problem), responseHeaders, statusCode, request);
   }
 
   /**

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.Objects;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 
 /**
  * Writes a {@link ProblemDetail} onto a raw {@link HttpServletResponse}.
@@ -22,12 +21,9 @@ import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
  * asking for {@code text/html} still gets the problem, because this library serves APIs and has no
  * HTML error pages to offer.
  *
- * <p>The mapper is copied once at construction and the {@link ProblemDetailJacksonMixin} is applied
- * to the copy. Without that mixin Jackson serialises the extension members as a nested {@code
- * properties} object instead of as top-level members, which is not RFC 9457. Spring Boot's
- * auto-configured mapper already carries the mixin, but this class is also constructed from mappers
- * that do not — and a {@code 401} that silently changes shape is exactly the kind of difference
- * nobody notices until a client breaks. Copying leaves the application's own mapper untouched.
+ * <p>The body is built by {@link ProblemBody} rather than serialised from the {@link ProblemDetail}
+ * directly, so a problem written here has exactly the same members, in the same order, as one
+ * written by the MVC advice — including whether {@code instance} is present at all.
  */
 public class ProblemResponseWriter {
 
@@ -40,9 +36,7 @@ public class ProblemResponseWriter {
    *     serialised with the application's own configuration
    */
   public ProblemResponseWriter(final ObjectMapper objectMapper) {
-    Objects.requireNonNull(objectMapper, "objectMapper must not be null");
-    this.objectMapper =
-        objectMapper.copy().addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class);
+    this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
   }
 
   /**
@@ -59,6 +53,6 @@ public class ProblemResponseWriter {
 
     response.setStatus(problem.getStatus());
     response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    objectMapper.writeValue(response.getOutputStream(), problem);
+    objectMapper.writeValue(response.getOutputStream(), ProblemBody.of(problem));
   }
 }
