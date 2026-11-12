@@ -165,26 +165,26 @@ Malformed body · Wrong method keeps `Allow` · Unsupported media type.
 
 ## Step 6: Catch-all resolver and error controller
 
-- [ ] `ProblemHandlerExceptionResolver` — package-private `HandlerExceptionResolver`, resolving in the
+- [x] `ProblemHandlerExceptionResolver` — package-private `HandlerExceptionResolver`, resolving in the
       design's order: `@ResponseStatus` → `ErrorResponse`/`ResponseStatusException` → controller-boundary
       `ConstraintViolationException` → `500 internal-error` with the fixed detail
       `An unexpected error occurred.`. A `ConstraintViolationException` counts as controller-boundary
       only when **all** violations have the current handler's bean as root bean and the handler method as
       executable; anything else is a `500`.
-- [ ] Logging: status ≥ 500 at `ERROR` with the exception; 4xx at `DEBUG`. The trace ID is in the MDC
+- [x] Logging: status ≥ 500 at `ERROR` with the exception; 4xx at `DEBUG`. The trace ID is in the MDC
       because the filter put it there.
-- [ ] `ProblemErrorController` — package-private `ErrorController` on `${server.error.path:/error}`.
+- [x] `ProblemErrorController` — package-private `ErrorController` on `${server.error.path:/error}`.
       Always `application/problem+json` regardless of `Accept`. Status from
       `jakarta.servlet.error.status_code`, type from `StandardProblemType.forStatus`, `instance` from
       `jakarta.servlet.error.request_uri`, no `detail`.
-- [ ] `ProblemHandlerExceptionResolverTest`, `ProblemErrorControllerTest`.
+- [x] `ProblemHandlerExceptionResolverTest`, `ProblemErrorControllerTest`.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] A unit test proves a service-layer `ConstraintViolationException` becomes `500`, and a
+- [x] Build passes.
+- [x] A unit test proves a service-layer `ConstraintViolationException` becomes `500`, and a
       controller-boundary one becomes `400`.
-- [ ] A unit test proves the 500 detail is the fixed string and contains nothing from the exception.
+- [x] A unit test proves the 500 detail is the fixed string and contains nothing from the exception.
 
 **Related behaviors:** `@ResponseStatus` wins over internal-error · `ResponseStatusException` reason is the
 detail · Library `ResponseStatusException` with 502 · Unexpected exception does not leak internals ·

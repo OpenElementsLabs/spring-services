@@ -244,13 +244,14 @@ It handles only Spring MVC's standard exceptions and validation:
 | `HandlerMethodValidationException` | see "Validation" below |
 | `HttpMessageNotReadableException` | `malformed-request`, generic detail, no parser message |
 | `MethodArgumentTypeMismatchException`, `MissingServletRequestParameterException`, `MissingRequestHeaderException` | `invalid-parameter`, parameter name and location in `detail`, value never echoed |
-| `AccessDeniedException` (incl. `AuthorizationDeniedException`) | `forbidden`, exception message as detail |
 | any other standard MVC exception (`ErrorResponse`) | `StandardProblemType.forStatus(status)`; headers such as `Allow` kept |
 
 **`ProblemHandlerExceptionResolver`** — the catch-all. Added via `WebMvcConfigurer.extendHandlerExceptionResolvers`
 **directly after** `ExceptionHandlerExceptionResolver`, so every `@ExceptionHandler` of the application — with or
 without `@Order` — is tried first. It resolves:
 
+0. A `ProblemException` → its own type, detail and extension members. An application advice can
+   still override it, because the advice resolver runs first.
 1. Exceptions annotated with `@ResponseStatus` → that status, `reason` (if any) as `detail`.
 2. `ErrorResponse` / `ResponseStatusException` not already handled → its status, its `reason` as `detail`.
 3. `ConstraintViolationException` whose violations all belong to the current handler method → treated as
@@ -260,6 +261,13 @@ without `@Order` — is tried first. It resolves:
 
 Every problem with status ≥ 500 is logged at `ERROR` with the exception and the trace ID in the MDC; 4xx
 problems are logged at `DEBUG`.
+
+**`AccessDeniedException` is deliberately not handled in MVC.** The original design mapped it in the
+advice. It is not mapped there, and the catch-all resolver explicitly declines it, so it propagates to
+Spring Security's `ExceptionTranslationFilter` — the only component that knows whether the caller is
+anonymous (`401`, with the chain's `WWW-Authenticate` header) or authenticated (`403`). Handling it in
+MVC would have turned every `401` on a `permitAll` path with `@PreAuthorize` into a `403`. The response
+is a problem either way: `ProblemAccessDeniedHandler` and `ProblemAuthenticationEntryPoint` write it.
 
 **Rationale (catch-all as a resolver, not in the advice):** a `@RestControllerAdvice` without `@Order` has
 `LOWEST_PRECEDENCE`, the same as the library's; the winner on a tie depends on bean registration order, which is
