@@ -71,7 +71,14 @@ public class ProblemException extends RuntimeException {
 
   /** Members written by the library; an extension may not use these names. */
   static final Set<String> RESERVED_MEMBERS =
-      Set.of("type", "title", "status", "detail", "instance", "traceId", "errors");
+      Set.of(
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          ProblemMembers.TRACE_ID,
+          ProblemMembers.ERRORS);
 
   private final ProblemType type;
 

@@ -85,26 +85,26 @@ Reserved extension keys are rejected · Null extension values are rejected · Me
 
 ## Step 3: Configuration properties and the problem factory
 
-- [ ] `ProblemDetailsProperties` — `@ConfigurationProperties("openelements.problem-details")` record with
+- [x] `ProblemDetailsProperties` — `@ConfigurationProperties("openelements.problem-details")` record with
       `enabled` (default `true`), `typeBase` (default
       `https://open-elements.com/problems/spring-services/`) and `includeInstance` (default `true`).
       A `@PostConstruct`-free compact-constructor validation rejects a non-absolute URI and a path that
       does not end in `/`, with a message naming `openelements.problem-details.type-base`.
-- [ ] `ProblemFactory` — public interface with the two `create(…)` overloads from the design.
-- [ ] `DefaultProblemFactory` — package-private. Builds `ProblemDetail`: `type` = base + slug, `title`,
+- [x] `ProblemFactory` — public interface with the two `create(…)` overloads from the design.
+- [x] `DefaultProblemFactory` — package-private. Builds `ProblemDetail`: `type` = base + slug, `title`,
       `status`, `detail` (omitted when `null`), `instance` when enabled (the original URI
       `jakarta.servlet.error.request_uri` on an error dispatch, otherwise `request.getRequestURI()`;
       never the query string), `traceId` from `TraceContext`, then the exception's extension members.
-- [ ] `ProblemResponseWriter` — public. Serialises a `ProblemDetail` onto a raw `HttpServletResponse`
+- [x] `ProblemResponseWriter` — public. Serialises a `ProblemDetail` onto a raw `HttpServletResponse`
       with status and `application/problem+json`, for the two security handlers that run outside MVC.
-- [ ] `ProblemDetailsPropertiesTest`, `DefaultProblemFactoryTest` (with `MockHttpServletRequest`),
+- [x] `ProblemDetailsPropertiesTest`, `DefaultProblemFactoryTest` (with `MockHttpServletRequest`),
       `ProblemResponseWriterTest` (with `MockHttpServletResponse`).
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Property validation is proven by a unit test for each rejected form.
-- [ ] The factory test proves `instance` omits the query string and honours `include-instance=false`.
+- [x] Build passes.
+- [x] Property validation is proven by a unit test for each rejected form.
+- [x] The factory test proves `instance` omits the query string and honours `include-instance=false`.
 
 **Related behaviors:** Every problem carries the mandatory members · `instance` is the path without query
 string · `instance` can be switched off · Default type base · Configured type base applies to all types ·
