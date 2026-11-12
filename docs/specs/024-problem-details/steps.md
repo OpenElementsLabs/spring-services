@@ -53,29 +53,29 @@ traceparent is ignored · Custom resolver (bean condition only; wiring proven in
 
 Create `com.openelements.spring.base.problem` in `spring-services-core`.
 
-- [ ] `ProblemType` — public interface with `slug()`, `status()`, `title()` and the static factory
+- [x] `ProblemType` — public interface with `slug()`, `status()`, `title()` and the static factory
       `of(String, HttpStatus, String)`. The factory validates the slug against
       `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`, rejects a non-4xx/5xx status and a blank title with
       `IllegalArgumentException`, and `null` with `NullPointerException`. The validation is exposed to
       implementors as a static `validate(ProblemType)` helper so an application enum can self-check.
-- [ ] `StandardProblemType` — public enum, one constant per RFC 9110 error status plus the registered
+- [x] `StandardProblemType` — public enum, one constant per RFC 9110 error status plus the registered
       extensions (423, 424, 425, 428, 429, 431, 451, 507, 508, 511) and the four special types
       `validation-failed`, `malformed-request`, `invalid-parameter`. Slugs and titles are **literals**,
       never derived from Spring's `HttpStatus`. `forStatus(int)` returns the status entry, or a
       synthesised `http-<code>` / `HTTP <code>` type for a status with no constant.
-- [ ] `ProblemException` — public, non-final `RuntimeException` with the three constructors from the
+- [x] `ProblemException` — public, non-final `RuntimeException` with the three constructors from the
       design. Reserved keys (`type`, `title`, `status`, `detail`, `instance`, `traceId`, `errors`)
       throw `IllegalArgumentException`; `null` keys or values throw `NullPointerException`. `properties()`
       returns an immutable copy; `getMessage()` falls back to the title.
-- [ ] `ProblemTypeTest`, `StandardProblemTypeTest`, `ProblemExceptionTest`.
-- [ ] A test that asserts every `StandardProblemType` constant passes `ProblemType.validate` and that
+- [x] `ProblemTypeTest`, `StandardProblemTypeTest`, `ProblemExceptionTest`.
+- [x] A test that asserts every `StandardProblemType` constant passes `ProblemType.validate` and that
       no two constants share a slug or a status (except the three special 400 types).
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Unit tests for all three types exist and pass.
-- [ ] No Spring context is needed by any of these tests.
+- [x] Build passes.
+- [x] Unit tests for all three types exist and pass.
+- [x] No Spring context is needed by any of these tests.
 
 **Related behaviors:** Valid application type · Invalid slug is rejected · Non-error status is rejected ·
 Blank title is rejected · Status types are frozen, not derived from Spring · 500 maps to `internal-error` ·

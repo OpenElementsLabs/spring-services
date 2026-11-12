@@ -139,7 +139,15 @@ applications choose enums or constants; a record could not be an enum.
 ### `StandardProblemType`
 
 A frozen enum with **one entry per error status of RFC 9110** (plus the registered extensions 423, 424, 425,
-428, 429, 431, 451, 507, 508, 511) and four special types:
+428, 429, 431, 451, 507, 508, 511) and four special types.
+
+Two RFC 9110 statuses are left out. `418` is listed as unused by §15.5.19. `421 Misdirected Request`
+has no `HttpStatus` constant in Spring Framework 6 — it is a connection-level status produced by a
+reverse proxy, not by a request handler — and `ProblemType.status()` returns `HttpStatus`, so the enum
+cannot name it without inventing a constant. Both reach `forStatus(int)` and resolve to the synthesised
+`http-<code>` type, which is exactly the behaviour `behaviors.md` pins for `418`.
+
+The table:
 
 | Slug | Status | Title |
 |---|---|---|
