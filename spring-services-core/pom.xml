@@ -93,6 +93,20 @@
             <version>${wiremock.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- GovStackContractTest: validates every error response against the vendored GovStack
+             Problem / ValidationProblem schemas. Version pinned in the reactor root. -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${json-schema-validator.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Reads the vendored schema, which is YAML. Version managed by spring-boot-dependencies. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

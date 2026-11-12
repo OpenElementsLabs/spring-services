@@ -376,11 +376,11 @@ details · Custom resolver.
 
 ## Step 13: GovStack contract test
 
-- [ ] Vendor `spring-services-core/src/test/resources/govstack/govstack-openapi-common.yaml` (test scope
+- [x] Vendor `spring-services-core/src/test/resources/govstack/govstack-openapi-common.yaml` (test scope
       only) plus `README.md` with the provenance table from the design and the Apache-2.0 licence notice.
-- [ ] Add `com.networknt:json-schema-validator` (3.0.9) and `jackson-dataformat-yaml` as **test** scope
+- [x] Add `com.networknt:json-schema-validator` (3.0.9) and `jackson-dataformat-yaml` as **test** scope
       dependencies; pin the validator version as a property in the reactor root `pom.xml`.
-- [ ] `GovStackContractTest` — verifies the file's SHA-256 before anything else, then runs every error
+- [x] `GovStackContractTest` — verifies the file's SHA-256 before anything else, then runs every error
       scenario with `type-base=https://govstack.global/problems/test/` and validates each response:
       body-validation responses against `ValidationProblem`, everything else against `Problem`. Beyond
       the schema it asserts no problem carries `timestamp`, `error`, `message` or `code`, no `errors[]`
@@ -388,9 +388,9 @@ details · Custom resolver.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] The test fails loudly if the vendored file's hash changes.
-- [ ] The scenario list is driven from one place so a new error scenario cannot silently skip validation.
+- [x] Build passes.
+- [x] The test fails loudly if the vendored file's hash changes.
+- [x] The scenario list is driven from one place so a new error scenario cannot silently skip validation.
 
 **Related behaviors:** Schema provenance is verified · Every error response validates · No forbidden
 members.

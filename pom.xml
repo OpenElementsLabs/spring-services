@@ -64,6 +64,13 @@
         <mcp-sdk.version>0.18.3</mcp-sdk.version>
         <awssdk.version>2.55.5</awssdk.version>
         <altcha.version>2.1.1</altcha.version>
+        <!-- Test scope only: validates error responses against the vendored GovStack schemas
+             (spring-services-core/src/test/resources/govstack). Needs JSON Schema 2020-12, the
+             dialect an OpenAPI 3.1 components/schemas section is written in.
+             Pinned to the 2.x line on purpose: 3.x is built against Jackson 3
+             (tools.jackson.databind), while Spring Boot 3.5 — and therefore this library — is on
+             Jackson 2. Bump past 2.x only together with Jackson. -->
+        <json-schema-validator.version>2.0.0</json-schema-validator.version>
     </properties>
 
 </project>
