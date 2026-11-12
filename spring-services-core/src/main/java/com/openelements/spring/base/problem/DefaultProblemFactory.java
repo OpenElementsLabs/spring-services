@@ -49,7 +49,10 @@ final class DefaultProblemFactory implements ProblemFactory {
       problem.setDetail(detail);
     }
     if (properties.includeInstance()) {
-      problem.setInstance(instance(request));
+      final URI instance = instance(request);
+      if (instance != null) {
+        problem.setInstance(instance);
+      }
     }
     problem.setProperty(ProblemMembers.TRACE_ID, TraceContext.traceId(request));
     return problem;
@@ -69,13 +72,25 @@ final class DefaultProblemFactory implements ProblemFactory {
   /**
    * Determines the path to report as {@code instance}.
    *
+   * <p>A path that cannot be parsed as a URI reference yields no {@code instance} at all. This is
+   * the error renderer: it runs when something has already gone wrong, and throwing here would
+   * replace a considered {@code 404} with an unconsidered {@code 500} and lose the original failure.
+   * One optional member is the cheaper loss.
+   *
    * @param request the request being handled
    * @return the original request path on an error dispatch, the current path otherwise — never with
-   *     a query string
+   *     a query string; {@code null} if it cannot be expressed as a URI
    */
-  private static URI instance(final HttpServletRequest request) {
+  private static @Nullable URI instance(final HttpServletRequest request) {
     final Object original = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
     final String path = original instanceof String uri ? uri : request.getRequestURI();
-    return URI.create(path);
+    if (path == null) {
+      return null;
+    }
+    try {
+      return URI.create(path);
+    } catch (final IllegalArgumentException e) {
+      return null;
+    }
   }
 }

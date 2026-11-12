@@ -325,7 +325,7 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
     final String location = ParameterMessages.location(parameter);
     final String name = ParameterMessages.name(parameter);
     return result.getResolvableErrors().stream()
-        .map(error -> ParameterMessages.invalid(location, name, String.valueOf(error.getDefaultMessage())))
+        .map(error -> ParameterMessages.invalid(location, name, error.getDefaultMessage()))
         .toList();
   }
 

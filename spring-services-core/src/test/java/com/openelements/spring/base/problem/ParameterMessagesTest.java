@@ -63,6 +63,20 @@ class ParameterMessagesTest {
         .isEqualTo("Invalid query parameter 'size': must not be null.");
   }
 
+  /**
+   * A {@code MessageSourceResolvable} with no default message would otherwise put the literal word
+   * {@code null} into a response body.
+   */
+  @Test
+  @DisplayName("An absent reason falls back to generic wording, never the word 'null'.")
+  void absentReasonFallsBackToGenericWording() {
+    assertThat(ParameterMessages.invalid("query", "size", null))
+        .isEqualTo("Invalid query parameter 'size': is not valid.")
+        .doesNotContain("null");
+    assertThat(ParameterMessages.invalid("query", "size", "   "))
+        .isEqualTo("Invalid query parameter 'size': is not valid.");
+  }
+
   @Test
   @DisplayName("A missing parameter is named without inventing a reason.")
   void missingSentence() {

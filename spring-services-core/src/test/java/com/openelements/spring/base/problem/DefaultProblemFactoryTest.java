@@ -115,6 +115,23 @@ class DefaultProblemFactoryTest {
     assertThat(problem.getInstance()).hasToString("/api/test/limited");
   }
 
+  /**
+   * The factory is the error renderer. Throwing here would replace a considered {@code 404} with an
+   * unconsidered {@code 500} and lose the original failure — so an unparseable path costs the
+   * optional {@code instance} member and nothing else.
+   */
+  @Test
+  @DisplayName("A path that is not a valid URI yields no instance instead of an exception.")
+  void unparseablePathYieldsNoInstance() {
+    final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/test");
+    request.setRequestURI("/api/te st/{broken}");
+
+    final ProblemDetail problem = factory.create(StandardProblemType.NOT_FOUND, null, request);
+
+    assertThat(problem.getInstance()).isNull();
+    assertThat(problem.getStatus()).isEqualTo(404);
+  }
+
   @Test
   @DisplayName("A configured base applies to the library's types and the application's alike.")
   void configuredBaseAppliesToAllTypes() {

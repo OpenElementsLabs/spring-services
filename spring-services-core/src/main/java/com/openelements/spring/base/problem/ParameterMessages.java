@@ -3,6 +3,7 @@ package com.openelements.spring.base.problem;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -42,10 +43,12 @@ final class ParameterMessages {
    *
    * @param location where the parameter was read from — {@code query}, {@code path}, {@code header}
    * @param name the parameter name as the client wrote it
-   * @param reason why the value was rejected, without the value itself
+   * @param reason why the value was rejected, without the value itself; a {@code null} or blank
+   *     reason falls back to a generic one rather than writing {@code null} into the response
    * @return one sentence, ending in a full stop
    */
-  static String invalid(final String location, final String name, final String reason) {
+  static String invalid(
+      final String location, final String name, final @Nullable String reason) {
     return "Invalid " + location + " parameter '" + name + "': " + withoutTrailingStop(reason) + ".";
   }
 
@@ -161,8 +164,11 @@ final class ParameterMessages {
    * @param reason the raw reason text
    * @return the reason without a trailing full stop
    */
-  private static String withoutTrailingStop(final String reason) {
+  private static String withoutTrailingStop(final @Nullable String reason) {
     final String trimmed = reason == null ? "" : reason.strip();
+    if (trimmed.isEmpty()) {
+      return "is not valid";
+    }
     return trimmed.endsWith(".") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
   }
 }
