@@ -16,33 +16,33 @@ live in a single class. Step 14 is documentation. Every step ends with a green `
 
 Create `com.openelements.spring.base.trace` in `spring-services-core`.
 
-- [ ] `TraceIdResolver` — public interface, one method `String resolve(HttpServletRequest request)`,
+- [x] `TraceIdResolver` — public interface, one method `String resolve(HttpServletRequest request)`,
       contract documented as "32 lowercase hex characters, not all zero".
-- [ ] `TraceParentTraceIdResolver` — package-private default. Parses a **single** `traceparent` header
+- [x] `TraceParentTraceIdResolver` — package-private default. Parses a **single** `traceparent` header
       per W3C Trace Context Level 1: version `00`–`fe` (not `ff`), 32 lowercase-hex trace-id that is not
       all zero, 16 lowercase-hex parent-id that is not all zero, 2 hex flags, and for version `00` no
       trailing data. Anything else → generate: 16 bytes from a shared `SecureRandom`, lowercase hex,
       regenerated while all zero.
-- [ ] `TraceContext` — public static accessor. `traceId(HttpServletRequest)` returns the stored request
+- [x] `TraceContext` — public static accessor. `traceId(HttpServletRequest)` returns the stored request
       attribute, or resolves **and stores** one when the filter did not run. Attribute name is a
       package-visible constant shared with the filter. Non-instantiable.
-- [ ] `TraceContextFilter` — package-private `OncePerRequestFilter`. Resolves once per request, stores
+- [x] `TraceContextFilter` — package-private `OncePerRequestFilter`. Resolves once per request, stores
       the attribute and `MDC.put("traceId", …)`, removes the MDC key in `finally`. Skips work on an
       `ERROR` dispatch where the attribute already exists, so the ID stays stable across the dispatch.
-- [ ] `TraceAutoConfiguration` — `@AutoConfiguration`, `@ConditionalOnWebApplication(type = SERVLET)`.
+- [x] `TraceAutoConfiguration` — `@AutoConfiguration`, `@ConditionalOnWebApplication(type = SERVLET)`.
       Contributes `TraceParentTraceIdResolver` under `@ConditionalOnMissingBean(TraceIdResolver.class)`
       and a `FilterRegistrationBean<TraceContextFilter>` with order
       `SecurityProperties.DEFAULT_FILTER_ORDER - 1`. **Not** gated on `problem-details.enabled`.
-- [ ] `package-info.java`.
-- [ ] Register `TraceAutoConfiguration` in core's `AutoConfiguration.imports`.
-- [ ] `TraceParentTraceIdResolverTest` — traceparent parsing matrix, generation shape, non-zero
+- [x] `package-info.java`.
+- [x] Register `TraceAutoConfiguration` in core's `AutoConfiguration.imports`.
+- [x] `TraceParentTraceIdResolverTest` — traceparent parsing matrix, generation shape, non-zero
       guarantee, stability of a resolved value.
 
 **Acceptance criteria:**
 
-- [ ] `./mvnw -B -pl spring-services-core verify` passes.
-- [ ] Unit tests for the resolver exist and pass.
-- [ ] No dependency on the `problem` package — the trace package stands alone.
+- [x] `./mvnw -B -pl spring-services-core verify` passes.
+- [x] Unit tests for the resolver exist and pass.
+- [x] No dependency on the `problem` package — the trace package stands alone.
 
 **Related behaviors:** Incoming traceparent is honoured · All-zero trace-id is ignored · Malformed
 traceparent is ignored · Custom resolver (bean condition only; wiring proven in step 11).
