@@ -114,19 +114,19 @@ Relative type base is rejected · Type base without trailing slash is rejected.
 
 ## Step 4: JSON pointers for body validation
 
-- [ ] `JsonPointers` — package-private. Turns a Bean Validation `Path` into an RFC 6901 JSON pointer:
+- [x] `JsonPointers` — package-private. Turns a Bean Validation `Path` into an RFC 6901 JSON pointer:
       resolves each property name through Jackson's `BeanDescription` for the owning type (so
       `@JsonProperty` and the configured `PropertyNamingStrategy` apply), appends list indexes and map
       keys as segments, escapes `~` → `~0` and `/` → `~1`, and yields `""` for a class-level constraint
       on the root. Falls back to the Java property name when a type cannot be introspected.
-- [ ] `JsonPointersTest` — naming strategy, `@JsonProperty`, nested objects, list index, map key
+- [x] `JsonPointersTest` — naming strategy, `@JsonProperty`, nested objects, list index, map key
       escaping, class-level root and nested class-level, non-introspectable fallback.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Every pointer rule in the design has a test case.
-- [ ] The test drives a real `jakarta.validation.Validator`, not hand-built paths.
+- [x] Build passes.
+- [x] Every pointer rule in the design has a test case.
+- [x] The test drives a real `jakarta.validation.Validator`, not hand-built paths.
 
 **Related behaviors:** Pointers use JSON names · Pointers follow the naming strategy · Map keys are
 escaped · Class-level constraint on the body root.
