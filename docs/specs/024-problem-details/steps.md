@@ -135,7 +135,7 @@ escaped · Class-level constraint on the body root.
 
 ## Step 5: MVC exception handler
 
-- [ ] `ProblemDetailsExceptionHandler` — public `@RestControllerAdvice`, `@Order(LOWEST_PRECEDENCE)`,
+- [x] `ProblemDetailsExceptionHandler` — public `@RestControllerAdvice`, `@Order(LOWEST_PRECEDENCE)`,
       extends `ResponseEntityExceptionHandler`. Overrides the standard MVC exceptions per the design's
       mapping table and translates body/parameter validation:
       - body only → `validation-failed` with `errors[]`;
@@ -144,16 +144,18 @@ escaped · Class-level constraint on the body root.
       The parameter sentence format is
       `Invalid {query|path|header} parameter '<name>': <message>.`, joined by a space in declaration
       order. Rejected values and parser messages are never echoed.
-- [ ] A package-private `ParameterErrors` helper holding the parameter-sentence rendering, shared with
-      the catch-all resolver so the format lives in one place (DRY).
-- [ ] `ProblemDetailsExceptionHandlerTest` — direct unit tests of the handler methods where that is
+- [x] Two package-private helpers so the rendering lives in one place (DRY): `ParameterMessages` for
+      the parameter sentences, shared with the catch-all resolver, and `BodyErrors` for the
+      `errors[]` entries. (`ParameterMessages`, not `ParameterErrors` — Spring already has a
+      `org.springframework.validation.method.ParameterErrors` that this code uses.)
+- [x] `ProblemDetailsExceptionHandlerTest` — direct unit tests of the handler methods where that is
       meaningful; the HTTP-level proof lives in step 10.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] Every row of the design's MVC mapping table is implemented.
-- [ ] `Allow` and other `ErrorResponse` headers survive the translation.
+- [x] Build passes.
+- [x] Every row of the design's MVC mapping table is implemented.
+- [x] `Allow` and other `ErrorResponse` headers survive the translation.
 
 **Related behaviors:** Body errors carry pointers · Query parameter only · Path variable and header ·
 Body and parameter errors together · Type mismatch does not echo the value · Missing required parameter ·
