@@ -12,6 +12,9 @@ import com.example.app.StarterTestApp;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.services.apikey.ApiKeyCreateDto;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
+import com.openelements.spring.base.services.user.UserEntity;
+import com.openelements.spring.base.services.user.UserRepository;
+import com.openelements.spring.base.services.user.UserService;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -89,6 +92,8 @@ class ProblemDetailsChainIntegrationTest {
 
   @Autowired private ApiKeyDataService apiKeyDataService;
 
+  @Autowired private UserRepository userRepository;
+
   @Test
   @DisplayName("[chain] A request without a JWT is a 401 problem with the Bearer challenge")
   void missingJwtIsAProblem() throws Exception {
@@ -149,6 +154,40 @@ class ProblemDetailsChainIntegrationTest {
         .andExpect(jsonPath("$.type").value(BASE + "forbidden"))
         .andExpect(jsonPath("$.status").value(403));
     }
+
+  /**
+   * The deactivation gate is the one {@code 403} that originates in the library's own service layer
+   * rather than in a Spring Security rule: {@code UserService.getCurrentUserEntity()} throws {@code
+   * AccessDeniedException} for a row with {@code active = false}. It reaches the client only because
+   * the exception is left to propagate to {@code ExceptionTranslationFilter} instead of being mapped
+   * in an {@code @ExceptionHandler} — so this is also the end-to-end proof of that decision.
+   */
+  @Test
+  @DisplayName("[chain] A deactivated account is a 403 problem naming the reason")
+  void deactivatedAccountIsAProblem() throws Exception {
+    // The first call provisions the user from the JWT; it is active and therefore succeeds.
+    mockMvc
+        .perform(get("/api/problem/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
+        .andExpect(status().isOk());
+
+    final UserEntity user = userRepository.findBySub("chain-user").orElseThrow();
+    user.setActive(false);
+    userRepository.saveAndFlush(user);
+
+    try {
+      mockMvc
+          .perform(get("/api/problem/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
+          .andExpect(status().isForbidden())
+          .andExpect(content().contentType(PROBLEM_JSON))
+          .andExpect(jsonPath("$.type").value(BASE + "forbidden"))
+          .andExpect(jsonPath("$.status").value(403))
+          .andExpect(jsonPath("$.detail").value("User account is disabled"))
+          .andExpect(jsonPath("$.traceId").value(matchesPattern("[0-9a-f]{32}")));
+    } finally {
+      user.setActive(true);
+      userRepository.saveAndFlush(user);
+    }
+  }
 
   @Test
   @DisplayName("[chain] An application exception behind the JWT chain is a problem")
@@ -226,6 +265,7 @@ class ProblemDetailsChainIntegrationTest {
           Jwt.withTokenValue(token)
               .header("alg", "none")
               .subject("chain-user")
+              .claim("name", "Chain User")
               .claim("preferred_username", "chain-user")
               .issuedAt(Instant.EPOCH)
               .expiresAt(Instant.EPOCH.plusSeconds(3600))
@@ -233,8 +273,9 @@ class ProblemDetailsChainIntegrationTest {
     }
 
     @Bean
-    ChainTestController chainTestController(final AuthService authService) {
-      return new ChainTestController(authService);
+    ChainTestController chainTestController(
+        final AuthService authService, final UserService userService) {
+      return new ChainTestController(authService, userService);
     }
   }
 
@@ -244,8 +285,11 @@ class ProblemDetailsChainIntegrationTest {
 
     private final AuthService authService;
 
-    ChainTestController(final AuthService authService) {
+    private final UserService userService;
+
+    ChainTestController(final AuthService authService, final UserService userService) {
       this.authService = authService;
+      this.userService = userService;
     }
 
     @GetMapping(value = "/api/problem/protected", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -267,6 +311,12 @@ class ProblemDetailsChainIntegrationTest {
     @GetMapping(value = "/api/external/problem", produces = MediaType.TEXT_PLAIN_VALUE)
     String externalEndpoint() {
       return "ok";
+    }
+
+    /** Resolves the current user, which is where the deactivation gate fires. */
+    @GetMapping(value = "/api/problem/me", produces = MediaType.TEXT_PLAIN_VALUE)
+    String me() {
+      return userService.getCurrentUserEntity().getUserName();
     }
   }
 }
