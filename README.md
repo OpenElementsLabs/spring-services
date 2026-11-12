@@ -183,11 +183,11 @@ from committed configuration.
   characters from `SecureRandom`) are stored as a SHA-256 hash plus a short display prefix; the
   raw key is returned exactly once at creation. API keys grant **read-only** access
   (`GET` / `HEAD` / `OPTIONS`) — mutating operations require a JWT.
-- **Uniform Authentication-Failure Responses** — Both filter chains share a single
-  `JsonAuthenticationEntryPoint`. Every `401 Unauthorized` carries a stable JSON body
-  `{"status":401,"error":"Unauthorized","message":"<reason>"}` and an RFC 7235 §3.1
-  `WWW-Authenticate` header (`Bearer` on the JWT chain, `ApiKey realm="external"` on the
-  external chain).
+- **Problem Details (RFC 9457)** — Every error response is `application/problem+json` with a
+  stable `type` URI and a `traceId`. Covers the security `401`/`403`, validation, malformed
+  bodies, unhandled exceptions and errors the servlet container raises on its own. A `401` still
+  carries its RFC 7235 §3.1 `WWW-Authenticate` header (`Bearer` on the JWT chain,
+  `ApiKey realm="external"` on the external chain). See [Problem details](#problem-details) below.
 - **User Service** — Lazily provisions a local user row from the JWT subject (`sub`) and keeps
   `name`, `email` and `avatarUrl` in sync with the matching JWT claims. Carries three SCIM-
   aligned identifying fields — `sub` (OIDC subject, nullable for SCIM-pre-provisioned rows),
@@ -271,6 +271,186 @@ from committed configuration.
 
 For per-package overviews, see the `package-info.java` files under
 `src/main/java/com/openelements/spring/base/`.
+
+## Problem details
+
+Every error response the library produces or influences is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
+problem: `Content-Type: application/problem+json` with a stable, machine-readable `type` URI. The
+format follows the GovStack API Design Guide, chapter 11, so an application can implement a GovStack
+building block without writing an error layer of its own.
+
+```http
+HTTP/1.1 409 Conflict
+Content-Type: application/problem+json
+
+{
+  "type": "https://open-elements.com/problems/spring-services/duplicate-contact",
+  "title": "Duplicate contact",
+  "status": 409,
+  "detail": "A contact with this e-mail address already exists",
+  "instance": "/api/contacts",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "existingContactId": "0b6f3c1e-8d9a-4a57-9a43-1b0d1f3e7c21"
+}
+```
+
+**Clients compare the full `type` URI.** `status` is too coarse to branch on and `title` is prose.
+Slugs are published contract, as binding as a REST path.
+
+SCIM (`/scim/v2/**`) is deliberately untouched: RFC 7644 defines its own error envelope.
+
+### Configuration
+
+```properties
+openelements.problem-details.enabled=true
+openelements.problem-details.type-base=https://open-elements.com/problems/spring-services/
+openelements.problem-details.include-instance=true
+```
+
+`type-base` must be an absolute URI whose path ends with `/`; anything else fails start-up with a
+message naming the property. It applies to **all** types — the library's and the application's — so
+an application that publishes its own problem documentation sets its own base and the library's types
+move under it.
+
+`include-instance=false` drops the `instance` member. The query string is never included either way,
+because it routinely carries personal data.
+
+`enabled=false` restores the behaviour from before this feature in full: the previous JSON `401`, an
+empty `403`, Spring Boot's `BasicErrorController`, and the ALTCHA module's `{code, message}` body.
+The trace filter keeps running, so `traceId` stays in the log MDC regardless.
+
+### Standard types
+
+`StandardProblemType` has one constant per HTTP error status, with slugs frozen as literals (RFC 9110
+names, kebab-cased — not Spring's constant names, which have been renamed between versions), plus
+four that describe a cause rather than a status:
+
+| Slug | Status | When |
+| --- | --- | --- |
+| `validation-failed` | 400 | one or more request-body fields failed validation; carries `errors` |
+| `malformed-request` | 400 | the body could not be parsed at all |
+| `invalid-parameter` | 400 | a query, path or header parameter is missing or unusable |
+| `internal-error` | 500 | an unexpected failure |
+
+A status without a constant — `418`, or a code outside the registry — yields `http-<code>`.
+
+### Producing a problem
+
+Define the application's types, then throw:
+
+```java
+public enum CrmProblemType implements ProblemType {
+
+  DUPLICATE_CONTACT("duplicate-contact", HttpStatus.CONFLICT, "Duplicate contact");
+
+  private final String slug;
+  private final HttpStatus status;
+  private final String title;
+
+  CrmProblemType(String slug, HttpStatus status, String title) {
+    this.slug = slug;
+    this.status = status;
+    this.title = title;
+  }
+
+  @Override public String slug() { return slug; }
+  @Override public HttpStatus status() { return status; }
+  @Override public String title() { return title; }
+}
+
+throw new ProblemException(
+    CrmProblemType.DUPLICATE_CONTACT,
+    "A contact with this e-mail address already exists",
+    Map.of("existingContactId", existing.id()));
+```
+
+No handler is needed. `ProblemException` is not `final`, so a domain exception can extend it. An
+exception annotated `@ResponseStatus`, and a `ResponseStatusException`, are rendered as the problem
+for their status.
+
+Call `ProblemType.validate(type)` from a test over `values()` — an enum bypasses the validation that
+`ProblemType.of(...)` performs, and a typo in a slug is a published contract error.
+
+### Validation errors
+
+Request-**body** failures become `errors` entries whose `pointer` addresses the request the client
+sent, honouring `@JsonProperty` and `spring.jackson.property-naming-strategy`:
+
+```json
+{
+  "type": "https://open-elements.com/problems/spring-services/validation-failed",
+  "title": "Validation failed",
+  "status": 400,
+  "errors": [
+    { "pointer": "/address/postal_code", "message": "must match \"[0-9]{5}\"" }
+  ]
+}
+```
+
+Query, path and header failures are described in `detail` instead and carry **no** `errors` entry: a
+JSON pointer addresses a location in a document, and a parameter has none (Guide §11.4).
+
+| Failures | Type | Members |
+| --- | --- | --- |
+| body only | `validation-failed` | `errors[]` |
+| parameters only | `invalid-parameter` | `detail` |
+| both | `validation-failed` | `errors[]` and `detail` |
+
+> **Rejected values are never echoed by the library** — not in `detail`, not in an `errors` entry.
+> A Bean Validation message template that uses `${validatedValue}` *will* echo it, because the
+> interpolated message is passed through verbatim. That is the developer's choice.
+
+### Overriding
+
+An application `@ExceptionHandler` always wins; inject `ProblemFactory` to build the body from it:
+
+```java
+@RestControllerAdvice
+class SdkExceptionHandler {
+
+  private final ProblemFactory problems;
+
+  SdkExceptionHandler(ProblemFactory problems) {
+    this.problems = problems;
+  }
+
+  @ExceptionHandler(SdkTimeoutException.class)
+  ProblemDetail handle(SdkTimeoutException e, HttpServletRequest request) {
+    return problems.create(StandardProblemType.SERVICE_UNAVAILABLE, "Upstream timed out", request);
+  }
+}
+```
+
+Three override points, in increasing order of reach:
+
+- **An advice for an exception the library does not map** — nothing to watch out for.
+- **An advice for a *standard MVC* exception** (`MethodArgumentNotValidException`, say) — give it an
+  explicit `@Order`. The library's advice sits at `LOWEST_PRECEDENCE`, which is also the default for
+  an advice without one, and the winner on a tie depends on bean registration order.
+- **Your own `ResponseEntityExceptionHandler` subclass** — the library's advice is then not
+  registered at all. Unexpected exceptions still become `500 internal-error`.
+
+Declaring a `ProblemFactory` bean replaces the body everywhere, including the `401` and `403` written
+by the security filter chain. A `TraceIdResolver` bean replaces where the trace ID comes from.
+
+### Trace ID
+
+Every problem carries a `traceId`, which is also in the SLF4J MDC under `traceId` for the duration of
+the request. A valid incoming W3C `traceparent` header is honoured, so a caller that already traces
+its request sees its own ID; otherwise one is generated. Add it to the log pattern:
+
+```properties
+logging.pattern.level=%5p [${spring.application.name:},%X{traceId:-}]
+```
+
+A `5xx` is logged at `ERROR` with its exception and that trace ID; the client only ever receives
+`"An unexpected error occurred."` — no exception message, no class name, no stack trace.
+
+### No HTML error pages
+
+Error responses are `application/problem+json` regardless of the request's `Accept` header, including
+for a browser asking for `text/html`. This library serves APIs; an application that needs HTML error
+pages must supply its own `ErrorController`.
 
 ## Upgrade Notes
 

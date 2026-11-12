@@ -399,22 +399,22 @@ members.
 
 ## Step 14: Documentation
 
-- [ ] `README.md` — replace the "Uniform Authentication-Failure Responses" bullet with a "Problem
+- [x] `README.md` — replace the "Uniform Authentication-Failure Responses" bullet with a "Problem
       details" section: properties, the standard types, throwing `ProblemException`, overriding with an
       own advice (and the `@Order` note), replacing the `ProblemFactory`, the `${validatedValue}`
       warning, and the "no HTML error pages" constraint.
-- [ ] `docs/releases/upgrade-to-1.5.md` — a new section for the content-type change with before/after
+- [x] `docs/releases/upgrade-to-1.5.md` — a new section for the content-type change with before/after
       bodies for each affected source, the ALTCHA `code` → `type` migration, and
       `openelements.problem-details.enabled=false` as the escape hatch. Add the row to the summary table.
-- [ ] `CLAUDE.md` — no Project Context section exists in this repository (the file is a conventions
+- [x] `CLAUDE.md` — no Project Context section exists in this repository (the file is a conventions
       file); confirm and leave unchanged rather than inventing one.
-- [ ] `docs/specs/INDEX.md` — status `done`.
+- [x] `docs/specs/INDEX.md` — status `done`.
 
 **Acceptance criteria:**
 
-- [ ] Build passes with `-Dmaven.javadoc.failOnWarnings=true` (the CI setting).
-- [ ] Every new public type has Javadoc, and both new packages have `package-info.java`.
-- [ ] The upgrade guide shows a real before/after body for all six rows of the design's compatibility
+- [x] Build passes with `-Dmaven.javadoc.failOnWarnings=true` (the CI setting).
+- [x] Every new public type has Javadoc, and both new packages have `package-info.java`.
+- [x] The upgrade guide shows a real before/after body for all six rows of the design's compatibility
       table.
 
 ---

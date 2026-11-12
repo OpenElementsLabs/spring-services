@@ -80,10 +80,13 @@ public class ProblemException extends RuntimeException {
           ProblemMembers.TRACE_ID,
           ProblemMembers.ERRORS);
 
+  /** The kind of error this exception stands for. */
   private final ProblemType type;
 
+  /** Occurrence-specific explanation, or {@code null} when the type says it all. */
   private final @Nullable String detail;
 
+  /** Extension members to add to the problem; immutable and in the caller's order. */
   private final Map<String, Object> properties;
 
   /**
