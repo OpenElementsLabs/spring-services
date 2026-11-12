@@ -438,3 +438,70 @@ instance*. An application with several instances has to bring its own `ReplaySto
 needs one, a JPA-backed store (table in `oe_spring_services`, cleanup of expired rows) belongs in the
 module, with the SQL in the upgrade guide of that release.
 
+## Spec candidate: request tracing beyond the minimal trace ID (spec 024)
+
+Spec 024 ships only a placeholder: a `TraceIdResolver` interface, a default resolver (valid incoming
+`traceparent`, otherwise a random ID) and a filter that puts the ID into a request attribute and the
+MDC. Everything else was decided in the spec-024 grill session but deliberately left for its own spec:
+
+- **`traceresponse` header on every response**, successful or not, in the W3C Trace Context Level 2
+  draft format `00-<trace-id>-<span-id>-<flags>`. Without a tracer the span ID is 16 random hex
+  characters; the flags are taken from the incoming `traceparent`, otherwise `00`. Must be set before
+  the response is committed, so streamed responses carry it too.
+- **`openelements.tracing.enabled`** — tracing as a feature of its own, independent of
+  `openelements.problem-details.enabled`.
+- **`openelements.tracing.accept-incoming-traceparent`** (default `true`) — an untrusted client on
+  `/api/external/**`, `/mcp` or a public ALTCHA form can choose its own trace ID and make log
+  correlation unreliable (no log injection: the ID is validated as 32 hex characters).
+- **Micrometer `Tracer` bridge** (`@ConditionalOnClass`) — take the current trace ID from Micrometer
+  Tracing when the application has it.
+- **CORS documentation** — the library configures no CORS; a browser frontend on another origin can
+  only read `traceresponse` if the application sets `Access-Control-Expose-Headers: traceresponse`.
+
+**Context:** Split out of spec 024 (problem details) during its `/grill-me` so that 024 stays
+completable; tracing turned out to be general request infrastructure, not part of the error format.
+
+**Prerequisite:** Spec 024 (`TraceIdResolver` and the trace filter).
+
+## Make `openelements.problem-details.type-base` a required property (spec 024)
+
+Spec 024 defaults `type-base` to `https://open-elements.com/problems/spring-services/`. RFC 9457
+recommends dereferenceable type URIs, so that default promises pages at an Open Elements address that
+do not exist — and an application that does not set its own base publishes its own types
+(`…/spring-services/duplicate-contact`) under a domain that will never document them. The clean
+variant is a required property without a default: start-up fails until the application sets its own
+base.
+
+**Context:** Decided in the spec-024 `/grill-me`: keep the default for now, because removing it is a
+breaking change that needs preparation.
+
+**Prerequisite:** Human-readable pages for the library's standard problem types, and a migration note
+in the upgrade guide of the release that drops the default.
+
+## Exception→problem-type mapping and a global problem customizer (spec 024)
+
+Spec 024 lets applications produce typed problems by throwing `ProblemException`, by annotating an
+exception with `@ResponseStatus`, or by writing their own `@ExceptionHandler` with the
+`ProblemFactory`. Two conveniences were left out:
+
+- **Mapping registry** for exceptions the application does not own (e.g.
+  `DataIntegrityViolationException` → `conflict`) without writing a handler. Today such an exception
+  becomes `500 internal-error` unless the application handles it.
+- **Global customizer** that adds members to every problem (e.g. a tenant ID) without replacing the
+  whole `ProblemFactory`.
+
+**Context:** Deferred in the spec-024 `/grill-me` — no consumer needs either today.
+
+## Ask the GovStack common-components maintainer to merge the pinned schema (spec 024)
+
+Spec 024's contract test vendors `govstack-openapi-common.yaml` from
+`github.com/jeremi/govstack-api-common` at commit `12b9b1acde9bfaa5a77e26380fa8f9e1f29bb28e`. That
+commit exists only on the branch `agent/close-component-lint-gaps`, not on `main` — a force-push or a
+deleted branch would make the provenance unverifiable. `main` carries a different file with the same
+version `0.1.0-draft` that requires `code` and `timestamp`, contradicting API Design Guide §11.2/§11.4.
+
+- Ask for the branch to be merged to `main` (or tagged).
+- Optionally propose a standardised form for query/path/header parameter errors to Guide §11.4, which
+  today leaves them to `detail` — spec 024 follows that and emits no `errors[]` entry for them.
+
+**Context:** Found while checking the schema's provenance for spec 024.
