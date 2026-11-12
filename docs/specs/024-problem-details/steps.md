@@ -227,13 +227,13 @@ violation is a server error · Unknown path.
 
 ## Step 8: Security integration
 
-- [ ] `ProblemAuthenticationEntryPoint` — public, constructor
+- [x] `ProblemAuthenticationEntryPoint` — public, constructor
       `(ProblemFactory, ProblemResponseWriter, String wwwAuthenticate)`. Writes a `401` `unauthorized`
       problem with the `AuthenticationException` message as `detail` and the chain-specific
       `WWW-Authenticate` header.
-- [ ] `ProblemAccessDeniedHandler` — public. Writes a `403` `forbidden` problem with the
+- [x] `ProblemAccessDeniedHandler` — public. Writes a `403` `forbidden` problem with the
       `AccessDeniedException` message as `detail`.
-- [ ] `SecurityConfig` changes:
+- [x] `SecurityConfig` changes:
       - `jwtAuthenticationEntryPoint` / `apiKeyAuthenticationEntryPoint` return
         `AuthenticationEntryPoint`; two variants per bean name, selected by `@ConditionalOnProperty` on
         `openelements.problem-details.enabled` (problem variant with `matchIfMissing = true`, JSON
@@ -244,17 +244,17 @@ violation is a server error · Unknown path.
       - The default chain permits `DispatcherType.ERROR` (also only when enabled) so a container or
         filter `sendError` reaches `ProblemErrorController` instead of becoming a `401`.
       - Javadoc updated to the new types.
-- [ ] `ProblemAuthenticationEntryPointTest`, `ProblemAccessDeniedHandlerTest`.
-- [ ] Keep `JsonAuthenticationEntryPoint` and its test — it is the `enabled=false` implementation.
-- [ ] `McpSecurityConfig` needs no change (it already injects `AuthenticationEntryPoint` by qualifier) —
+- [x] `ProblemAuthenticationEntryPointTest`, `ProblemAccessDeniedHandlerTest`.
+- [x] Keep `JsonAuthenticationEntryPoint` and its test — it is the `enabled=false` implementation.
+- [x] `McpSecurityConfig` needs no change (it already injects `AuthenticationEntryPoint` by qualifier) —
       verified, not assumed.
 
 **Acceptance criteria:**
 
-- [ ] Build passes for every module.
-- [ ] Unit tests prove both handlers write `application/problem+json`, the right status and the right
+- [x] Build passes for every module.
+- [x] Unit tests prove both handlers write `application/problem+json`, the right status and the right
       `WWW-Authenticate` header.
-- [ ] `JsonAuthenticationEntryPointTest` still passes unchanged.
+- [x] `JsonAuthenticationEntryPointTest` still passes unchanged.
 
 **Related behaviors:** Invalid API key · Missing JWT · Deactivated user · Method security · Denied in the
 filter chain (handler level; chain-level proof in step 11).
@@ -263,23 +263,23 @@ filter chain (handler level; chain-level proof in step 11).
 
 ## Step 9: ALTCHA module
 
-- [ ] `AltchaProblemType` — public enum in `com.openelements.spring.base.services.altcha` implementing
+- [x] `AltchaProblemType` — public enum in `com.openelements.spring.base.services.altcha` implementing
       `ProblemType`: `MISSING`/`INVALID`/`EXPIRED` → `altcha-missing` / `altcha-invalid` /
       `altcha-expired`, all `400`, English titles. A factory `forResult(VerificationResult)` maps the
       verifier's result so the slug derivation lives in one place.
-- [ ] `AltchaExceptionHandler` takes an `ObjectProvider<ProblemFactory>`: with a factory it answers the
+- [x] `AltchaExceptionHandler` takes an `ObjectProvider<ProblemFactory>`: with a factory it answers the
       typed problem with the localised message as `detail`; without one it answers `{code, message}` as
       before. `AltchaVerificationException.code()` stays — it is still the `enabled=false` body and the
       slug source.
-- [ ] `AltchaAutoConfiguration` passes the provider through.
-- [ ] `AltchaProblemTypeTest`; extend `AltchaWebTest` with the problem-details-enabled and
+- [x] `AltchaAutoConfiguration` passes the provider through.
+- [x] `AltchaProblemTypeTest`; extend `AltchaWebTest` with the problem-details-enabled and
       `enabled=false` variants.
 
 **Acceptance criteria:**
 
-- [ ] Build passes.
-- [ ] All three ALTCHA types are proven over HTTP.
-- [ ] With `problem-details.enabled=false` the old `{code, message}` body is byte-identical to before.
+- [x] Build passes.
+- [x] All three ALTCHA types are proven over HTTP.
+- [x] With `problem-details.enabled=false` the old `{code, message}` body is byte-identical to before.
 
 **Related behaviors:** Missing solution · Invalid and expired solutions · ALTCHA with problem details
 disabled.

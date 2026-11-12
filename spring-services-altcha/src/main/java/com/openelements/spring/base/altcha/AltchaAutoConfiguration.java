@@ -1,6 +1,7 @@
 package com.openelements.spring.base.altcha;
 
 import com.openelements.spring.base.SpringServicesCoreAutoConfiguration;
+import com.openelements.spring.base.problem.ProblemFactory;
 import com.openelements.spring.base.services.altcha.AltchaChallengeController;
 import com.openelements.spring.base.services.altcha.AltchaExceptionHandler;
 import com.openelements.spring.base.services.altcha.AltchaProperties;
@@ -9,6 +10,7 @@ import com.openelements.spring.base.services.altcha.AltchaVerifier;
 import com.openelements.spring.base.services.altcha.InMemoryReplayStore;
 import com.openelements.spring.base.services.altcha.ReplayStore;
 import org.altcha.altcha.v2.Altcha;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -100,10 +102,16 @@ public class AltchaAutoConfiguration {
             return new AltchaChallengeController(service);
         }
 
+        /**
+         * The error response. The {@link ProblemFactory} is passed as a provider rather than injected:
+         * it does not exist while {@code openelements.problem-details.enabled=false}, and that is
+         * exactly the case in which this handler must answer with the module's previous body.
+         */
         @Bean
         @ConditionalOnMissingBean
-        AltchaExceptionHandler altchaExceptionHandler() {
-            return new AltchaExceptionHandler();
+        AltchaExceptionHandler altchaExceptionHandler(
+                final ObjectProvider<ProblemFactory> problemFactory) {
+            return new AltchaExceptionHandler(problemFactory);
         }
 
         /**
