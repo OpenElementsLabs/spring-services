@@ -25,7 +25,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * beans resolve under one persistence unit.
  *
  * <p>This is the proof that {@code AutoConfigurationPackages.register} plus
- * {@code @AutoConfigureBefore(HibernateJpaAutoConfiguration, JpaRepositoriesAutoConfiguration)}
+ * {@code @AutoConfigureBefore(HibernateJpaAutoConfiguration, DataJpaRepositoriesAutoConfiguration)}
  * actually win the auto-configuration ordering — the additive scan is not assumed to work, it is
  * demonstrated. The test fails if <em>either</em> side is missing.
  */

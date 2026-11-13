@@ -202,7 +202,7 @@ class ProblemDetailsChainIntegrationTest {
 
   /**
    * The trace filter is registered with an order below {@code
-   * SecurityProperties.DEFAULT_FILTER_ORDER} so that it has already run when an entry point writes a
+   * SecurityFilterProperties.DEFAULT_FILTER_ORDER} so that it has already run when an entry point writes a
    * {@code 401}. Nothing but a request through the real chain can prove that.
    */
   @Test

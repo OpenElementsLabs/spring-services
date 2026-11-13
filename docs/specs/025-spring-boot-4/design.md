@@ -34,8 +34,10 @@ silently pin its BOM import (see the comment in the root `pom.xml`). The Java ba
 **Java 25**.
 
 The migration is developed against the snapshot. Releasing spring-services 2.0.0 requires the released
-`java-parent` 2.0.0 (a release cannot depend on a snapshot parent); that switch is a one-line change in the root
-`pom.xml` and part of the release, not of this spec.
+`java-parent` 2.0.0 (a release cannot depend on a snapshot parent); that switch is part of the release, not of
+this spec. It consists of three edits in the root `pom.xml`: the parent version, and removing the temporary
+Central snapshot `<repositories>` block together with `checker.strict=false` — Maven needs the repository to
+resolve the snapshot parent, and pomchecker's strict mode (Maven Central rules) rejects a `<repositories>` block.
 
 ## Goals
 
