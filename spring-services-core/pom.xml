@@ -139,12 +139,13 @@
                                     <excludes>
                                         <exclude>com.slack.api:slack-api-client</exclude>
                                         <exclude>io.modelcontextprotocol.sdk:*</exclude>
+                                        <exclude>org.springframework.ai:*</exclude>
                                         <exclude>org.springframework.boot:spring-boot-starter-mail</exclude>
                                     </excludes>
                                     <message>spring-services-core must not depend on optional feature
-                                        libraries (slack-api-client, the MCP SDK, or
-                                        spring-boot-starter-mail). Those belong to the feature
-                                        modules.</message>
+                                        libraries (slack-api-client, the MCP SDK, Spring AI's MCP
+                                        transport, or spring-boot-starter-mail). Those belong to
+                                        the feature modules.</message>
                                 </bannedDependencies>
                             </rules>
                         </configuration>

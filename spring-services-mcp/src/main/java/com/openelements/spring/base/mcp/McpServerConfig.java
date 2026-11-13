@@ -1,19 +1,19 @@
 package com.openelements.spring.base.mcp;
 
-import tools.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import io.modelcontextprotocol.common.McpTransportContext;
-import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.WebMvcStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -21,8 +21,8 @@ import java.util.Map;
 /**
  * Wires the MCP server endpoint.
  *
- * <p>Only active when {@code openelements.mcp.enabled=true}. Builds the official
- * Java MCP SDK's {@link WebMvcStreamableServerTransportProvider} (Streamable HTTP
+ * <p>Only active when {@code openelements.mcp.enabled=true}. Builds Spring AI's
+ * {@link WebMvcStreamableServerTransportProvider} for the official Java MCP SDK (Streamable HTTP
  * at {@code /mcp}), assembles the {@link McpSyncServer} from the tool catalog
  * contributed by every {@link McpToolProvider} bean, and exposes the transport's
  * {@link RouterFunction} so Spring WebMVC serves the endpoint.
@@ -46,19 +46,19 @@ public class McpServerConfig {
 
     /**
      * The Streamable HTTP transport provider. Uses the application's Jackson
-     * {@link ObjectMapper} (so date/time and other modules match the REST API)
+     * {@link JsonMapper} (so date/time and other modules match the REST API)
      * wrapped as the SDK's {@code McpJsonMapper}.
      *
-     * @param objectMapper       the application's Jackson mapper used to (de)serialize MCP payloads
+     * @param jsonMapper         the application's Jackson mapper used to (de)serialize MCP payloads
      * @param apiKeyDataService  the key store used to resolve the authenticated actor from the
      *                           {@code X-API-Key} header for the transport context
      * @return the configured Streamable HTTP transport provider serving {@code /mcp}
      */
     @Bean
     public WebMvcStreamableServerTransportProvider mcpTransportProvider(
-            final ObjectMapper objectMapper, final ApiKeyDataService apiKeyDataService) {
+            final JsonMapper jsonMapper, final ApiKeyDataService apiKeyDataService) {
         return WebMvcStreamableServerTransportProvider.builder()
-                .jsonMapper(new JacksonMcpJsonMapper(objectMapper))
+                .jsonMapper(new JacksonMcpJsonMapper(jsonMapper))
                 .mcpEndpoint(MCP_ENDPOINT)
                 // Capture the authenticated actor label on the request thread (where
                 // the X-API-Key header is available) and pass it through the MCP

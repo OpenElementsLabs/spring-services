@@ -46,7 +46,7 @@ class McpToolSupportTest {
         when(exchange.transportContext()).thenReturn(
                 McpTransportContext.create(Map.of(McpActorLabel.ACTOR_LABEL_KEY, "apikey:test")));
         final SyncToolSpecification spec = support.spec(TOOL, logic);
-        return spec.call().apply(exchange, args);
+        return spec.callHandler().apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), args));
     }
 
     // -- spec(): success -----------------------------------------------------
@@ -83,7 +83,8 @@ class McpToolSupportTest {
         final McpSyncServerExchange exchange = mock(McpSyncServerExchange.class);
         when(exchange.transportContext()).thenReturn(McpTransportContext.EMPTY);
 
-        final CallToolResult result = support.spec(TOOL, args -> "ok").call().apply(exchange, Map.of());
+        final CallToolResult result = support.spec(TOOL, args -> "ok")
+                .callHandler().apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), Map.of()));
 
         assertFalse(result.isError());
         assertEquals("\"ok\"", text(result));
