@@ -17,16 +17,16 @@
 
 ## Step 1: Build baseline — parent, version, Java 25
 
-- [ ] Root `pom.xml`: parent `java-parent` 1.3.0 → 2.0.0-SNAPSHOT; Central snapshot repository for the
+- [x] Root `pom.xml`: parent `java-parent` 1.3.0 → 2.0.0-SNAPSHOT; Central snapshot repository for the
   parent and its imports until java-parent 2.0.0 is released
-- [ ] Reactor version `1.5.0-SNAPSHOT` → `2.0.0-SNAPSHOT` in all module POMs, `-all` and `-bom`
-- [ ] `.sdkmanrc` → `java=25`; `java-version: 25` in `build.yml`, `snapshot.yml`, `release.yml`
-- [ ] Root `pom.xml`: `mcp-sdk.version` → 2.1.0, new `spring-ai.version` 2.0.2, `json-schema-validator.version`
+- [x] Reactor version `1.5.0-SNAPSHOT` → `2.0.0-SNAPSHOT` in all module POMs, `-all` and `-bom`
+- [x] `.sdkmanrc` → `java=25`; `java-version: 25` in `build.yml`, `snapshot.yml`, `release.yml`
+- [x] Root `pom.xml`: `mcp-sdk.version` → 2.1.0, new `spring-ai.version` 2.0.2, `json-schema-validator.version`
   → 3.x (comment updated)
 
 **Acceptance criteria:**
-- [ ] `./mvnw validate` succeeds on Java 25 against java-parent 2.0.0-SNAPSHOT
-- [ ] No POM defines `spring-boot.version`, `maven.compiler.*` or `enforcer.requiredJavaVersion`
+- [x] `./mvnw validate` succeeds on Java 25 against java-parent 2.0.0-SNAPSHOT
+- [x] No POM defines `spring-boot.version`, `maven.compiler.*` or `enforcer.requiredJavaVersion`
 
 **Related behaviors:** Boot version comes from the parent only, Reactor version, Build runs on Java 25
 
@@ -34,12 +34,12 @@
 
 ## Step 2: OpenRewrite `UpgradeSpringBoot_4_0` (one-off, not added to the build)
 
-- [ ] Run `org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` (incl. Jackson 3 recipe) once via the
+- [x] Run `org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` (incl. Jackson 3 recipe) once via the
   rewrite-maven-plugin command line
-- [ ] Review the diff like hand-written code; revert anything outside the spec's scope
+- [x] Review the diff like hand-written code; revert anything outside the spec's scope
 
 **Acceptance criteria:**
-- [ ] No rewrite plugin configuration in any POM
+- [x] No rewrite plugin configuration in any POM
 
 **Related behaviors:** —
 
@@ -47,19 +47,19 @@
 
 ## Step 3: Core module on Boot 4 / Jackson 3 / Security 7 / Hibernate 7
 
-- [ ] Starters renamed (`spring-boot-starter-web` → `spring-boot-starter-webmvc`), Boot 4 test starters for
+- [x] Starters renamed (`spring-boot-starter-web` → `spring-boot-starter-webmvc`), Boot 4 test starters for
   slices / MockMvc / Jackson / security
-- [ ] Jackson imports → `tools.jackson.*`; `JsonProcessingException` → `JacksonException`; immutable mapper via
+- [x] Jackson imports → `tools.jackson.*`; `JsonProcessingException` → `JacksonException`; immutable mapper via
   builder/`rebuild()`
-- [ ] Moved auto-configuration classes (`HibernateJpaAutoConfiguration`, `JpaRepositoriesAutoConfiguration`,
+- [x] Moved auto-configuration classes (`HibernateJpaAutoConfiguration`, `JpaRepositoriesAutoConfiguration`,
   `ProjectInfoAutoConfiguration`, `WebMvcAutoConfiguration`, `ErrorMvcAutoConfiguration`, `SecurityProperties`)
-- [ ] `JsonPointers` on Jackson 3 `BeanDescription` / naming strategy
-- [ ] Security 7 and Hibernate 7 API changes, if any
-- [ ] Test YAML dependency → `tools.jackson.dataformat:jackson-dataformat-yaml`; networknt validator 3.x API
-- [ ] Tests adapted only where the platform forces it
+- [x] `JsonPointers` on Jackson 3 `BeanDescription` / naming strategy
+- [x] Security 7 and Hibernate 7 API changes, if any
+- [x] Test YAML dependency → `tools.jackson.dataformat:jackson-dataformat-yaml`; networknt validator 3.x API
+- [x] Tests adapted only where the platform forces it
 
 **Acceptance criteria:**
-- [ ] `spring-services-core` builds and all tests pass (incl. Testcontainers)
+- [x] `spring-services-core` builds and all tests pass (incl. Testcontainers)
 
 **Related behaviors:** Core starts after the migration, Problem details still replace Boot's error handling,
 Trace filter still runs before security, Configuration properties bind unchanged, All chains behave as before,
@@ -71,11 +71,11 @@ timestamps unchanged, No schema change, JSON pointers follow the naming strategy
 
 ## Step 4: Feature modules (SCIM, search, DB backup, email, slack, storage, tenant, ALTCHA, all)
 
-- [ ] Same treatment as step 3 per module; `MeilisearchClient` and `ScimAuthenticationEntryPoint` on Jackson 3
-- [ ] `MailSenderAutoConfiguration` moved package
+- [x] Same treatment as step 3 per module; `MeilisearchClient` and `ScimAuthenticationEntryPoint` on Jackson 3
+- [x] `MailSenderAutoConfiguration` moved package
 
 **Acceptance criteria:**
-- [ ] Every feature module builds and all tests pass
+- [x] Every feature module builds and all tests pass
 
 **Related behaviors:** Meilisearch client on Jackson 3, Tenant guard still enforced, Feature modules stay inert
 by default
@@ -84,15 +84,15 @@ by default
 
 ## Step 5: MCP module on MCP SDK 2.x + Spring AI WebMVC transport
 
-- [ ] Dependencies: `mcp-core`, `mcp-json-jackson3` (`${mcp-sdk.version}`), `org.springframework.ai:mcp-spring-webmvc`
+- [x] Dependencies: `mcp-core`, `mcp-json-jackson3` (`${mcp-sdk.version}`), `org.springframework.ai:mcp-spring-webmvc`
   (`${spring-ai.version}`); remove `mcp-json-jackson2` and the SDK's `mcp-spring-webmvc`
-- [ ] Adapt `McpServerConfig`, `McpTools`, `McpToolSupport`, `McpToolLogic`, `McpConfiguration`
-- [ ] Core's `ban-optional-feature-dependencies` gains `org.springframework.ai:*`
+- [x] Adapt `McpServerConfig`, `McpTools`, `McpToolSupport`, `McpToolLogic`, `McpConfiguration`
+- [x] Core's `ban-optional-feature-dependencies` gains `org.springframework.ai:*`
 
 **Acceptance criteria:**
-- [ ] MCP module builds; `McpToolsTest`, `McpSecurityChainWebTest`, `McpAutoConfigurationTest` pass unchanged in
+- [x] MCP module builds; `McpToolsTest`, `McpSecurityChainWebTest`, `McpAutoConfigurationTest` pass unchanged in
   their expectations
-- [ ] A streamable-HTTP test sends `initialize` + `tools/list` to `/mcp` and checks tool names and input schemas
+- [x] A streamable-HTTP test sends `initialize` + `tools/list` to `/mcp` and checks tool names and input schemas
 
 **Related behaviors:** MCP server answers over streamable HTTP, Tool call returns the same result, MCP still
 requires an API key, MCP stays off by default, BOM manages the new MCP and Spring AI coordinates, Core still bans
@@ -102,13 +102,13 @@ optional feature libraries
 
 ## Step 6: Enforcer rule — no Jackson 2 at runtime
 
-- [ ] `bannedDependencies` rule in the root `pom.xml` `<build><plugins>` (compile + runtime scope)
-- [ ] Verified once by temporarily adding `jackson-databind` (direct and transitive) to a module, and a
+- [x] `bannedDependencies` rule in the root `pom.xml` `<build><plugins>` (compile + runtime scope)
+- [x] Verified once by temporarily adding `jackson-databind` (direct and transitive) to a module, and a
   test-scoped Jackson 2 dependency (not committed)
 
 **Acceptance criteria:**
-- [ ] Full build green with the rule active
-- [ ] Temporary violation fails with the spec 025 message
+- [x] Full build green with the rule active
+- [x] Temporary violation fails with the spec 025 message
 
 **Related behaviors:** No Jackson 2 in any runtime tree, Enforcer fails on a Jackson 2 dependency, Transitive
 Jackson 2 is caught, Jackson annotations stay allowed, Test-scoped Jackson 2 is not banned, No Jackson 2 imports in
@@ -118,12 +118,12 @@ main code
 
 ## Step 7: Behaviour gaps
 
-- [ ] Test: library beans (`ProblemResponseWriter`, `ScimAuthenticationEntryPoint`, `McpToolSupport`,
+- [x] Test: library beans (`ProblemResponseWriter`, `ScimAuthenticationEntryPoint`, `McpToolSupport`,
   `MeilisearchClient`) use Boot's customised `JsonMapper`
-- [ ] Any scenario from behaviors.md not yet covered by an existing test gets one
+- [x] Any scenario from behaviors.md not yet covered by an existing test gets one
 
 **Acceptance criteria:**
-- [ ] Every scenario in the coverage table below maps to a passing test or a build check
+- [x] Every scenario in the coverage table below maps to a passing test or a build check
 
 **Related behaviors:** Library beans receive Boot's mapper (+ any gaps found)
 
@@ -131,16 +131,16 @@ main code
 
 ## Step 8: After-capture, upgrade guide, README
 
-- [ ] Re-run the capture on Boot 4, diff against step 0, record differences
-- [ ] `docs/releases/upgrade-to-2.0.md` (Java 25, Boot 4.1, java-parent 2.0.0, starter renames, Jackson 3, four
+- [x] Re-run the capture on Boot 4, diff against step 0, record differences
+- [x] `docs/releases/upgrade-to-2.0.md` (Java 25, Boot 4.1, java-parent 2.0.0, starter renames, Jackson 3, four
   signatures, `JacksonException`, MCP SDK / Spring AI, JSON differences with webhook section, springdoc Jackson 2
   note, changed test expectations)
-- [ ] README: Boot version and supported range per major; BOM section
-- [ ] Compare test inventory with step 0; remove the capture tests
+- [x] README: Boot version and supported range per major; BOM section
+- [x] Compare test inventory with step 0; remove the capture tests
 
 **Acceptance criteria:**
-- [ ] Full `./mvnw verify` green
-- [ ] No test method removed or newly `@Disabled`
+- [x] Full `./mvnw verify` green
+- [x] No test method removed or newly `@Disabled`
 
 **Related behaviors:** Upgrade guide exists and is complete, JSON differences are recorded, Supported Boot range
 documented, No test removed or weakened, Full build is green
