@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
         with:
-          java-version: "21"
+          java-version: "25"
           distribution: "temurin"
           # Generate a settings.xml with a <server id="central-portal-snapshots">
           # whose credentials come from the env vars below. The id must match
