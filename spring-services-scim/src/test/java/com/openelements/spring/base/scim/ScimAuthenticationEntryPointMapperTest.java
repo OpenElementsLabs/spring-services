@@ -16,8 +16,8 @@ import org.springframework.security.authentication.BadCredentialsException;
  * {@link ScimAuthenticationEntryPoint} writes its {@code 401} body with the application's JSON
  * mapper.
  *
- * <p>Since Spring Boot 4 that mapper is a Jackson 3 {@code JsonMapper}; the entry point must receive
- * Boot's bean — including the application's customisations — rather than a mapper of its own. A
+ * <p>Since Spring Boot 4 that mapper is a Jackson 3 {@code JsonMapper}; the entry point must
+ * receive Boot's bean — including the application's customisations — rather than a mapper of its own. A
  * customisation that is visible in every body ({@code indent-output}) proves which mapper wrote it.
  *
  * <p><b>Mock-Audit.</b> No mocks; Spring's servlet test doubles stand in for the container.

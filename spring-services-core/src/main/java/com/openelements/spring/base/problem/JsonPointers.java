@@ -165,7 +165,8 @@ final class JsonPointers {
     final BeanDescription description;
     try {
       final SerializationConfig config = objectMapper.serializationConfig();
-      final ClassIntrospector introspector = config.classIntrospectorInstance().forOperation(config);
+      final ClassIntrospector introspector =
+          config.classIntrospectorInstance().forOperation(config);
       description =
           introspector.introspectForSerialization(
               owner, introspector.introspectClassAnnotations(owner));

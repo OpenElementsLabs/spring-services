@@ -9,9 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import com.openelements.spring.base.security.JsonAuthenticationEntryPoint;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
@@ -29,6 +26,9 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Unit tests for {@link ApiKeyAuthenticationFilter} — the Spring Security filter that

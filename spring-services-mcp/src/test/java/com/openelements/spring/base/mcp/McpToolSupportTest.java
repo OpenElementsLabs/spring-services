@@ -84,7 +84,8 @@ class McpToolSupportTest {
         when(exchange.transportContext()).thenReturn(McpTransportContext.EMPTY);
 
         final CallToolResult result = support.spec(TOOL, args -> "ok")
-                .callHandler().apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), Map.of()));
+                .callHandler()
+                .apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), Map.of()));
 
         assertFalse(result.isError());
         assertEquals("\"ok\"", text(result));

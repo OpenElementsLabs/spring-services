@@ -43,7 +43,7 @@ class McpAutoConfigurationTest {
   }
 
   @Test
-  @DisplayName("Registers no server, transport or security chain while openelements.mcp.enabled is unset")
+  @DisplayName("No server, transport or security chain while openelements.mcp.enabled is unset")
   void inertWhenNotEnabled() {
     contextRunner
         .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
@@ -72,7 +72,9 @@ class McpAutoConfigurationTest {
                   support
                       .spec(tool, args -> Map.of("a", 1))
                       .callHandler()
-                      .apply(mock(McpSyncServerExchange.class), new McpSchema.CallToolRequest("demo", Map.of()));
+                      .apply(
+                          mock(McpSyncServerExchange.class),
+                          new McpSchema.CallToolRequest("demo", Map.of()));
               assertThat(((McpSchema.TextContent) result.content().get(0)).text())
                   .as("indent-output is set on Boot's mapper only")
                   .contains("\n");

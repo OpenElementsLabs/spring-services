@@ -87,7 +87,7 @@ class AggregateStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("Search, DB backup, MCP, ALTCHA and SCIM stay inactive without their enabling properties")
+  @DisplayName("Search, DB backup, MCP, ALTCHA and SCIM stay inactive without enabling properties")
   void optInFeaturesStayInactiveByDefault() {
     assertThat(context.getBeanNamesForType(MeilisearchClient.class))
         .as("search requires openelements.meilisearch.enabled=true")

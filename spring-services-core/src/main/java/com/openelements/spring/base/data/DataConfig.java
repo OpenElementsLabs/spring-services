@@ -1,7 +1,6 @@
 package com.openelements.spring.base.data;
 
 import javax.sql.DataSource;
-
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

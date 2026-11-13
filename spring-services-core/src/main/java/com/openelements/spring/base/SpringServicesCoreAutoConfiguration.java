@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
@@ -35,8 +35,8 @@ import org.springframework.core.type.AnnotationMetadata;
  * Data's repository registrar read {@link AutoConfigurationPackages}. Both readers are themselves
  * auto-configuration-driven, and auto-configuration ordering is otherwise unspecified — therefore
  * this class declares {@link AutoConfigureBefore @AutoConfigureBefore} against
- * {@link HibernateJpaAutoConfiguration} and {@link DataJpaRepositoriesAutoConfiguration}. The guarantee
- * is proven by an integration test, not assumed.
+ * {@link HibernateJpaAutoConfiguration} and {@link DataJpaRepositoriesAutoConfiguration}. The
+ * guarantee is proven by an integration test, not assumed.
  *
  * <p>{@link ConditionalOnClass @ConditionalOnClass(EntityManagerFactory.class)} keeps the starter
  * inert in an application that has no JPA on the classpath.
@@ -46,7 +46,10 @@ import org.springframework.core.type.AnnotationMetadata;
  */
 @AutoConfiguration
 @ConditionalOnClass(EntityManagerFactory.class)
-@AutoConfigureBefore({HibernateJpaAutoConfiguration.class, DataJpaRepositoriesAutoConfiguration.class})
+@AutoConfigureBefore({
+  HibernateJpaAutoConfiguration.class,
+  DataJpaRepositoriesAutoConfiguration.class
+})
 @Import({FullSpringServiceConfig.class, SpringServicesCoreAutoConfiguration.PackageRegistrar.class})
 public class SpringServicesCoreAutoConfiguration {
 

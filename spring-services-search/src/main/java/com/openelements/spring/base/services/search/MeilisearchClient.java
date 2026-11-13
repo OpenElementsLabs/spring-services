@@ -1,7 +1,5 @@
 package com.openelements.spring.base.services.search;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Thin HTTP wrapper around the Meilisearch REST API. Uses Spring's {@link RestClient} (already on

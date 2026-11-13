@@ -14,8 +14,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -30,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Wire-level tests for {@link MeilisearchClient}.
@@ -87,7 +87,7 @@ class MeilisearchClientTest {
   }
 
   @Test
-  @DisplayName("A Spring-created client serialises request bodies with Boot's customised JSON mapper.")
+  @DisplayName("A Spring-created client serialises request bodies with Boot's customised mapper.")
   void springCreatedClientUsesBootsMapper() {
     wireMockServer.stubFor(
         post(urlEqualTo("/indexes/crm_contacts/documents"))

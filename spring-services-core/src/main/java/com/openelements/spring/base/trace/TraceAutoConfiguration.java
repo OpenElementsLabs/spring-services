@@ -3,7 +3,6 @@ package com.openelements.spring.base.trace;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.security.autoconfigure.SecurityProperties;
 import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -19,8 +18,8 @@ import org.springframework.context.annotation.Bean;
  * the trace ID is request infrastructure, not part of the error format. An application that turns
  * problem details off keeps {@code traceId} in its log MDC.
  *
- * <p>The filter is registered with an order of {@link SecurityProperties#DEFAULT_FILTER_ORDER}
- * {@code - 1} so it runs before every Spring Security filter chain. Without that, a {@code 401}
+ * <p>The filter is registered with an order of {@link
+ * SecurityFilterProperties#DEFAULT_FILTER_ORDER} {@code - 1} so it runs before every Spring Security filter chain. Without that, a {@code 401}
  * written by an authentication entry point would be the one response with no trace ID.
  */
 @AutoConfiguration

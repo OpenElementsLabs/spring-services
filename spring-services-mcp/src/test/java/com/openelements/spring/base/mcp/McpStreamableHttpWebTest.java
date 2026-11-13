@@ -39,8 +39,9 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>That an MCP client can talk to {@code /mcp}: {@code initialize} opens a session, {@code
  * tools/list} returns the contributed tools with their input schemas, and {@code tools/call} runs a
- * tool and returns its serialized payload. This is the contract the MCP SDK 2.x / Spring AI transport
- * migration (spec 025) must keep; the unit tests of {@link McpToolSupport} cannot see the transport.
+ * tool and returns its serialized payload. This is the contract the MCP SDK 2.x / Spring AI
+ * transport migration (spec 025) must keep; the unit tests of {@link McpToolSupport} cannot see the
+ * transport.
  *
  * <h2>How it is tested</h2>
  *
@@ -69,7 +70,8 @@ class McpStreamableHttpWebTest {
                   HttpMessageConvertersAutoConfiguration.class,
                   WebMvcAutoConfiguration.class))
           .withUserConfiguration(McpServerUnderTest.class)
-          .withPropertyValues("openelements.mcp.enabled=true", "openelements.mcp.server-name=Test MCP");
+          .withPropertyValues(
+              "openelements.mcp.enabled=true", "openelements.mcp.server-name=Test MCP");
 
   @Test
   @DisplayName("initialize and tools/list return the contributed tools with their input schemas")
@@ -169,7 +171,8 @@ class McpStreamableHttpWebTest {
     return session == null ? builder : builder.header(SESSION_HEADER, session);
   }
 
-  private static String request(final int id, final String method, final Map<String, Object> params) {
+  private static String request(
+      final int id, final String method, final Map<String, Object> params) {
     return JSON.writeValueAsString(
         Map.of("jsonrpc", "2.0", "id", id, "method", method, "params", params));
   }
