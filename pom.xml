@@ -89,4 +89,42 @@
         <json-schema-validator.version>3.0.9</json-schema-validator.version>
     </properties>
 
+    <build>
+        <plugins>
+            <!-- Spring Boot 4 is on Jackson 3 (tools.jackson). Jackson 2 on the runtime classpath of a
+                 module would mean a second, unconfigured JSON stack shipped to every consumer, so the
+                 build fails on it — directly or transitively, in compile and runtime scope. Test
+                 scope is not banned. jackson-annotations stays allowed: Jackson 3 itself uses the
+                 2.x annotations. Deliberately no exceptions list (spec 025): a library that needs
+                 Jackson 2 at runtime blocks its module until it supports Jackson 3. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-jackson-2-at-runtime</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.fasterxml.jackson.core:jackson-databind:*:*:compile</exclude>
+                                        <exclude>com.fasterxml.jackson.core:jackson-databind:*:*:runtime</exclude>
+                                        <exclude>com.fasterxml.jackson.core:jackson-core:*:*:compile</exclude>
+                                        <exclude>com.fasterxml.jackson.core:jackson-core:*:*:runtime</exclude>
+                                    </excludes>
+                                    <searchTransitive>true</searchTransitive>
+                                    <message>Jackson 2 must not be on the runtime classpath of a
+                                        spring-services module (spec 025).</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
