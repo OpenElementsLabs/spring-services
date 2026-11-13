@@ -27,6 +27,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
  * Wire-level tests for {@link MeilisearchClient}.
@@ -81,6 +84,35 @@ class MeilisearchClientTest {
     final MeilisearchProperties props =
         new MeilisearchProperties(wireMockServer.baseUrl(), "master-key", "crm_", null);
     client = new MeilisearchClient(props, new JsonMapper());
+  }
+
+  @Test
+  @DisplayName("A Spring-created client serialises request bodies with Boot's customised JSON mapper.")
+  void springCreatedClientUsesBootsMapper() {
+    wireMockServer.stubFor(
+        post(urlEqualTo("/indexes/crm_contacts/documents"))
+            .willReturn(
+                aResponse()
+                    .withStatus(202)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"taskUid\":1}")));
+
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
+        .withBean(
+            MeilisearchProperties.class,
+            () -> new MeilisearchProperties(wireMockServer.baseUrl(), "master-key", "crm_", null))
+        .withBean(MeilisearchClient.class)
+        .withPropertyValues("spring.jackson.serialization.indent-output=true")
+        .run(
+            context ->
+                context
+                    .getBean(MeilisearchClient.class)
+                    .addDocuments("crm_contacts", List.of(Map.of("id", "1"))));
+
+    wireMockServer.verify(
+        postRequestedFor(urlEqualTo("/indexes/crm_contacts/documents"))
+            .withRequestBody(containing("\n")));
   }
 
   @Test

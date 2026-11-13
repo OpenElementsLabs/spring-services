@@ -133,6 +133,23 @@ class McpToolSupportTest {
                 "internal errors must not leak the underlying message");
     }
 
+    @Test
+    void payloadThatCannotBeSerializedBecomesGenericInternalError() {
+        // Jackson 3 reports this as the unchecked JacksonException (Jackson 2: checked
+        // JsonProcessingException); the client must see the same generic error either way.
+        final CallToolResult result = call(args -> new Unserializable(), Map.of());
+
+        assertTrue(result.isError());
+        assertEquals("Internal error executing tool demo", text(result));
+    }
+
+    /** A payload whose only property fails while being serialized. */
+    private static final class Unserializable {
+        public String getValue() {
+            throw new IllegalStateException("cannot be read");
+        }
+    }
+
     // -- paginate() ----------------------------------------------------------
 
     @Test

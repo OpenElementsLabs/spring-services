@@ -1,9 +1,14 @@
 package com.openelements.spring.base.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
+import io.modelcontextprotocol.spec.McpSchema;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
@@ -51,5 +56,26 @@ class McpAutoConfigurationTest {
                 .doesNotHaveBean(McpServerConfig.class)
                 .doesNotHaveBean(McpSecurityConfig.class)
                 .doesNotHaveBean("mcpApiKeyFilterChain"));
+  }
+
+  @Test
+  @DisplayName("McpToolSupport serialises tool payloads with Boot's customised JSON mapper")
+  void toolSupportUsesBootsMapper() {
+    contextRunner
+        .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
+        .withPropertyValues("spring.jackson.serialization.indent-output=true")
+        .run(
+            context -> {
+              final McpToolSupport support = context.getBean(McpToolSupport.class);
+              final McpSchema.Tool tool = McpTools.tool("demo", "Demo.", Map.of(), List.of());
+              final McpSchema.CallToolResult result =
+                  support
+                      .spec(tool, args -> Map.of("a", 1))
+                      .callHandler()
+                      .apply(mock(McpSyncServerExchange.class), new McpSchema.CallToolRequest("demo", Map.of()));
+              assertThat(((McpSchema.TextContent) result.content().get(0)).text())
+                  .as("indent-output is set on Boot's mapper only")
+                  .contains("\n");
+            });
   }
 }

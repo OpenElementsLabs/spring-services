@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import com.openelements.spring.base.testcontainers.TestApplication;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -231,6 +233,45 @@ class TagDataServiceIntegrationTest {
 
       // THEN
       assertThat(found).isEmpty();
+    }
+  }
+
+  /**
+   * {@code @CreationTimestamp} / {@code @UpdateTimestamp} on {@code AbstractEntity}, as Hibernate
+   * fills them. Compared at microsecond precision, which is what PostgreSQL stores.
+   */
+  @Nested
+  @DisplayName("entity timestamps")
+  class TimestampsTest {
+
+    @Test
+    @DisplayName("createdAt is set once on insert; updatedAt changes on update.")
+    void createdAtIsStableAndUpdatedAtMoves() {
+      // GIVEN
+      final TagEntity entity = new TagEntity();
+      entity.setName("Timestamps");
+      entity.setColor("#000000");
+      final TagEntity inserted = tagRepository.saveAndFlush(entity);
+      final Instant createdAt = inserted.getCreatedAt().truncatedTo(ChronoUnit.MICROS);
+      final Instant firstUpdatedAt = inserted.getUpdatedAt().truncatedTo(ChronoUnit.MICROS);
+      waitUntilClockPasses(firstUpdatedAt);
+
+      // WHEN
+      final TagEntity loaded = tagRepository.findById(inserted.getId()).orElseThrow();
+      loaded.setName("Timestamps renamed");
+      tagRepository.saveAndFlush(loaded);
+
+      // THEN
+      final TagEntity reloaded = tagRepository.findById(inserted.getId()).orElseThrow();
+      assertThat(reloaded.getCreatedAt().truncatedTo(ChronoUnit.MICROS)).isEqualTo(createdAt);
+      assertThat(reloaded.getUpdatedAt().truncatedTo(ChronoUnit.MICROS)).isAfter(firstUpdatedAt);
+    }
+
+    /** Spins until the clock is past the given instant, so the update gets a later timestamp. */
+    private static void waitUntilClockPasses(final Instant instant) {
+      while (!Instant.now().truncatedTo(ChronoUnit.MICROS).isAfter(instant)) {
+        Thread.onSpinWait();
+      }
     }
   }
 }
