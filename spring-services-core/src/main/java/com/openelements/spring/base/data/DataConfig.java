@@ -1,7 +1,6 @@
 package com.openelements.spring.base.data;
 
 import javax.sql.DataSource;
-import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,7 +28,6 @@ public class DataConfig {
    * @return the database health service
    */
   @Bean
-  @DependsOnDatabaseInitialization
   public DbHealthService dbHealthService(final DataSource dataSource) {
     return new DbHealthService(dataSource);
   }

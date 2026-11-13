@@ -19,8 +19,9 @@ import org.springframework.context.annotation.Bean;
  * problem details off keeps {@code traceId} in its log MDC.
  *
  * <p>The filter is registered with an order of {@link
- * SecurityFilterProperties#DEFAULT_FILTER_ORDER} {@code - 1} so it runs before every Spring Security filter chain. Without that, a {@code 401}
- * written by an authentication entry point would be the one response with no trace ID.
+ * SecurityFilterProperties#DEFAULT_FILTER_ORDER} {@code - 1} so it runs before every Spring Security
+ * filter chain. Without that, a {@code 401} written by an authentication entry point would be the
+ * one response with no trace ID.
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
