@@ -1,6 +1,6 @@
 package com.example.problemapp;
 
-import org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath;
+import org.springframework.boot.webmvc.autoconfigure.DispatcherServletPath;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

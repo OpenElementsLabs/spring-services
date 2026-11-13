@@ -14,7 +14,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -79,7 +80,7 @@ class MeilisearchClientTest {
     wireMockServer.resetAll();
     final MeilisearchProperties props =
         new MeilisearchProperties(wireMockServer.baseUrl(), "master-key", "crm_", null);
-    client = new MeilisearchClient(props, new ObjectMapper());
+    client = new MeilisearchClient(props, new JsonMapper());
   }
 
   @Test

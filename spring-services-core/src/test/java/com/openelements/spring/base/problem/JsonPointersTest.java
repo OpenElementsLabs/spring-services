@@ -3,8 +3,9 @@ package com.openelements.spring.base.problem;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validation;
@@ -32,7 +33,7 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>{@code @JsonProperty} renames a field;
- *   <li>a configured {@link com.fasterxml.jackson.databind.PropertyNamingStrategy} renames every
+ *   <li>a configured {@link tools.jackson.databind.PropertyNamingStrategies} renames every
  *       field — the normal case for a snake_case API, and the one where a naive pointer is wrong for
  *       every single error;
  *   <li>list indexes and map keys become pointer segments;
@@ -57,7 +58,7 @@ class JsonPointersTest {
   private static ValidatorFactory validatorFactory;
   private static Validator validator;
 
-  private final JsonPointers pointers = new JsonPointers(new ObjectMapper());
+  private final JsonPointers pointers = new JsonPointers(new JsonMapper());
 
   @BeforeAll
   static void startValidator() {
@@ -114,7 +115,9 @@ class JsonPointersTest {
   @DisplayName("A configured naming strategy renames every segment.")
   void namingStrategyRenamesEverySegment() {
     final ObjectMapper snakeCase =
-        new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        JsonMapper.builder()
+            .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+            .build();
     final Snake snake = new Snake("");
 
     assertThat(pointersFor(snake, new JsonPointers(snakeCase))).containsExactly("/postal_code");

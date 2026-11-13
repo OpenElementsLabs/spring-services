@@ -4,7 +4,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Test infrastructure for the aggregate context: a PostgreSQL Testcontainer and a stub
@@ -16,8 +16,8 @@ public class AggregateTestConfig {
 
   @Bean
   @ServiceConnection
-  public PostgreSQLContainer<?> postgresContainer() {
-    return new PostgreSQLContainer<>("postgres:16-alpine")
+  public PostgreSQLContainer postgresContainer() {
+    return new PostgreSQLContainer("postgres:16-alpine")
         // Pre-create the dedicated schema so Hibernate's create-drop startup DROP phase does not
         // log a CommandAcceptanceException for the not-yet-existing oe_spring_services schema.
         .withInitScript("db/create-schema.sql");

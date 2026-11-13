@@ -1,6 +1,7 @@
 package com.openelements.spring.base.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.openelements.spring.base.mcp.McpProperties.Auth;
 import com.openelements.spring.base.mcp.McpProperties.Auth.ApiKey;
 import com.openelements.spring.base.mcp.McpProperties.Auth.Oidc;
@@ -31,7 +32,7 @@ class McpToolSupportTest {
     private static final McpSchema.Tool TOOL =
             McpTools.tool("demo", "Demo tool.", Map.of(), List.of());
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new JsonMapper();
     private final McpPaging paging = new McpPaging(new McpProperties(
             true, "Open CRM", "0.1.0", 50, 20, new Auth(new ApiKey(true), new Oidc(false))));
     private final McpToolSupport support = new McpToolSupport(paging, objectMapper);

@@ -1,7 +1,7 @@
 package com.openelements.spring.base.scim;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 
 /**
  * Minimal boot application for the SCIM integration tests. Relies entirely on auto-configuration:

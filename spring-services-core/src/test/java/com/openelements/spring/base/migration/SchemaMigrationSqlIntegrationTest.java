@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Proves that the migration SQL shipped in the upgrade doc actually moves an existing consumer's
@@ -34,8 +34,8 @@ class SchemaMigrationSqlIntegrationTest {
   };
 
   @Container
-  private static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>("postgres:16-alpine");
+  private static final PostgreSQLContainer POSTGRES =
+      new PostgreSQLContainer("postgres:16-alpine");
 
   private JdbcTemplate jdbc;
 

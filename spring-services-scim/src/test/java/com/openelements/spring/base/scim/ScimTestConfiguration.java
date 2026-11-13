@@ -5,7 +5,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** Test infrastructure: a PostgreSQL Testcontainer and a stub {@link JwtDecoder} for the JWT chain. */
 @TestConfiguration(proxyBeanMethods = false)
@@ -18,8 +18,8 @@ public class ScimTestConfiguration {
    */
   @Bean
   @ServiceConnection
-  public PostgreSQLContainer<?> postgresContainer() {
-    return new PostgreSQLContainer<>("postgres:16-alpine");
+  public PostgreSQLContainer postgresContainer() {
+    return new PostgreSQLContainer("postgres:16-alpine");
   }
 
   /**

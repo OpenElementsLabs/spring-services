@@ -1,6 +1,6 @@
 package com.openelements.spring.base.services.translation;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -133,10 +133,10 @@ public class TranslationService {
           HttpStatus.BAD_GATEWAY, "Translation API response missing message");
     }
     final JsonNode content = message.get("content");
-    if (content == null || !content.isTextual()) {
+    if (content == null || !content.isString()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Translation API response missing content");
     }
-    return content.asText();
+    return content.asString();
   }
 }

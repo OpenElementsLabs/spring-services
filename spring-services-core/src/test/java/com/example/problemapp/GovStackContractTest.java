@@ -5,10 +5,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import com.networknt.schema.Error;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
@@ -28,11 +29,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration;
+import org.springframework.boot.http.converter.autoconfigure.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.error.ErrorMvcAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.http.MediaType;
@@ -97,7 +98,7 @@ class GovStackContractTest {
   private static final Set<String> FORBIDDEN_MEMBERS =
       Set.of("timestamp", "error", "message", "code");
 
-  private static final ObjectMapper JSON = new ObjectMapper();
+  private static final ObjectMapper JSON = new JsonMapper();
 
   private static JsonNode schemaDocument;
 
@@ -130,7 +131,7 @@ class GovStackContractTest {
                 + " src/test/resources/govstack/README.md")
         .isEqualTo(EXPECTED_SHA256);
 
-    schemaDocument = new ObjectMapper(new YAMLFactory()).readTree(bytes);
+    schemaDocument = new YAMLMapper().readTree(bytes);
   }
 
   @Test
@@ -248,7 +249,7 @@ class GovStackContractTest {
                       .getResponse()
                       .getContentAsByteArray());
 
-          assertThat(body.path("traceId").asText()).isEqualTo(TRACE_ID);
+          assertThat(body.path("traceId").asString()).isEqualTo(TRACE_ID);
         });
   }
 
@@ -338,7 +339,7 @@ class GovStackContractTest {
    * @return the validation errors, empty when the body is valid
    */
   private static List<Error> validate(final String schemaName, final JsonNode body) {
-    final ObjectNode root = schemaDocument.deepCopy();
+    final ObjectNode root = (ObjectNode) schemaDocument.deepCopy();
     root.put("$ref", "#/components/schemas/" + schemaName);
     final Schema schema =
         SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)

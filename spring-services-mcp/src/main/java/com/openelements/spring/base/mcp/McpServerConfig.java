@@ -1,6 +1,6 @@
 package com.openelements.spring.base.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;

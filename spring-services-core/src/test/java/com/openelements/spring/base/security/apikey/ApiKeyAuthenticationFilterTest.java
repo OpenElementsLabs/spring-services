@@ -9,8 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.openelements.spring.base.security.JsonAuthenticationEntryPoint;
 import com.openelements.spring.base.services.apikey.ApiKeyDataService;
 import com.openelements.spring.base.services.apikey.ApiKeyEntity;
@@ -83,7 +84,7 @@ class ApiKeyAuthenticationFilterTest {
 
   private final ApiKeyDataService apiKeyService = mock(ApiKeyDataService.class);
   private final JsonAuthenticationEntryPoint entryPoint =
-      new JsonAuthenticationEntryPoint(new ObjectMapper(), "ApiKey realm=\"external\"");
+      new JsonAuthenticationEntryPoint(new JsonMapper(), "ApiKey realm=\"external\"");
   private final ApiKeyAuthenticationFilter filter =
       new ApiKeyAuthenticationFilter(apiKeyService, entryPoint);
   private final FilterChain filterChain = mock(FilterChain.class);
@@ -154,10 +155,10 @@ class ApiKeyAuthenticationFilterTest {
       assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
       assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE))
           .isEqualTo("ApiKey realm=\"external\"");
-      final JsonNode body = new ObjectMapper().readTree(response.getContentAsString());
+      final JsonNode body = new JsonMapper().readTree(response.getContentAsString());
       assertThat(body.get("status").asInt()).isEqualTo(401);
-      assertThat(body.get("error").asText()).isEqualTo("Unauthorized");
-      assertThat(body.get("message").asText()).isEqualTo("Invalid API key");
+      assertThat(body.get("error").asString()).isEqualTo("Unauthorized");
+      assertThat(body.get("message").asString()).isEqualTo("Invalid API key");
       verify(filterChain, never()).doFilter(any(), any());
     }
   }

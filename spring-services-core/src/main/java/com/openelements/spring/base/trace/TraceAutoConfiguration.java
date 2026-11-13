@@ -3,7 +3,8 @@ package com.openelements.spring.base.trace;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.boot.security.autoconfigure.SecurityProperties;
+import org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
@@ -52,7 +53,7 @@ public class TraceAutoConfiguration {
   public FilterRegistrationBean<?> traceContextFilterRegistration(final TraceIdResolver resolver) {
     final FilterRegistrationBean<TraceContextFilter> registration =
         new FilterRegistrationBean<>(new TraceContextFilter(resolver));
-    registration.setOrder(SecurityProperties.DEFAULT_FILTER_ORDER - 1);
+    registration.setOrder(SecurityFilterProperties.DEFAULT_FILTER_ORDER - 1);
     return registration;
   }
 }

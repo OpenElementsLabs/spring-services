@@ -1,9 +1,11 @@
 package com.openelements.spring.base.problem;
 
-import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
+import tools.jackson.databind.BeanDescription;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationConfig;
+import tools.jackson.databind.introspect.ClassIntrospector;
+import tools.jackson.databind.introspect.BeanPropertyDefinition;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import jakarta.validation.Path.Node;
@@ -15,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A validation error has to point at the request the client sent, not at the Java object the
  * server bound it to. Those two differ whenever {@code @JsonProperty} renames a field or a {@link
- * com.fasterxml.jackson.databind.PropertyNamingStrategy} is configured, which is the normal case for
+ * tools.jackson.databind.PropertyNamingStrategy} is configured, which is the normal case for
  * a snake_case API:
  *
  * <pre>{@code
@@ -162,7 +164,11 @@ final class JsonPointers {
     }
     final BeanDescription description;
     try {
-      description = objectMapper.getSerializationConfig().introspect(owner);
+      final SerializationConfig config = objectMapper.serializationConfig();
+      final ClassIntrospector introspector = config.classIntrospectorInstance().forOperation(config);
+      description =
+          introspector.introspectForSerialization(
+              owner, introspector.introspectClassAnnotations(owner));
     } catch (final RuntimeException e) {
       return null;
     }

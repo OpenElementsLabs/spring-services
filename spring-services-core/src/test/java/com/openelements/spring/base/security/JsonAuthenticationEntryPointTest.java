@@ -3,8 +3,9 @@ package com.openelements.spring.base.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -40,7 +41,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 @DisplayName("JsonAuthenticationEntryPoint")
 class JsonAuthenticationEntryPointTest {
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new JsonMapper();
 
   @Test
   @DisplayName(
@@ -60,8 +61,8 @@ class JsonAuthenticationEntryPointTest {
     assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo("Bearer");
     final JsonNode body = objectMapper.readTree(response.getContentAsString());
     assertThat(body.get("status").asInt()).isEqualTo(401);
-    assertThat(body.get("error").asText()).isEqualTo("Unauthorized");
-    assertThat(body.get("message").asText()).isEqualTo("Full authentication is required");
+    assertThat(body.get("error").asString()).isEqualTo("Unauthorized");
+    assertThat(body.get("message").asString()).isEqualTo("Full authentication is required");
   }
 
   @Test
@@ -79,7 +80,7 @@ class JsonAuthenticationEntryPointTest {
     assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE))
         .isEqualTo("ApiKey realm=\"external\"");
     final JsonNode body = objectMapper.readTree(response.getContentAsString());
-    assertThat(body.get("message").asText()).isEqualTo("Invalid API key");
+    assertThat(body.get("message").asString()).isEqualTo("Invalid API key");
   }
 
   @Test

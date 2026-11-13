@@ -1,6 +1,6 @@
 package com.openelements.spring.base.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.problem.ProblemAccessDeniedHandler;
 import com.openelements.spring.base.problem.ProblemAuthenticationEntryPoint;
 import com.openelements.spring.base.problem.ProblemFactory;

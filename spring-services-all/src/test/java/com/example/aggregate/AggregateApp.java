@@ -1,7 +1,7 @@
 package com.example.aggregate;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 
 /**
  * A zero-config consumer application with the <em>full</em> reactor on the classpath

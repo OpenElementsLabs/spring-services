@@ -1,6 +1,6 @@
 package com.openelements.spring.base.services.scim;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.services.scim.model.ScimError;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

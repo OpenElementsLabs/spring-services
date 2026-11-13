@@ -5,7 +5,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.web.client.RestClient;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Shared Testcontainers configuration that starts a PostgreSQL container and provides test beans
@@ -16,8 +16,8 @@ public class PostgresTestConfiguration {
 
   @Bean
   @ServiceConnection
-  public PostgreSQLContainer<?> postgresContainer() {
-    return new PostgreSQLContainer<>("postgres:16-alpine")
+  public PostgreSQLContainer postgresContainer() {
+    return new PostgreSQLContainer("postgres:16-alpine")
         // Pre-create the dedicated schema so Hibernate's create-drop startup DROP phase does not
         // log a CommandAcceptanceException for the not-yet-existing oe_spring_services schema.
         .withInitScript("db/create-schema.sql");

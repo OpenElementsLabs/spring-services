@@ -2,8 +2,9 @@ package com.openelements.spring.base.problem;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.RequestDispatcher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ class ProblemErrorControllerTest {
 
   private static final String BASE = "https://open-elements.com/problems/spring-services/";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new JsonMapper();
   private final ProblemErrorController controller =
       new ProblemErrorController(
           new DefaultProblemFactory(new ProblemDetailsProperties(true, BASE, true)), objectMapper);
@@ -81,8 +82,8 @@ class ProblemErrorControllerTest {
 
     assertThat(response.getStatus()).isEqualTo(status);
     assertThat(body.path("status").asInt()).isEqualTo(status);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + slug);
-    assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + slug);
+    assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
   }
 
   @Test
@@ -91,7 +92,7 @@ class ProblemErrorControllerTest {
     final JsonNode body =
         render(errorDispatch(429, "/api/test/limited"), new MockHttpServletResponse());
 
-    assertThat(body.path("instance").asText()).isEqualTo("/api/test/limited");
+    assertThat(body.path("instance").asString()).isEqualTo("/api/test/limited");
   }
 
   @Test
@@ -112,7 +113,7 @@ class ProblemErrorControllerTest {
     final JsonNode body = render(request, response);
 
     assertThat(response.getContentType()).isEqualTo("application/problem+json");
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "not-found");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "not-found");
   }
 
   @Test
@@ -124,7 +125,7 @@ class ProblemErrorControllerTest {
 
     assertThat(response.getStatus()).isEqualTo(499);
     assertThat(body.path("status").asInt()).isEqualTo(499);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "http-499");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "http-499");
   }
 
   @Test
@@ -135,7 +136,7 @@ class ProblemErrorControllerTest {
     final JsonNode body = render(errorDispatch(null, "/api/test"), response);
 
     assertThat(response.getStatus()).isEqualTo(500);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "internal-error");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "internal-error");
   }
 
   @Test
@@ -143,6 +144,6 @@ class ProblemErrorControllerTest {
   void withoutTheOriginalPathInstanceIsTheDispatchPath() throws Exception {
     final JsonNode body = render(errorDispatch(500, null), new MockHttpServletResponse());
 
-    assertThat(body.path("instance").asText()).isEqualTo("/error");
+    assertThat(body.path("instance").asString()).isEqualTo("/error");
   }
 }

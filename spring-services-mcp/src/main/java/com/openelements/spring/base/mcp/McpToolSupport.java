@@ -1,12 +1,12 @@
 package com.openelements.spring.base.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 
 import java.util.*;
 
@@ -83,7 +83,7 @@ public class McpToolSupport {
     private String json(final Object payload) {
         try {
             return objectMapper.writeValueAsString(payload);
-        } catch (final JsonProcessingException e) {
+        } catch (final JacksonException e) {
             throw new IllegalStateException("Failed to serialize MCP tool payload", e);
         }
     }

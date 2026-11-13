@@ -2,7 +2,8 @@ package com.openelements.spring.base.services.webhook;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import com.openelements.spring.base.data.WithId;
 import com.openelements.spring.base.events.OnObjectCreate;
