@@ -1,5 +1,6 @@
 package com.openelements.spring.base.problem;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,7 +48,10 @@ final class ProblemBody {
     Objects.requireNonNull(problem, "problem must not be null");
 
     final Map<String, Object> body = new LinkedHashMap<>();
-    body.put("type", problem.getType().toString());
+    // Spring Framework 7 leaves the type null unless set; RFC 9457 defines the absent type as
+    // about:blank, which is what Spring Framework 6 put there.
+    final URI type = problem.getType();
+    body.put("type", type != null ? type.toString() : "about:blank");
     if (problem.getTitle() != null) {
       body.put("title", problem.getTitle());
     }
