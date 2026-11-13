@@ -15,6 +15,7 @@ import org.springframework.boot.http.converter.autoconfigure.HttpMessageConverte
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,7 +47,7 @@ import org.springframework.web.context.WebApplicationContext;
 class AltchaProblemDetailsDisabledWebTest {
 
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(AltchaAutoConfiguration.class, SecurityAutoConfiguration.class,
+            .withConfiguration(AutoConfigurations.of(AltchaAutoConfiguration.class, SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class,
                     WebMvcAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class,
                     JacksonAutoConfiguration.class, ProblemDetailsAutoConfiguration.class,
                     TraceAutoConfiguration.class))

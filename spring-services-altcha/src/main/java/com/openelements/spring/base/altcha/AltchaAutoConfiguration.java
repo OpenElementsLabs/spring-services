@@ -18,7 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -45,7 +45,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * chain can see whether there is an {@link HttpSecurity} to build it with. Without Spring Security
  * there is nothing to open, and the chain is not registered.
  */
-@AutoConfiguration(after = {SpringServicesCoreAutoConfiguration.class, SecurityAutoConfiguration.class})
+@AutoConfiguration(
+    after = {SpringServicesCoreAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class})
 @ConditionalOnClass(Altcha.class)
 @ConditionalOnProperty(prefix = "openelements.altcha", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(AltchaProperties.class)

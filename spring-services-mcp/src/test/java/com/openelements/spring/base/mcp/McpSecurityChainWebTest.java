@@ -22,6 +22,7 @@ import org.springframework.boot.http.converter.autoconfigure.HttpMessageConverte
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -66,7 +67,7 @@ class McpSecurityChainWebTest {
                   TraceAutoConfiguration.class,
                   JacksonAutoConfiguration.class,
                   HttpMessageConvertersAutoConfiguration.class,
-                  SecurityAutoConfiguration.class,
+                  SecurityAutoConfiguration.class, ServletWebSecurityAutoConfiguration.class,
                   WebMvcAutoConfiguration.class))
           .withUserConfiguration(EntryPoints.class, McpSecurityConfig.class)
           .withPropertyValues("openelements.mcp.enabled=true");
