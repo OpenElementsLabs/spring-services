@@ -543,3 +543,15 @@ version `0.1.0-draft` that requires `code` and `timestamp`, contradicting API De
   today leaves them to `detail` — spec 024 follows that and emits no `errors[]` entry for them.
 
 **Context:** Found while checking the schema's provenance for spec 024.
+
+## Complete `@NullMarked` coverage and evaluate NullAway
+
+All null annotations in the reactor are already JSpecify (`org.jspecify.annotations`); no
+`org.springframework.lang` usage remains. But only 8 of 22 `package-info.java` files carry
+`@NullMarked`, so most packages still have unspecified nullness. Next steps: `@NullMarked` on every
+package, then evaluate NullAway in the build (ideally managed in `java-parent`). Spring Framework 7
+annotates its own API with JSpecify, so NullAway would surface Spring's null contracts where the
+library implements or calls Spring APIs.
+
+**Context:** Raised by issue #58 ("Null safety") and deliberately left out of the Spring Boot 4
+upgrade spec (025) in its `/grill-me`: 2.0 is the platform upgrade only.
