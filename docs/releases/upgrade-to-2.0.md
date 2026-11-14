@@ -1,7 +1,6 @@
 # Upgrade prompt: spring-services 2.0.0 — Spring Boot 4
 
-> **Draft — 2.0.0 is unreleased.** `main` builds against `java-parent` 2.0.0-SNAPSHOT. The release
-> switches to the released `java-parent` 2.0.0; nothing else in this document depends on that.
+> **Draft — 2.0.0 is unreleased.** `main` builds against the released `java-parent` 2.0.0.
 
 `spring-services` 2.0.0 is a **platform upgrade only** (spec 025): the whole library moves from Spring
 Boot 3.5 to Spring Boot 4.1. There are no new library features and no library-motivated breaking
