@@ -3,11 +3,16 @@ package com.example.aggregate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.openelements.spring.base.mcp.McpProperties;
+import com.openelements.spring.base.services.altcha.AltchaService;
+import com.openelements.spring.base.services.dbbackup.DbBackupClient;
 import com.openelements.spring.base.services.email.EmailService;
+import com.openelements.spring.base.services.scim.ScimUserService;
+import com.openelements.spring.base.services.search.MeilisearchClient;
 import com.openelements.spring.base.services.slack.SlackService;
 import com.openelements.spring.base.services.storage.ObjectStore;
 import com.openelements.spring.base.services.user.SystemUser;
 import com.openelements.spring.base.services.user.UserRepository;
+import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +83,26 @@ class AggregateStarterIntegrationTest {
   void storageStaysInertWithoutAType() {
     assertThat(context.getBeanNamesForType(ObjectStore.class))
         .as("three implementations are on the classpath; none may be picked by classpath presence")
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName("Search, DB backup, MCP, ALTCHA and SCIM stay inactive without enabling properties")
+  void optInFeaturesStayInactiveByDefault() {
+    assertThat(context.getBeanNamesForType(MeilisearchClient.class))
+        .as("search requires openelements.meilisearch.enabled=true")
+        .isEmpty();
+    assertThat(context.getBeanNamesForType(DbBackupClient.class))
+        .as("DB backup requires its enabling property")
+        .isEmpty();
+    assertThat(context.getBeanNamesForType(McpSyncServer.class))
+        .as("MCP requires openelements.mcp.enabled=true")
+        .isEmpty();
+    assertThat(context.getBeanNamesForType(AltchaService.class))
+        .as("ALTCHA requires openelements.altcha.enabled=true")
+        .isEmpty();
+    assertThat(context.getBeanNamesForType(ScimUserService.class))
+        .as("SCIM requires openelements.scim.token")
         .isEmpty();
   }
 }

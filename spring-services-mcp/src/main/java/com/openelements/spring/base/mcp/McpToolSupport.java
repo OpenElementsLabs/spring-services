@@ -1,12 +1,12 @@
 package com.openelements.spring.base.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 
@@ -54,8 +54,11 @@ public class McpToolSupport {
      * @return the sync tool specification
      */
     public SyncToolSpecification spec(final McpSchema.Tool tool, final McpToolLogic logic) {
-        return new SyncToolSpecification(tool, (exchange, args) ->
-                invoke(tool.name(), logic, args, McpActorLabel.from(exchange.transportContext())));
+        return SyncToolSpecification.builder()
+                .tool(tool)
+                .callHandler((exchange, request) -> invoke(tool.name(), logic, request.arguments(),
+                        McpActorLabel.from(exchange.transportContext())))
+                .build();
     }
 
     private McpSchema.CallToolResult invoke(final String name, final McpToolLogic logic,
@@ -64,26 +67,30 @@ public class McpToolSupport {
         try {
             final Object payload = logic.run(args);
             log.info("MCP tool call tool={} actor={}", name, actor);
-            return new McpSchema.CallToolResult(json(payload), false);
+            return result(json(payload), false);
         } catch (final IllegalArgumentException e) {
             log.info("MCP tool call rejected tool={} actor={} reason=invalid-argument", name, actor);
-            return new McpSchema.CallToolResult("Invalid argument: " + e.getMessage(), true);
+            return result("Invalid argument: " + e.getMessage(), true);
         } catch (final NoSuchElementException e) {
             log.info("MCP tool call not-found tool={} actor={}", name, actor);
-            return new McpSchema.CallToolResult(e.getMessage(), true);
+            return result(e.getMessage(), true);
         } catch (final McpUnavailableException e) {
             log.info("MCP tool call unavailable tool={} actor={}", name, actor);
-            return new McpSchema.CallToolResult(e.getMessage(), true);
+            return result(e.getMessage(), true);
         } catch (final Exception e) {
             log.warn("MCP tool call errored tool={} actor={} error={}", name, actor, e.getClass().getSimpleName());
-            return new McpSchema.CallToolResult("Internal error executing tool " + name, true);
+            return result("Internal error executing tool " + name, true);
         }
+    }
+
+    private static McpSchema.CallToolResult result(final String text, final boolean error) {
+        return McpSchema.CallToolResult.builder().addTextContent(text).isError(error).build();
     }
 
     private String json(final Object payload) {
         try {
             return objectMapper.writeValueAsString(payload);
-        } catch (final JsonProcessingException e) {
+        } catch (final JacksonException e) {
             throw new IllegalStateException("Failed to serialize MCP tool payload", e);
         }
     }

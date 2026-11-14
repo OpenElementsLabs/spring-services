@@ -3,8 +3,6 @@ package com.example.problemapp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.app.StarterTestApp;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -17,9 +15,10 @@ import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -31,6 +30,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Errors that never reach Spring MVC, through a real servlet container.
@@ -68,11 +70,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Import({PostgresTestConfiguration.class, ProblemErrorDispatchIntegrationTest.ErrorDispatchBeans.class})
 @Testcontainers
 @ActiveProfiles("testcontainers")
+@AutoConfigureTestRestTemplate
 class ProblemErrorDispatchIntegrationTest {
 
   private static final String BASE = "https://open-elements.com/problems/spring-services/";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new JsonMapper();
 
   @Autowired private TestRestTemplate restTemplate;
 
@@ -82,7 +85,7 @@ class ProblemErrorDispatchIntegrationTest {
         .hasToString("application/problem+json");
     final JsonNode body = MAPPER.readTree(response.getBody());
     assertThat(body.path("status").asInt()).isEqualTo(response.getStatusCode().value());
-    assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
+    assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
     return body;
   }
 
@@ -94,8 +97,8 @@ class ProblemErrorDispatchIntegrationTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
     final JsonNode body = problem(response);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "too-many-requests");
-    assertThat(body.path("title").asText()).isEqualTo("Too Many Requests");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "too-many-requests");
+    assertThat(body.path("title").asString()).isEqualTo("Too Many Requests");
     assertThat(body.has("detail")).as("the container's message is not curated").isFalse();
   }
 
@@ -105,7 +108,7 @@ class ProblemErrorDispatchIntegrationTest {
     final JsonNode body =
         problem(restTemplate.getForEntity("/api/test/limited", String.class));
 
-    assertThat(body.path("instance").asText()).isEqualTo("/api/test/limited");
+    assertThat(body.path("instance").asString()).isEqualTo("/api/test/limited");
   }
 
   /**
@@ -122,8 +125,8 @@ class ProblemErrorDispatchIntegrationTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     final JsonNode body = problem(response);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "forbidden");
-    assertThat(body.path("instance").asText()).isEqualTo("/api/public-form/challenge");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "forbidden");
+    assertThat(body.path("instance").asString()).isEqualTo("/api/public-form/challenge");
   }
 
   @Test

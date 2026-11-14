@@ -13,8 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.problem.ProblemDetailsAutoConfiguration;
 import com.openelements.spring.base.problem.ProblemFactory;
 import com.openelements.spring.base.problem.StandardProblemType;
@@ -25,13 +23,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration;
+import org.springframework.boot.http.converter.autoconfigure.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.error.ErrorMvcAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -46,6 +44,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The problem-details feature over HTTP.
@@ -84,7 +85,7 @@ class ProblemDetailsWebTest {
 
   private static final String PROBLEM_JSON = "application/problem+json";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER = new JsonMapper();
 
   private final WebApplicationContextRunner runner = runner();
 
@@ -138,9 +139,9 @@ class ProblemDetailsWebTest {
     assertThat(body.path("status").asInt())
         .as("the body's status must agree with the status line")
         .isEqualTo(result.getResponse().getStatus());
-    assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
-    assertThat(body.path("type").asText()).startsWith(BASE);
-    assertThat(body.path("title").asText()).isNotBlank();
+    assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
+    assertThat(body.path("type").asString()).startsWith(BASE);
+    assertThat(body.path("title").asString()).isNotBlank();
     return body;
   }
 
@@ -161,10 +162,10 @@ class ProblemDetailsWebTest {
       run(
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/fail"));
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "not-found");
-            assertThat(body.path("title").asText()).isEqualTo("Not Found");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "not-found");
+            assertThat(body.path("title").asString()).isEqualTo("Not Found");
             assertThat(body.path("status").asInt()).isEqualTo(404);
-            assertThat(body.path("traceId").asText()).isNotEqualTo("0".repeat(32));
+            assertThat(body.path("traceId").asString()).isNotEqualTo("0".repeat(32));
           });
     }
 
@@ -175,7 +176,7 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body =
                 problem(mvc, get("/api/test/fail").param("email", "jane@example.com"));
-            assertThat(body.path("instance").asText()).isEqualTo("/api/test/fail");
+            assertThat(body.path("instance").asString()).isEqualTo("/api/test/fail");
             assertThat(body.toString()).doesNotContain("jane@example.com");
           });
     }
@@ -225,8 +226,8 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/status/418"));
             assertThat(body.path("status").asInt()).isEqualTo(418);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "http-418");
-            assertThat(body.path("title").asText()).isEqualTo("HTTP 418");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "http-418");
+            assertThat(body.path("title").asString()).isEqualTo("HTTP 418");
           });
     }
 
@@ -236,8 +237,8 @@ class ProblemDetailsWebTest {
       run(
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/status/413"));
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "content-too-large");
-            assertThat(body.path("title").asText()).isEqualTo("Content Too Large");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "content-too-large");
+            assertThat(body.path("title").asString()).isEqualTo("Content Too Large");
           });
     }
   }
@@ -253,9 +254,9 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/problem"));
             assertThat(body.path("status").asInt()).isEqualTo(409);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "duplicate-record");
-            assertThat(body.path("title").asText()).isEqualTo("Duplicate record");
-            assertThat(body.path("detail").asText()).isEqualTo("Record already exists");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "duplicate-record");
+            assertThat(body.path("title").asString()).isEqualTo("Duplicate record");
+            assertThat(body.path("detail").asString()).isEqualTo("Record already exists");
           });
     }
 
@@ -270,7 +271,7 @@ class ProblemDetailsWebTest {
     void extensionMembers() {
       run(
           mvc ->
-              assertThat(problem(mvc, get("/api/test/problem-with-extension")).path("existingId").asText())
+              assertThat(problem(mvc, get("/api/test/problem-with-extension")).path("existingId").asString())
                   .isEqualTo("42"));
     }
 
@@ -279,7 +280,7 @@ class ProblemDetailsWebTest {
     void subclassOfProblemException() {
       run(
           mvc ->
-              assertThat(problem(mvc, get("/api/test/problem-subclass")).path("type").asText())
+              assertThat(problem(mvc, get("/api/test/problem-subclass")).path("type").asString())
                   .isEqualTo(BASE + "duplicate-record"));
     }
 
@@ -290,7 +291,7 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/problem-enum"));
             assertThat(body.path("status").asInt()).isEqualTo(409);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "duplicate-contact");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "duplicate-contact");
           });
     }
 
@@ -314,14 +315,14 @@ class ProblemDetailsWebTest {
             mvc -> {
               final JsonNode body = problem(mvc, get("/api/test/problem-5xx"));
               assertThat(body.path("status").asInt()).isEqualTo(503);
-              assertThat(body.path("type").asText()).isEqualTo(BASE + "upstream-down");
+              assertThat(body.path("type").asString()).isEqualTo(BASE + "upstream-down");
 
               assertThat(appender.list)
                   .anySatisfy(
                       event -> {
                         assertThat(event.getLevel().toString()).isEqualTo("ERROR");
                         assertThat(event.getMDCPropertyMap())
-                            .containsEntry("traceId", body.path("traceId").asText());
+                            .containsEntry("traceId", body.path("traceId").asString());
                       });
             });
       } finally {
@@ -354,14 +355,14 @@ class ProblemDetailsWebTest {
                         .content(BROKEN_ORDER));
 
             assertThat(body.path("status").asInt()).isEqualTo(400);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "validation-failed");
-            assertThat(body.path("title").asText()).isEqualTo("Validation failed");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "validation-failed");
+            assertThat(body.path("title").asString()).isEqualTo("Validation failed");
 
-            final var pointers = body.path("errors").findValuesAsText("pointer");
+            final var pointers = body.path("errors").findValuesAsString("pointer");
             assertThat(pointers)
                 .contains("/address/street", "/address/postal_code", "/items/0/name", "/labels/a~1b~0c");
             assertThat(body.path("errors")).allSatisfy(entry ->
-                assertThat(entry.path("message").asText()).isNotBlank());
+                assertThat(entry.path("message").asString()).isNotBlank());
           });
     }
 
@@ -395,7 +396,7 @@ class ProblemDetailsWebTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"));
 
-            assertThat(body.path("errors").findValuesAsText("pointer")).contains("/name");
+            assertThat(body.path("errors").findValuesAsString("pointer")).contains("/name");
           });
     }
 
@@ -411,7 +412,7 @@ class ProblemDetailsWebTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"from\": 2, \"to\": 1}"));
 
-            assertThat(body.path("errors").findValuesAsText("pointer")).containsExactly("");
+            assertThat(body.path("errors").findValuesAsString("pointer")).containsExactly("");
           });
     }
 
@@ -423,9 +424,9 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/test/param").param("size", "5000"));
 
             assertThat(body.path("status").asInt()).isEqualTo(400);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
             assertThat(body.has("errors")).isFalse();
-            assertThat(body.path("detail").asText())
+            assertThat(body.path("detail").asString())
                 .isEqualTo("Invalid query parameter 'size': must be less than or equal to 100.");
           });
     }
@@ -438,8 +439,8 @@ class ProblemDetailsWebTest {
             final JsonNode body =
                 problem(mvc, get("/api/test/path-and-header/0").header("X-Page", "0"));
 
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
-            assertThat(body.path("detail").asText())
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
+            assertThat(body.path("detail").asString())
                 .contains("path parameter 'id'")
                 .contains("header parameter 'X-Page'");
           });
@@ -458,9 +459,9 @@ class ProblemDetailsWebTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"));
 
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "validation-failed");
-            assertThat(body.path("errors").findValuesAsText("pointer")).containsExactly("/name");
-            assertThat(body.path("detail").asText()).contains("query parameter 'size'");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "validation-failed");
+            assertThat(body.path("errors").findValuesAsString("pointer")).containsExactly("/name");
+            assertThat(body.path("detail").asString()).contains("query parameter 'size'");
           });
     }
 
@@ -472,8 +473,8 @@ class ProblemDetailsWebTest {
             final JsonNode body =
                 problem(mvc, get("/api/test/typed").param("size", "jane@example.com"));
 
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
-            assertThat(body.path("detail").asText()).contains("'size'");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
+            assertThat(body.path("detail").asString()).contains("'size'");
             assertThat(body.toString()).doesNotContain("jane@example.com");
           });
     }
@@ -485,8 +486,8 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/typed"));
 
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
-            assertThat(body.path("detail").asText()).contains("'size'");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
+            assertThat(body.path("detail").asString()).contains("'size'");
           });
     }
 
@@ -498,7 +499,7 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/validated/param").param("size", "5000"));
 
             assertThat(body.path("status").asInt()).isEqualTo(400);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
           });
     }
 
@@ -514,7 +515,7 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/test/service-violation"));
 
             assertThat(body.path("status").asInt()).isEqualTo(500);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "internal-error");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "internal-error");
           });
     }
 
@@ -532,7 +533,7 @@ class ProblemDetailsWebTest {
                         .content("{\"name\": "));
 
             assertThat(body.path("status").asInt()).isEqualTo(400);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "malformed-request");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "malformed-request");
             assertThat(body.toString())
                 .doesNotContain("JsonParseException")
                 .doesNotContain("JsonEOFException")
@@ -551,7 +552,7 @@ class ProblemDetailsWebTest {
     void unknownPath() {
       run(
           mvc ->
-              assertThat(problem(mvc, get("/api/does-not-exist")).path("type").asText())
+              assertThat(problem(mvc, get("/api/does-not-exist")).path("type").asString())
                   .isEqualTo(BASE + "not-found"));
     }
 
@@ -595,8 +596,8 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/test/response-status"));
 
             assertThat(body.path("status").asInt()).isEqualTo(409);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "conflict");
-            assertThat(body.path("detail").asText()).isEqualTo("Already taken");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "conflict");
+            assertThat(body.path("detail").asString()).isEqualTo("Already taken");
           });
     }
 
@@ -607,8 +608,8 @@ class ProblemDetailsWebTest {
           mvc -> {
             final JsonNode body = problem(mvc, get("/api/test/not-found-with-reason"));
 
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "not-found");
-            assertThat(body.path("detail").asText()).isEqualTo("Contact not found");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "not-found");
+            assertThat(body.path("detail").asString()).isEqualTo("Contact not found");
           });
     }
 
@@ -620,8 +621,8 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/test/bad-gateway"));
 
             assertThat(body.path("status").asInt()).isEqualTo(502);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "bad-gateway");
-            assertThat(body.path("detail").asText()).isEqualTo("Translation API call failed");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "bad-gateway");
+            assertThat(body.path("detail").asString()).isEqualTo("Translation API call failed");
           });
     }
 
@@ -633,8 +634,8 @@ class ProblemDetailsWebTest {
             final JsonNode body = problem(mvc, get("/api/test/boom"));
 
             assertThat(body.path("status").asInt()).isEqualTo(500);
-            assertThat(body.path("type").asText()).isEqualTo(BASE + "internal-error");
-            assertThat(body.path("detail").asText()).isEqualTo("An unexpected error occurred.");
+            assertThat(body.path("type").asString()).isEqualTo(BASE + "internal-error");
+            assertThat(body.path("detail").asString()).isEqualTo("An unexpected error occurred.");
             assertThat(body.toString())
                 .doesNotContain("jane@example.com")
                 .doesNotContain("SELECT")

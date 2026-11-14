@@ -7,9 +7,18 @@ into the full stack with a single import or pick the parts they need.
 
 ## Requirements
 
-- Java 21
-- Spring Boot 3.5.x
+- Java 25
+- Spring Boot 4.1.x
 - A relational database supported by Spring Data JPA (PostgreSQL is used in CI / integration tests)
+
+Each major version of spring-services targets one Spring Boot line:
+
+| spring-services | Spring Boot | Java |
+| --- | --- | --- |
+| 1.x | 3.5 | 21 |
+| 2.x | 4.1 | 25 |
+
+Upgrading from 1.x? See [`docs/releases/upgrade-to-2.0.md`](docs/releases/upgrade-to-2.0.md).
 
 ## Installation
 
@@ -29,10 +38,12 @@ coordinate is the reactor parent (a `pom`, no classes) — depend on one of the 
 </dependency>
 ```
 
-**À la carte:** import the BOM once, then declare `spring-services-core` plus only the feature
-modules you need (`spring-services-slack`, `spring-services-mcp`, `spring-services-email`,
-`spring-services-search`, `spring-services-dbbackup`, `spring-services-scim`,
-`spring-services-tenant`, `spring-services-storage`, `spring-services-altcha`) without versions:
+**À la carte:** import the BOM once (it manages the spring-services modules only; Spring Boot's own
+versions come from your Boot setup — 2.x supports Spring Boot 4.1), then declare
+`spring-services-core` plus only the feature modules you need (`spring-services-slack`,
+`spring-services-mcp`, `spring-services-email`, `spring-services-search`,
+`spring-services-dbbackup`, `spring-services-scim`, `spring-services-tenant`,
+`spring-services-storage`, `spring-services-altcha`) without versions:
 
 ```xml
 <dependencyManagement>

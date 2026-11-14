@@ -1,6 +1,5 @@
 package com.openelements.spring.base.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openelements.spring.base.problem.ProblemAccessDeniedHandler;
 import com.openelements.spring.base.problem.ProblemAuthenticationEntryPoint;
 import com.openelements.spring.base.problem.ProblemFactory;
@@ -34,6 +33,7 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Configuration that wires Spring Security for the {@code spring-services} platform.

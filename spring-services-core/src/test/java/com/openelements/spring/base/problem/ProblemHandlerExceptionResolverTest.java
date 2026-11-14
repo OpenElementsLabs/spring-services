@@ -2,8 +2,6 @@ package com.openelements.spring.base.problem;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -23,6 +21,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Unit tests for {@link ProblemHandlerExceptionResolver} — the last resort.
@@ -66,7 +67,7 @@ class ProblemHandlerExceptionResolverTest {
 
   private static ValidatorFactory validatorFactory;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new JsonMapper();
   private final ProblemHandlerExceptionResolver resolver =
       new ProblemHandlerExceptionResolver(
           new DefaultProblemFactory(new ProblemDetailsProperties(true, BASE, true)), objectMapper);
@@ -104,10 +105,10 @@ class ProblemHandlerExceptionResolverTest {
             new ProblemException(type, "Record already exists", java.util.Map.of("existingId", "42")),
             null);
 
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "duplicate-record");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "duplicate-record");
     assertThat(body.path("status").asInt()).isEqualTo(409);
-    assertThat(body.path("detail").asText()).isEqualTo("Record already exists");
-    assertThat(body.path("existingId").asText()).isEqualTo("42");
+    assertThat(body.path("detail").asString()).isEqualTo("Record already exists");
+    assertThat(body.path("existingId").asString()).isEqualTo("42");
   }
 
   @Test
@@ -116,8 +117,8 @@ class ProblemHandlerExceptionResolverTest {
     final JsonNode body = resolve(new AlreadyTakenException(), null);
 
     assertThat(body.path("status").asInt()).isEqualTo(409);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "conflict");
-    assertThat(body.path("detail").asText()).isEqualTo("Already taken");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "conflict");
+    assertThat(body.path("detail").asString()).isEqualTo("Already taken");
   }
 
   @Test
@@ -127,8 +128,8 @@ class ProblemHandlerExceptionResolverTest {
         resolve(new ResponseStatusException(HttpStatus.NOT_FOUND, "Contact not found"), null);
 
     assertThat(body.path("status").asInt()).isEqualTo(404);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "not-found");
-    assertThat(body.path("detail").asText()).isEqualTo("Contact not found");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "not-found");
+    assertThat(body.path("detail").asString()).isEqualTo("Contact not found");
   }
 
   /** The shape {@code TranslationService} throws when an upstream call fails. */
@@ -140,8 +141,8 @@ class ProblemHandlerExceptionResolverTest {
             new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Translation API call failed"), null);
 
     assertThat(body.path("status").asInt()).isEqualTo(502);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "bad-gateway");
-    assertThat(body.path("detail").asText()).isEqualTo("Translation API call failed");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "bad-gateway");
+    assertThat(body.path("detail").asString()).isEqualTo("Translation API call failed");
   }
 
   @Test
@@ -151,8 +152,8 @@ class ProblemHandlerExceptionResolverTest {
         resolve(new ResponseStatusException(HttpStatusCode.valueOf(418)), null);
 
     assertThat(body.path("status").asInt()).isEqualTo(418);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "http-418");
-    assertThat(body.path("title").asText()).isEqualTo("HTTP 418");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "http-418");
+    assertThat(body.path("title").asString()).isEqualTo("HTTP 418");
   }
 
   @Test
@@ -163,8 +164,8 @@ class ProblemHandlerExceptionResolverTest {
     final JsonNode body = resolve(new IllegalStateException(secret), null);
 
     assertThat(body.path("status").asInt()).isEqualTo(500);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "internal-error");
-    assertThat(body.path("detail").asText())
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "internal-error");
+    assertThat(body.path("detail").asString())
         .isEqualTo(ProblemHandlerExceptionResolver.INTERNAL_ERROR_DETAIL);
     assertThat(body.toString())
         .doesNotContain("jane@example.com")
@@ -191,8 +192,8 @@ class ProblemHandlerExceptionResolverTest {
             new HandlerMethod(controller, method));
 
     assertThat(body.path("status").asInt()).isEqualTo(400);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "invalid-parameter");
-    assertThat(body.path("detail").asText()).contains("size");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "invalid-parameter");
+    assertThat(body.path("detail").asString()).contains("size");
   }
 
   @Test
@@ -214,7 +215,7 @@ class ProblemHandlerExceptionResolverTest {
             new HandlerMethod(controller, TestController.class.getDeclaredMethod("list", int.class)));
 
     assertThat(body.path("status").asInt()).isEqualTo(500);
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "internal-error");
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "internal-error");
   }
 
   @Test

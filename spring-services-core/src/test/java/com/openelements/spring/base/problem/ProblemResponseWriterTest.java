@@ -3,12 +3,13 @@ package com.openelements.spring.base.problem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ProblemDetail;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Unit tests for {@link ProblemResponseWriter} — the writer used outside Spring MVC.
@@ -34,7 +35,7 @@ class ProblemResponseWriterTest {
 
   private static final String BASE = "https://open-elements.com/problems/spring-services/";
 
-  private final ProblemResponseWriter writer = new ProblemResponseWriter(new ObjectMapper());
+  private final ProblemResponseWriter writer = new ProblemResponseWriter(new JsonMapper());
   private final DefaultProblemFactory factory =
       new DefaultProblemFactory(new ProblemDetailsProperties(true, BASE, true));
 
@@ -66,13 +67,13 @@ class ProblemResponseWriterTest {
 
     writer.write(response, problem);
 
-    final var body = new ObjectMapper().readTree(response.getContentAsByteArray());
-    assertThat(body.path("type").asText()).isEqualTo(BASE + "unauthorized");
-    assertThat(body.path("title").asText()).isEqualTo("Unauthorized");
+    final var body = new JsonMapper().readTree(response.getContentAsByteArray());
+    assertThat(body.path("type").asString()).isEqualTo(BASE + "unauthorized");
+    assertThat(body.path("title").asString()).isEqualTo("Unauthorized");
     assertThat(body.path("status").asInt()).isEqualTo(401);
-    assertThat(body.path("detail").asText()).isEqualTo("Invalid API key");
-    assertThat(body.path("instance").asText()).isEqualTo("/api/external/contacts");
-    assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
+    assertThat(body.path("detail").asString()).isEqualTo("Invalid API key");
+    assertThat(body.path("instance").asString()).isEqualTo("/api/external/contacts");
+    assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
     assertThat(body.has("properties")).isFalse();
   }
 

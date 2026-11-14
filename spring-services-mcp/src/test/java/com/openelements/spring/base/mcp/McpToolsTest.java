@@ -29,11 +29,13 @@ class McpToolsTest {
         assertEquals("do_thing", tool.name());
         assertEquals("Does a thing.", tool.description());
 
-        final McpSchema.JsonSchema schema = tool.inputSchema();
-        assertEquals("object", schema.type());
-        assertTrue(schema.properties().containsKey("id"));
-        assertIterableEquals(List.of("id"), schema.required());
-        assertFalse(schema.additionalProperties(), "additionalProperties must be locked to false");
+        // MCP SDK 2.x exposes the input schema as the JSON object it is sent as
+        final Map<String, Object> schema = tool.inputSchema();
+        assertEquals("object", schema.get("type"));
+        assertTrue(((Map<?, ?>) schema.get("properties")).containsKey("id"));
+        assertIterableEquals(List.of("id"), (List<?>) schema.get("required"));
+        assertEquals(Boolean.FALSE, schema.get("additionalProperties"),
+                "additionalProperties must be locked to false");
     }
 
     @Test

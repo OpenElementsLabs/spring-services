@@ -1,6 +1,7 @@
 package com.openelements.spring.base.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.openelements.spring.base.mcp.McpProperties.Auth;
 import com.openelements.spring.base.mcp.McpProperties.Auth.ApiKey;
 import com.openelements.spring.base.mcp.McpProperties.Auth.Oidc;
@@ -31,7 +32,7 @@ class McpToolSupportTest {
     private static final McpSchema.Tool TOOL =
             McpTools.tool("demo", "Demo tool.", Map.of(), List.of());
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new JsonMapper();
     private final McpPaging paging = new McpPaging(new McpProperties(
             true, "Open CRM", "0.1.0", 50, 20, new Auth(new ApiKey(true), new Oidc(false))));
     private final McpToolSupport support = new McpToolSupport(paging, objectMapper);
@@ -45,7 +46,7 @@ class McpToolSupportTest {
         when(exchange.transportContext()).thenReturn(
                 McpTransportContext.create(Map.of(McpActorLabel.ACTOR_LABEL_KEY, "apikey:test")));
         final SyncToolSpecification spec = support.spec(TOOL, logic);
-        return spec.call().apply(exchange, args);
+        return spec.callHandler().apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), args));
     }
 
     // -- spec(): success -----------------------------------------------------
@@ -82,7 +83,9 @@ class McpToolSupportTest {
         final McpSyncServerExchange exchange = mock(McpSyncServerExchange.class);
         when(exchange.transportContext()).thenReturn(McpTransportContext.EMPTY);
 
-        final CallToolResult result = support.spec(TOOL, args -> "ok").call().apply(exchange, Map.of());
+        final CallToolResult result = support.spec(TOOL, args -> "ok")
+                .callHandler()
+                .apply(exchange, new McpSchema.CallToolRequest(TOOL.name(), Map.of()));
 
         assertFalse(result.isError());
         assertEquals("\"ok\"", text(result));
@@ -129,6 +132,23 @@ class McpToolSupportTest {
         assertTrue(result.isError());
         assertEquals("Internal error executing tool demo", text(result),
                 "internal errors must not leak the underlying message");
+    }
+
+    @Test
+    void payloadThatCannotBeSerializedBecomesGenericInternalError() {
+        // Jackson 3 reports this as the unchecked JacksonException (Jackson 2: checked
+        // JsonProcessingException); the client must see the same generic error either way.
+        final CallToolResult result = call(args -> new Unserializable(), Map.of());
+
+        assertTrue(result.isError());
+        assertEquals("Internal error executing tool demo", text(result));
+    }
+
+    /** A payload whose only property fails while being serialized. */
+    private static final class Unserializable {
+        public String getValue() {
+            throw new IllegalStateException("cannot be read");
+        }
     }
 
     // -- paginate() ----------------------------------------------------------

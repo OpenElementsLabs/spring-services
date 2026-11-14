@@ -3,8 +3,6 @@ package com.openelements.spring.base.problem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,6 +12,9 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Unit tests for {@link ProblemAuthenticationEntryPoint} and {@link ProblemAccessDeniedHandler}.
@@ -44,7 +45,7 @@ class ProblemSecurityHandlersTest {
 
   private static final String BASE = "https://open-elements.com/problems/spring-services/";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new JsonMapper();
   private final ProblemFactory problemFactory =
       new DefaultProblemFactory(new ProblemDetailsProperties(true, BASE, true));
   private final ProblemResponseWriter responseWriter = new ProblemResponseWriter(objectMapper);
@@ -73,12 +74,12 @@ class ProblemSecurityHandlersTest {
       assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE))
           .isEqualTo("ApiKey realm=\"external\"");
       final JsonNode body = bodyOf(response);
-      assertThat(body.path("type").asText()).isEqualTo(BASE + "unauthorized");
-      assertThat(body.path("title").asText()).isEqualTo("Unauthorized");
+      assertThat(body.path("type").asString()).isEqualTo(BASE + "unauthorized");
+      assertThat(body.path("title").asString()).isEqualTo("Unauthorized");
       assertThat(body.path("status").asInt()).isEqualTo(401);
-      assertThat(body.path("detail").asText()).isEqualTo("Invalid API key");
-      assertThat(body.path("instance").asText()).isEqualTo("/api/external/contacts");
-      assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
+      assertThat(body.path("detail").asString()).isEqualTo("Invalid API key");
+      assertThat(body.path("instance").asString()).isEqualTo("/api/external/contacts");
+      assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
     }
 
     @Test
@@ -96,7 +97,7 @@ class ProblemSecurityHandlersTest {
 
       assertThat(response.getStatus()).isEqualTo(401);
       assertThat(response.getHeader(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo("Bearer");
-      assertThat(bodyOf(response).path("type").asText()).isEqualTo(BASE + "unauthorized");
+      assertThat(bodyOf(response).path("type").asString()).isEqualTo(BASE + "unauthorized");
     }
 
     @Test
@@ -130,11 +131,11 @@ class ProblemSecurityHandlersTest {
 
       assertThat(response.getStatus()).isEqualTo(403);
       final JsonNode body = bodyOf(response);
-      assertThat(body.path("type").asText()).isEqualTo(BASE + "forbidden");
-      assertThat(body.path("title").asText()).isEqualTo("Forbidden");
+      assertThat(body.path("type").asString()).isEqualTo(BASE + "forbidden");
+      assertThat(body.path("title").asString()).isEqualTo("Forbidden");
       assertThat(body.path("status").asInt()).isEqualTo(403);
-      assertThat(body.path("detail").asText()).isEqualTo("User account is disabled");
-      assertThat(body.path("traceId").asText()).matches("[0-9a-f]{32}");
+      assertThat(body.path("detail").asString()).isEqualTo("User account is disabled");
+      assertThat(body.path("traceId").asString()).matches("[0-9a-f]{32}");
     }
 
     @Test

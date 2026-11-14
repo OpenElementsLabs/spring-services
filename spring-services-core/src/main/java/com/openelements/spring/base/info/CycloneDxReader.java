@@ -1,7 +1,5 @@
 package com.openelements.spring.base.info;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -12,6 +10,10 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Package-private parser that turns a CycloneDX JSON SBOM into an {@link SbomDocument}.
@@ -33,7 +35,7 @@ class CycloneDxReader {
 
   private static final String CYCLONE_DX = "CycloneDX";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new JsonMapper();
 
   /** Creates a reader with its own {@link ObjectMapper}. */
   CycloneDxReader() {}
@@ -52,7 +54,7 @@ class CycloneDxReader {
     final JsonNode root;
     try (InputStream in = resource.getInputStream()) {
       root = objectMapper.readTree(in);
-    } catch (final IOException e) {
+    } catch (final IOException | JacksonException e) {
       LOG.warn("Failed to read SBOM from {}: {}", resource.getDescription(), e.getMessage());
       return Optional.empty();
     }
@@ -173,7 +175,7 @@ class CycloneDxReader {
     if (value == null || value.isNull() || !value.isValueNode()) {
       return null;
     }
-    final String text = value.asText();
+    final String text = value.asString();
     return text.isBlank() ? null : text;
   }
 }

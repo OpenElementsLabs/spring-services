@@ -1,8 +1,5 @@
 package com.openelements.spring.base.services.search;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +11,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Thin HTTP wrapper around the Meilisearch REST API. Uses Spring's {@link RestClient} (already on
@@ -67,7 +67,7 @@ public class MeilisearchClient {
   public boolean isHealthy() {
     try {
       final JsonNode body = exchange(restClient.get().uri("/health"), JsonNode.class);
-      return body != null && "available".equals(body.path("status").asText());
+      return body != null && "available".equals(body.path("status").asString());
     } catch (final RestClientException | MeilisearchException e) {
       return false;
     }
@@ -92,8 +92,8 @@ public class MeilisearchClient {
       payload.put("expiresAt", null);
       final String body = objectMapper.writeValueAsString(payload);
       final JsonNode response = exchange(restClient.post().uri("/keys").body(body), JsonNode.class);
-      return response.path("key").asText();
-    } catch (final IOException e) {
+      return response.path("key").asString();
+    } catch (final JacksonException e) {
       throw new IllegalStateException("Failed to encode createScopedKey body", e);
     }
   }
@@ -112,7 +112,7 @@ public class MeilisearchClient {
           exchange(
               restClient.post().uri("/indexes/{u}/documents", indexUid).body(body), JsonNode.class);
       return response.path("taskUid").asLong();
-    } catch (final IOException e) {
+    } catch (final JacksonException e) {
       throw new IllegalStateException("Failed to encode addDocuments body", e);
     }
   }
@@ -145,7 +145,7 @@ public class MeilisearchClient {
           exchange(
               restClient.patch().uri("/indexes/{u}/settings", indexUid).body(body), JsonNode.class);
       return response.path("taskUid").asLong();
-    } catch (final IOException e) {
+    } catch (final JacksonException e) {
       throw new IllegalStateException("Failed to encode updateSettings body", e);
     }
   }
@@ -163,7 +163,7 @@ public class MeilisearchClient {
       final String body =
           objectMapper.writeValueAsString(Map.of("uid", indexUid, "primaryKey", primaryKey));
       exchange(restClient.post().uri("/indexes").body(body), JsonNode.class);
-    } catch (final IOException e) {
+    } catch (final JacksonException e) {
       throw new IllegalStateException("Failed to encode ensureIndex body", e);
     } catch (final MeilisearchException e) {
       // Duplicate-index errors are expected on restart — we already
@@ -187,7 +187,7 @@ public class MeilisearchClient {
     long backoffMs = 25L;
     while (System.nanoTime() < deadline) {
       final JsonNode task = exchange(restClient.get().uri("/tasks/{id}", taskUid), JsonNode.class);
-      final String status = task.path("status").asText();
+      final String status = task.path("status").asString();
       if ("succeeded".equals(status)) {
         return TaskOutcome.SUCCEEDED;
       }
@@ -219,7 +219,7 @@ public class MeilisearchClient {
     while (System.nanoTime() < deadline) {
       final JsonNode response = exchange(restClient.get().uri("/tasks?limit=1"), JsonNode.class);
       final JsonNode latest = response.path("results").path(0);
-      final String status = latest.path("status").asText("");
+      final String status = latest.path("status").asString("");
       if ("succeeded".equals(status)) {
         return TaskOutcome.SUCCEEDED;
       }
@@ -247,7 +247,7 @@ public class MeilisearchClient {
     try {
       final String body = objectMapper.writeValueAsString(queries);
       return exchange(restClient.post().uri("/multi-search").body(body), JsonNode.class);
-    } catch (final IOException e) {
+    } catch (final JacksonException e) {
       throw new IllegalStateException("Failed to encode multiSearch body", e);
     }
   }

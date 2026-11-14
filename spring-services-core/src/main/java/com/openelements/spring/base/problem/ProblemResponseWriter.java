@@ -1,11 +1,11 @@
 package com.openelements.spring.base.problem;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Objects;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Writes a {@link ProblemDetail} onto a raw {@link HttpServletResponse}.
