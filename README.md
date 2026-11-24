@@ -19,6 +19,7 @@ Each major version of spring-services targets one Spring Boot line:
 | 2.x | 4.1 | 25 |
 
 Upgrading from 1.x? See [`docs/releases/upgrade-to-2.0.md`](docs/releases/upgrade-to-2.0.md).
+Upgrading from 2.0? See [`docs/releases/upgrade-to-2.1.md`](docs/releases/upgrade-to-2.1.md).
 
 ## Installation
 
