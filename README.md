@@ -181,9 +181,38 @@ openelements.altcha.cost=5000                                # optional, PBKDF2 
 openelements.altcha.key-prefix-length=2                      # optional
 ```
 
+**Incoming Slack messages** (`spring-services-slack`) are off by default too; sending through
+`SlackService` is not affected by this switch. When enabled, the module serves an endpoint for the
+[Slack Events API](https://api.slack.com/apis/events-api) (anonymous `POST` only, through its own filter
+chain). Every request is verified with the app's signing secret — HMAC-SHA256 over the raw body, a
+timestamp within five minutes — before anything is parsed. Messages written by users (`message`,
+`app_mention`; no bot messages, no edits or deletions) arrive as `SlackMessageReceivedEvent`, delivered
+asynchronously and once per `event_id`:
+
+```java
+@EventListener
+void onSlackMessage(SlackMessageReceivedEvent message) {
+    // message.kind(), channelId(), userId(), text(), ts(), threadTs()
+}
+```
+
+```properties
+open-elements.slack.events.enabled=true
+open-elements.slack.events.signing-secret=${SLACK_SIGNING_SECRET}  # without it, every request gets 503
+open-elements.slack.events.path=/slack/events                     # optional, this is the default
+open-elements.slack.events.team-id=T0123456                       # optional, accept one workspace only
+open-elements.slack.events.app-id=A0123456                        # optional, accept one Slack app only
+```
+
+Unlike ALTCHA, a missing signing secret does not stop the application: it starts with a warning, and the
+endpoint rejects every request. In the Slack app, set the Request URL to `https://<host>/slack/events`
+and subscribe to the bot events `app_mention` (scope `app_mentions:read`) and, for direct messages,
+`message.im` (scope `im:history`). The signature proves that a request comes from Slack, not that its
+sender may trigger anything: a listener that acts on a message must authorise `userId()` itself.
+
 If a feature stays disabled, none of its beans are created and no connection settings are needed.
-Secrets (`master-key`, `api-token`, `hmac-key`) must come from environment variables or secret management, never
-from committed configuration.
+Secrets (`master-key`, `api-token`, `hmac-key`, `signing-secret`) must come from environment variables or secret
+management, never from committed configuration.
 
 ## Features
 
@@ -579,7 +608,7 @@ spring-services/                    — reactor parent (packaging=pom)
 │                                        services/   — apikey, settings, tag, comment, audit,
 │                                                      webhook, translation, system
 │                                        tenant/, apitoken/
-├── spring-services-slack           — Slack messaging (→ slack-api-client)
+├── spring-services-slack           — Slack messaging; receiving opt-in via open-elements.slack.events.enabled (→ slack-api-client)
 ├── spring-services-mcp             — MCP server (→ MCP SDK)
 ├── spring-services-email           — SMTP email (→ spring-boot-starter-mail)
 ├── spring-services-search          — Meilisearch full-text search (RestClient, no extra dep)
