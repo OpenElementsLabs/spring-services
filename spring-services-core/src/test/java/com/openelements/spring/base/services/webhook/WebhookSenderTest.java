@@ -4,6 +4,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.verify;
 
@@ -12,6 +13,7 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.openelements.spring.base.services.webhook.data.WebhookDataService;
 import com.openelements.spring.base.services.webhook.data.WebhookDto;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,28 +31,28 @@ import org.springframework.web.client.RestClient;
  *
  * <ol>
  *   <li><b>{@code ping(webhookId)}.</b> Issues an HTTP POST to the registered URL, captures the
- *       response status (2xx / 4xx / 5xx) and the connection-failure sentinel (0 or -1) into the
- *       persisted {@code lastStatus} / {@code lastCalledAt} fields, and rejects an unknown
+ *       response status (2xx / 4xx / 5xx) and the connection-failure sentinel (0 or -1) via
+ *       {@code recordCall(...)}, and rejects an unknown
  *       webhook id with {@link IllegalArgumentException} and a null id with {@link
  *       NullPointerException}.
  *   <li><b>{@code sendAndTrack(payload)}.</b> Fans out a single payload as an HTTP POST to every
  *       row returned by {@link WebhookDataService#findAllActive()}.
  * </ol>
  *
- * <p>Also covers the constructor null-guards (RestClient and WebhookDataService).
+ * <p>Also covers the constructor null-guards (RestClient, WebhookDataService and Executor).
  *
  * <h2>How it is tested</h2>
  *
  * <p>Plain JUnit 5. A {@link WireMockServer} bound to a dynamic port is started once per class
  * and reset between tests; the {@link WebhookSender} is constructed with a real {@link
- * RestClient} pointed at WireMock's base URL. Status-code stubs are configured per scenario;
+ * RestClient} pointed at WireMock's base URL and an executor that runs each call on the calling
+ * thread. Status-code stubs are configured per scenario;
  * outgoing requests are verified against WireMock's recorded interactions.
  *
  * <p><b>Mock-Audit.</b> One {@code mock(WebhookDataService.class)}. The sender's contract is to
  * read webhook rows from {@code WebhookDataService} and write back status updates via
- * {@code save(...)}; mocking it lets the test (a) stub the row to return a WireMock-backed URL
- * without spinning up Postgres and (b) capture the {@code save(...)} argument to verify
- * status-tracking. End-to-end persistence is covered by {@link
+ * {@code recordCall(...)}; mocking it lets the test (a) stub the row to return a WireMock-backed
+ * URL without spinning up Postgres and (b) capture the recorded status to verify status-tracking. End-to-end persistence is covered by {@link
  * com.openelements.spring.base.services.webhook.data.WebhookDataServiceIntegrationTest}.
  *
  * <p><b>Status: currently {@link Disabled @Disabled}.</b> The {@code @Disabled} on the class and
@@ -83,9 +85,8 @@ class WebhookSenderTest {
   void setUp() {
     wireMockServer.resetAll();
     webhookDataService = mock(WebhookDataService.class);
-    when(webhookDataService.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     final RestClient restClient = RestClient.builder().build();
-    webhookSender = new WebhookSender(restClient, webhookDataService);
+    webhookSender = new WebhookSender(restClient, webhookDataService, Runnable::run);
   }
 
   private WebhookDto createWebhook(final String path) {
@@ -97,14 +98,16 @@ class WebhookSenderTest {
   }
 
   @Test
-  @DisplayName("WebhookSender constructor rejects null for either RestClient or WebhookDataService — a misconfigured Spring context fails fast at startup.")
+  @DisplayName("WebhookSender constructor rejects null for RestClient, WebhookDataService or Executor — a misconfigured Spring context fails fast at startup.")
   void shouldRejectNullConstructorArgs() {
     final RestClient restClient = RestClient.builder().build();
     final WebhookDataService dataService = mock(WebhookDataService.class);
 
-    assertThatThrownBy(() -> new WebhookSender(null, dataService))
+    assertThatThrownBy(() -> new WebhookSender(null, dataService, Runnable::run))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new WebhookSender(restClient, null))
+    assertThatThrownBy(() -> new WebhookSender(restClient, null, Runnable::run))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new WebhookSender(restClient, dataService, null))
         .isInstanceOf(NullPointerException.class);
   }
 
@@ -132,7 +135,7 @@ class WebhookSenderTest {
     }
 
     @Test
-    @DisplayName("A 2xx response writes lastStatus=200 and a non-null lastCalledAt back to WebhookDataService.save(...).")
+    @DisplayName("A 2xx response records status 200 and the call time via WebhookDataService.recordCall(...).")
     void shouldTrackSuccessStatus() {
       // GIVEN
       wireMockServer.stubFor(post(urlEqualTo("/success")).willReturn(aResponse().withStatus(200)));
@@ -142,15 +145,11 @@ class WebhookSenderTest {
       webhookSender.ping(webhook.id());
 
       // THEN
-      final ArgumentCaptor<WebhookDto> captor = ArgumentCaptor.forClass(WebhookDto.class);
-      verify(webhookDataService, atLeastOnce()).save(captor.capture());
-      final WebhookDto saved = captor.getValue();
-      assertThat(saved.lastStatus()).isEqualTo(200);
-      assertThat(saved.lastCalledAt()).isNotNull();
+      verify(webhookDataService).recordCall(eq(webhook.id()), eq(200), any(Instant.class));
     }
 
     @Test
-    @DisplayName("A 5xx response writes lastStatus=500 back to WebhookDataService.save(...) — the failure is recorded, not swallowed.")
+    @DisplayName("A 5xx response records status 500 via WebhookDataService.recordCall(...) — the failure is recorded, not swallowed.")
     void shouldTrackServerErrorStatus() {
       // GIVEN
       wireMockServer.stubFor(
@@ -161,13 +160,11 @@ class WebhookSenderTest {
       webhookSender.ping(webhook.id());
 
       // THEN
-      final ArgumentCaptor<WebhookDto> captor = ArgumentCaptor.forClass(WebhookDto.class);
-      verify(webhookDataService, atLeastOnce()).save(captor.capture());
-      assertThat(captor.getValue().lastStatus()).isEqualTo(500);
+      verify(webhookDataService).recordCall(eq(webhook.id()), eq(500), any(Instant.class));
     }
 
     @Test
-    @DisplayName("A 4xx response writes lastStatus=404 back to WebhookDataService.save(...) — the failure is recorded, not swallowed.")
+    @DisplayName("A 4xx response records status 404 via WebhookDataService.recordCall(...) — the failure is recorded, not swallowed.")
     void shouldTrackClientErrorStatus() {
       // GIVEN
       wireMockServer.stubFor(
@@ -178,9 +175,7 @@ class WebhookSenderTest {
       webhookSender.ping(webhook.id());
 
       // THEN
-      final ArgumentCaptor<WebhookDto> captor = ArgumentCaptor.forClass(WebhookDto.class);
-      verify(webhookDataService, atLeastOnce()).save(captor.capture());
-      assertThat(captor.getValue().lastStatus()).isEqualTo(404);
+      verify(webhookDataService).recordCall(eq(webhook.id()), eq(404), any(Instant.class));
     }
 
     /**
@@ -190,7 +185,7 @@ class WebhookSenderTest {
      * so operators can distinguish transport errors from server-side rejections.
      */
     @Test
-    @DisplayName("A connection failure (unreachable host) writes lastStatus as 0 or -1 — transport errors are distinguishable from HTTP status codes.")
+    @DisplayName("A connection failure (unreachable host) records status 0 or -1 — transport errors are distinguishable from HTTP status codes.")
     void shouldTrackConnectionErrorAsZeroOrMinusOne() {
       // GIVEN - unreachable host
       final UUID webhookId = UUID.randomUUID();
@@ -202,9 +197,9 @@ class WebhookSenderTest {
       webhookSender.ping(webhookId);
 
       // THEN
-      final ArgumentCaptor<WebhookDto> captor = ArgumentCaptor.forClass(WebhookDto.class);
-      verify(webhookDataService, atLeastOnce()).save(captor.capture());
-      assertThat(captor.getValue().lastStatus()).isIn(0, -1);
+      final ArgumentCaptor<Integer> status = ArgumentCaptor.forClass(Integer.class);
+      verify(webhookDataService).recordCall(eq(webhookId), status.capture(), any(Instant.class));
+      assertThat(status.getValue()).isIn(0, -1);
     }
 
     @Test

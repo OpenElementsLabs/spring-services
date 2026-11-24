@@ -260,8 +260,10 @@ management, never from committed configuration.
   configuration that lives in the database rather than in `application.yml`.
 - **Webhooks** — Outbound webhook subscriptions. Data lifecycle events trigger a webhook dispatch
   *after the originating transaction commits*; HTTP POST is performed asynchronously via Spring
-  `RestClient` (10 s connect/read timeout) and the last response status is persisted on the
-  webhook row. A `ping` operation is exposed for testing a subscription on demand.
+  `RestClient` (10 s connect/read timeout) on the `webhookTaskExecutor` (one virtual thread per
+  call), and the last response status is persisted on the webhook row without publishing a
+  lifecycle event. A `ping` operation is exposed for testing a subscription on demand; it runs on
+  the calling thread.
 - **Multi-Tenancy** — Row-level isolation in a shared schema. Tenant id is taken from the
   authenticated principal; a JPA pre-persist guard fails fast if a row would be written without
   one. Tenant-aware base classes mirror the non-tenant data abstractions and make cross-tenant
