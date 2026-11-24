@@ -1,1 +1,2 @@
 com.openelements.spring.base.slack.SlackAutoConfiguration
+com.openelements.spring.base.slack.SlackEventsAutoConfiguration

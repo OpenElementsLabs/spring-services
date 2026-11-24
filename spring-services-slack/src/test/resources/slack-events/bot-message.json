@@ -1,0 +1,18 @@
+{
+  "token": "XXYYZZ",
+  "team_id": "T061EG9R6",
+  "api_app_id": "A0PNCHHK2",
+  "event": {
+    "type": "message",
+    "channel": "C2147483705",
+    "user": "U0BOTUSER",
+    "bot_id": "B0BOT1234",
+    "text": "An answer from the bot",
+    "ts": "1355517700.000009",
+    "event_ts": "1355517700.000009",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "Ev0PV52K23",
+  "event_time": 1355517700
+}
