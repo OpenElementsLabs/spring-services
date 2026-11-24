@@ -2,6 +2,7 @@ package com.openelements.spring.base.slack;
 
 import com.openelements.spring.base.SpringServicesCoreAutoConfiguration;
 import com.openelements.spring.base.problem.ProblemFactory;
+import com.openelements.spring.base.services.slack.authorization.SlackUserTokenStore;
 import com.openelements.spring.base.services.slack.events.SlackEventDeduplicator;
 import com.openelements.spring.base.services.slack.events.SlackEventsEndpoint;
 import com.openelements.spring.base.services.slack.events.SlackEventsProperties;
@@ -129,6 +130,8 @@ public class SlackEventsAutoConfiguration {
    * @param executor runs the listeners
    * @param problemFactory builds the problem for a rejection; absent while problem details are
    *     disabled
+   * @param userTokenStore the stored Slack user tokens, removed on {@code tokens_revoked}; absent
+   *     while editing user messages is not configured
    * @return the endpoint
    */
   @Bean
@@ -139,7 +142,8 @@ public class SlackEventsAutoConfiguration {
       final SlackEventDeduplicator deduplicator,
       final ApplicationEventPublisher publisher,
       @Qualifier(EXECUTOR_BEAN_NAME) final Executor executor,
-      final ObjectProvider<ProblemFactory> problemFactory) {
+      final ObjectProvider<ProblemFactory> problemFactory,
+      final ObjectProvider<SlackUserTokenStore> userTokenStore) {
     final String secret = properties.signingSecret();
     final SlackSignatureVerifier verifier;
     if (secret == null || secret.isBlank()) {
@@ -151,7 +155,7 @@ public class SlackEventsAutoConfiguration {
       verifier = new SlackSignatureVerifier(secret, clock);
     }
     return new SlackEventsEndpoint(
-        verifier, properties, deduplicator, publisher, executor, problemFactory);
+        verifier, properties, deduplicator, publisher, executor, problemFactory, userTokenStore);
   }
 
   /**

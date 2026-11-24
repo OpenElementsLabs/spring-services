@@ -3,6 +3,8 @@ package com.openelements.spring.base.services.slack.events;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.openelements.spring.base.problem.ProblemFactory;
+import com.openelements.spring.base.services.slack.authorization.InMemorySlackUserTokenStore;
+import com.openelements.spring.base.services.slack.authorization.SlackUserTokenStore;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -33,15 +35,46 @@ class SlackEventsEndpointTest {
 
   private final List<Object> published = new ArrayList<>();
 
-  private final SlackEventsEndpoint endpoint =
-      new SlackEventsEndpoint(
-          new SlackSignatureVerifier(
-              SECRET, Clock.fixed(Instant.ofEpochSecond(NOW), ZoneOffset.UTC)),
-          new SlackEventsProperties(true, SECRET, SlackEventsProperties.DEFAULT_PATH, null, null),
-          new SlackEventDeduplicator(Clock.systemUTC(), Duration.ofHours(1)),
-          published::add,
-          Runnable::run,
-          new StaticListableBeanFactory().getBeanProvider(ProblemFactory.class));
+  private final InMemorySlackUserTokenStore userTokens = new InMemorySlackUserTokenStore();
+
+  private final SlackEventsEndpoint endpoint = endpoint(new StaticListableBeanFactory());
+
+  private SlackEventsEndpoint endpoint(final StaticListableBeanFactory beans) {
+    return new SlackEventsEndpoint(
+        new SlackSignatureVerifier(SECRET, Clock.fixed(Instant.ofEpochSecond(NOW), ZoneOffset.UTC)),
+        new SlackEventsProperties(true, SECRET, SlackEventsProperties.DEFAULT_PATH, null, null),
+        new SlackEventDeduplicator(Clock.systemUTC(), Duration.ofHours(1)),
+        published::add,
+        Runnable::run,
+        beans.getBeanProvider(ProblemFactory.class),
+        beans.getBeanProvider(SlackUserTokenStore.class));
+  }
+
+  @Test
+  @DisplayName("tokens_revoked removes the user tokens of the listed users only and publishes nothing")
+  void tokensRevokedRemovesListedUserTokens() throws Exception {
+    userTokens.save("T061EG9R6", "U2147483697", "xoxp-revoked");
+    userTokens.save("T061EG9R6", "U2147483698", "xoxp-kept");
+    final StaticListableBeanFactory beans = new StaticListableBeanFactory();
+    beans.addBean("userTokens", userTokens);
+
+    final ServerResponse response =
+        endpoint(beans).handle(request(SlackFixtures.load("tokens-revoked.json")));
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(userTokens.find("T061EG9R6", "U2147483697")).isEmpty();
+    assertThat(userTokens.find("T061EG9R6", "U2147483698")).contains("xoxp-kept");
+    assertThat(published).isEmpty();
+  }
+
+  @Test
+  @DisplayName("tokens_revoked is acknowledged without a user token store")
+  void tokensRevokedWithoutStore() throws Exception {
+    final ServerResponse response = endpoint.handle(request(SlackFixtures.load("tokens-revoked.json")));
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(published).isEmpty();
+  }
 
   @Test
   @DisplayName("Rejects a body over 1 MiB without Content-Length while reading it")

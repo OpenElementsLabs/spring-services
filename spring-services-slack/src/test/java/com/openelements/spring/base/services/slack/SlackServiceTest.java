@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.slack.api.RequestConfigurator;
+import com.slack.api.Slack;
 import com.slack.api.methods.MethodsClient;
 import com.slack.api.methods.SlackApiException;
 import com.slack.api.methods.request.chat.ChatPostMessageRequest;
@@ -78,13 +79,17 @@ class SlackServiceTest {
   @BeforeEach
   void setUp() {
     methodsClient = mock(MethodsClient.class);
-    slackService = new SlackService(provider(methodsClient));
+    slackService = service(methodsClient);
+  }
+
+  private static SlackService service(final MethodsClient client) {
+    return new SlackService(provider(client), Slack.getInstance(), provider(null), provider(null));
   }
 
   @SuppressWarnings("unchecked")
-  private static ObjectProvider<MethodsClient> provider(final MethodsClient client) {
-    final ObjectProvider<MethodsClient> provider = mock(ObjectProvider.class);
-    when(provider.getIfAvailable()).thenReturn(client);
+  private static <T> ObjectProvider<T> provider(final T value) {
+    final ObjectProvider<T> provider = mock(ObjectProvider.class);
+    when(provider.getIfAvailable()).thenReturn(value);
     return provider;
   }
 
@@ -162,7 +167,7 @@ class SlackServiceTest {
     @Test
     @DisplayName("With no MethodsClient available (token unconfigured), sendMessage fails fast with SlackException carrying the \"not configured\" hint.")
     void throwsWhenNoToken() {
-      final SlackService unconfigured = new SlackService(provider(null));
+      final SlackService unconfigured = service(null);
 
       assertThatThrownBy(() -> unconfigured.sendMessage("#general", "Hello"))
           .isInstanceOf(SlackException.class)
