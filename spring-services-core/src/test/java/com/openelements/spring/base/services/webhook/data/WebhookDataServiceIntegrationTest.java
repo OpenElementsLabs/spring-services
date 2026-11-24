@@ -3,9 +3,12 @@ package com.openelements.spring.base.services.webhook.data;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.openelements.spring.base.events.GenericDataEvent;
 import com.openelements.spring.base.security.AuthService;
 import com.openelements.spring.base.testcontainers.PostgresTestConfiguration;
 import com.openelements.spring.base.testcontainers.TestApplication;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,6 +23,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -31,7 +36,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * <p>The full lifecycle of a webhook registration through the service layer: create with
  * auto-generated id, update (URL change and active-flag toggle), delete, single-row fetch by id,
  * list-all, paginated listing, and the {@code findAllActive()} filter that the {@code
- * WebhookSender} relies on to fan out events only to live endpoints. Negative cases (update /
+ * WebhookSender} relies on to fan out events only to live endpoints, and {@code recordCall(...)},
+ * which stores the result of a delivery without publishing a lifecycle event. Negative cases (update /
  * delete with an unknown {@code UUID}) are pinned to {@link IllegalArgumentException} — the
  * contract surface that REST controllers translate to HTTP 404.
  *
@@ -52,6 +58,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Import(PostgresTestConfiguration.class)
 @Testcontainers
 @ActiveProfiles("testcontainers")
+@RecordApplicationEvents
 @DisplayName("WebhookDataService Integration Tests")
 class WebhookDataServiceIntegrationTest {
 
@@ -60,6 +67,8 @@ class WebhookDataServiceIntegrationTest {
   @Autowired private WebhookRepository webhookRepository;
 
   @MockitoBean private AuthService authService;
+
+  @Autowired private ApplicationEvents applicationEvents;
 
   @BeforeEach
   void setUp() {
@@ -281,6 +290,55 @@ class WebhookDataServiceIntegrationTest {
 
       // THEN
       assertThat(found).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("recordCall")
+  class RecordCallTest {
+
+    @Test
+    @DisplayName("recordCall(...) stores status and call time and keeps URL and active flag unchanged.")
+    void shouldRecordStatusAndCallTime() {
+      // GIVEN
+      final WebhookDto saved =
+          webhookDataService.save(new WebhookDto(null, "https://example.com/hook", true, null, null));
+      final Instant calledAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+
+      // WHEN
+      webhookDataService.recordCall(saved.id(), 503, calledAt);
+
+      // THEN
+      final WebhookDto found = webhookDataService.findById(saved.id()).orElseThrow();
+      assertThat(found.lastStatus()).isEqualTo(503);
+      assertThat(found.lastCalledAt()).isEqualTo(calledAt);
+      assertThat(found.url()).isEqualTo("https://example.com/hook");
+      assertThat(found.active()).isTrue();
+    }
+
+    @Test
+    @DisplayName("recordCall(...) publishes no lifecycle event — otherwise every webhook call would trigger another webhook call.")
+    void shouldNotPublishEvent() {
+      // GIVEN
+      final WebhookDto saved =
+          webhookDataService.save(new WebhookDto(null, "https://example.com/hook", true, null, null));
+      applicationEvents.clear();
+
+      // WHEN
+      webhookDataService.recordCall(saved.id(), 200, Instant.now());
+
+      // THEN
+      assertThat(applicationEvents.stream(GenericDataEvent.class)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("recordCall(...) for a webhook deleted in the meantime does nothing instead of failing the delivery.")
+    void shouldIgnoreDeletedWebhook() {
+      // WHEN
+      webhookDataService.recordCall(UUID.randomUUID(), 200, Instant.now());
+
+      // THEN
+      assertThat(webhookRepository.findAll()).isEmpty();
     }
   }
 }
