@@ -21,5 +21,11 @@
  * <p>The service is intentionally minimal: a single {@code sendMessage(channel, text)} method, no
  * threading, no retries, no rich formatting. Triggering logic — when and why a message is sent — is
  * the responsibility of the consuming application.
+ *
+ * <h2>Receiving messages</h2>
+ *
+ * <p>The opposite direction — reacting to messages users write in Slack — lives in {@link
+ * com.openelements.spring.base.services.slack.events} and is opt-in via {@code
+ * open-elements.slack.events.enabled}. It needs no bot token, only the app's signing secret.
  */
 package com.openelements.spring.base.services.slack;

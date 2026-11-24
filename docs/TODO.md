@@ -476,6 +476,27 @@ instance*. An application with several instances has to bring its own `ReplaySto
 needs one, a JPA-backed store (table in `oe_spring_services`, cleanup of expired rows) belongs in the
 module, with the SQL in the upgrade guide of that release.
 
+## Shared de-duplication store for incoming Slack events (spec 026)
+
+`SlackEventDeduplicator` remembers processed `event_id`s on the heap for one hour, so Slack's retries
+are delivered once *per instance*. With several instances behind a load balancer, a retry that lands on
+another instance reaches the listeners a second time. Once a consumer runs more than one instance, a
+shared store belongs in the module — most likely the same mechanism as the ALTCHA replay store above,
+so the two should be designed together.
+
+**Context:** Deferred in spec 026 ("Open questions"). Slack retries only when it did not get its `200`
+within three seconds; with asynchronous listeners that is rare, but a slow start-up or a GC pause is
+enough.
+
+## Verify that the Slack events chain registers in a real application (spec 026)
+
+`slackEventsSecurityFilterChain` uses the same `@ConditionalOnBean(HttpSecurity.class)` guard as the
+ALTCHA chain and has the same open question (see "Verify that the ALTCHA challenge chain registers in a
+real application" above): `SlackEventsWebTest` proves it under a `WebApplicationContextRunner` only. If
+it does not register in a real application, Slack's requests hit the default JWT chain and get `401` —
+Slack then fails the Request URL verification, so the failure is loud, but the feature does not work.
+Answer both with one `@SpringBootTest` and, if needed, one fix.
+
 ## Spec candidate: request tracing beyond the minimal trace ID (spec 024)
 
 Spec 024 ships only a placeholder: a `TraceIdResolver` interface, a default resolver (valid incoming
