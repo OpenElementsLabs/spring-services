@@ -12,6 +12,7 @@ import java.util.Objects;
  */
 public class SlackUserAuthorizationRequiredException extends SlackException {
 
+  /** The link the user opens to authorize; part of the serialized form. */
   private final String authorizationUrl;
 
   /**
