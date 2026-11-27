@@ -1,0 +1,33 @@
+{
+  "token": "XXYYZZ",
+  "team_id": "T061EG9R6",
+  "api_app_id": "A0PNCHHK2",
+  "event": {
+    "type": "message",
+    "subtype": "message_changed",
+    "hidden": true,
+    "channel": "C2147483705",
+    "channel_type": "channel",
+    "ts": "1355517536.000001",
+    "event_ts": "1355517536.000001",
+    "message": {
+      "type": "message",
+      "user": "U2147483697",
+      "text": "Hello world\n\nHallo Welt",
+      "ts": "1355517523.000005",
+      "edited": {
+        "user": "U2147483697",
+        "ts": "1355517536.000000"
+      }
+    },
+    "previous_message": {
+      "type": "message",
+      "user": "U2147483697",
+      "text": "Hello world",
+      "ts": "1355517523.000005"
+    }
+  },
+  "type": "event_callback",
+  "event_id": "Ev0PV52K30",
+  "event_time": 1355517536
+}

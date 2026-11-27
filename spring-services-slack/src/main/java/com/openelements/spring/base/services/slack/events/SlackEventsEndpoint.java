@@ -2,6 +2,7 @@ package com.openelements.spring.base.services.slack.events;
 
 import com.openelements.spring.base.problem.ProblemException;
 import com.openelements.spring.base.problem.ProblemFactory;
+import com.openelements.spring.base.services.slack.authorization.SlackUserTokenStore;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.OptionalLong;
@@ -27,6 +28,9 @@ import tools.jackson.databind.json.JsonMapper;
  * logged without body or headers and answered with the status of their {@link
  * SlackEventsProblemType}: as an RFC 9457 problem while problem details are enabled, with an empty
  * body otherwise.
+ *
+ * <p>A {@code tokens_revoked} event is not published: it removes the stored user tokens of the
+ * listed users, so that editing their messages asks for authorization again.
  *
  * <p>Events are published on a separate executor, so Slack gets its acknowledgement within its
  * three-second limit regardless of how long listeners take, and a failing listener never affects
@@ -59,6 +63,8 @@ public final class SlackEventsEndpoint {
 
   private final ObjectProvider<ProblemFactory> problemFactory;
 
+  private final ObjectProvider<SlackUserTokenStore> userTokenStore;
+
   /**
    * Creates the endpoint.
    *
@@ -71,6 +77,8 @@ public final class SlackEventsEndpoint {
    * @param executor runs the listeners
    * @param problemFactory builds the problem for a rejection; absent while problem details are
    *     disabled
+   * @param userTokenStore the stored Slack user tokens; absent while editing user messages is not
+   *     configured
    */
   public SlackEventsEndpoint(
       final @Nullable SlackSignatureVerifier verifier,
@@ -78,7 +86,8 @@ public final class SlackEventsEndpoint {
       final SlackEventDeduplicator deduplicator,
       final ApplicationEventPublisher publisher,
       final Executor executor,
-      final ObjectProvider<ProblemFactory> problemFactory) {
+      final ObjectProvider<ProblemFactory> problemFactory,
+      final ObjectProvider<SlackUserTokenStore> userTokenStore) {
     Objects.requireNonNull(properties, "properties must not be null");
     this.verifier = verifier;
     this.teamId = properties.teamId();
@@ -87,6 +96,7 @@ public final class SlackEventsEndpoint {
     this.publisher = Objects.requireNonNull(publisher, "publisher must not be null");
     this.executor = Objects.requireNonNull(executor, "executor must not be null");
     this.problemFactory = Objects.requireNonNull(problemFactory, "problemFactory must not be null");
+    this.userTokenStore = Objects.requireNonNull(userTokenStore, "userTokenStore must not be null");
   }
 
   /**
@@ -140,10 +150,29 @@ public final class SlackEventsEndpoint {
         || !matches(appId, SlackEventMapper.text(envelope, "api_app_id"))) {
       throw rejected("event for another workspace or app");
     }
+    final JsonNode payload = envelope.path("event");
+    if ("tokens_revoked".equals(SlackEventMapper.text(payload, "type"))) {
+      deleteRevokedUserTokens(SlackEventMapper.text(envelope, "team_id"), payload);
+      return ServerResponse.ok().build();
+    }
     SlackEventMapper.map(envelope)
         .filter(event -> deduplicator.firstSeen(event.eventId()))
         .ifPresent(this::publish);
     return ServerResponse.ok().build();
+  }
+
+  private void deleteRevokedUserTokens(final @Nullable String team, final JsonNode event) {
+    final SlackUserTokenStore store = userTokenStore.getIfAvailable();
+    if (store == null || team == null) {
+      return;
+    }
+    for (final JsonNode user : event.path("tokens").path("oauth")) {
+      if (user.isString()) {
+        final String userId = user.stringValue();
+        store.delete(team, userId);
+        LOG.info("Removed the Slack user token of user {} in workspace {}: revoked", userId, team);
+      }
+    }
   }
 
   private ServerResponse problem(final ProblemException exception, final ServerRequest request) {

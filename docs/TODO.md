@@ -576,3 +576,29 @@ library implements or calls Spring APIs.
 
 **Context:** Raised by issue #58 ("Null safety") and deliberately left out of the Spring Boot 4
 upgrade spec (025) in its `/grill-me`: 2.0 is the platform upgrade only.
+
+## Rotate the encryption key of Slack user tokens (spec 027)
+
+`JdbcSlackUserTokenStore` encrypts tokens with one key (`open-elements.slack.user-authorization.token-encryption-key`).
+Changing it makes every stored token unreadable; the tokens are removed on use and every user has to
+authorize again. A key id per row and a list of old keys for decryption would allow rotating without
+that. Not needed until a consumer has to rotate.
+
+**Context:** Deferred in spec 027 (non-goal "Rotation of the encryption key").
+
+## Success page of the Slack user authorization (spec 027)
+
+The callback ends on a plain-text page ("Slack authorization complete. You can close this window.").
+An application may want its own page or a redirect back into Slack (`slack://open`); a
+`success-redirect-url` property would cover both.
+
+**Context:** Open question of spec 027.
+
+## Edit the bot's own Slack messages (spec 027)
+
+`SlackService.updateUserMessage` edits messages of users with their token. Editing the bot's own
+messages (for example "Working on it…" replaced by the result) needs only the bot token, but
+`sendMessage` does not return the `ts` of the message it posted. Return it (binary-incompatible:
+`void` → `String`, or a new method) and add `updateMessage(channelId, ts, text)`.
+
+**Context:** Non-goal of spec 027.

@@ -82,9 +82,16 @@ class SlackEventMapperTest {
   }
 
   @Test
+  @DisplayName("Drops the message_changed event of an edit, so an editing listener cannot loop")
+  void dropsEditOfMessage() {
+    assertThat(SlackEventMapper.map(fixture("message-changed.json"))).isEmpty();
+  }
+
+  @Test
   @DisplayName("Ignores event types other than message and app_mention")
   void ignoresOtherEventTypes() {
     assertThat(SlackEventMapper.map(fixture("reaction-added.json"))).isEmpty();
+    assertThat(SlackEventMapper.map(fixture("tokens-revoked.json"))).isEmpty();
   }
 
   @ParameterizedTest

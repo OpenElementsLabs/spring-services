@@ -211,9 +211,46 @@ and subscribe to the bot events `app_mention` (scope `app_mentions:read`) and, f
 `message.im` (scope `im:history`). The signature proves that a request comes from Slack, not that its
 sender may trigger anything: a listener that acts on a message must authorise `userId()` itself.
 
+**Editing users' Slack messages** (`spring-services-slack`) is off by default as well. It lets a listener
+replace the text of a message a user wrote — for example to add a translation — so that Slack shows the
+message as edited. Slack lets only the author edit a message, so each user allows it once: the bot sends
+a link, the user confirms Slack's authorization dialog, and the module stores that user's token
+(user scope `chat:write` only, encrypted with AES-256-GCM):
+
+```java
+@EventListener
+void onSlackMessage(SlackMessageReceivedEvent message) {
+    final String text = message.text() + "\n\n:gb: " + translator.toEnglish(message.text());
+    try {
+        slackService.updateUserMessage(message, text);
+    } catch (SlackUserAuthorizationRequiredException e) {
+        slackService.sendMessage(message.userId(), "Allow me to add translations: " + e.authorizationUrl());
+    }
+}
+```
+
+```properties
+open-elements.slack.user-authorization.enabled=true
+open-elements.slack.user-authorization.client-id=1234.5678                                # Slack app → Basic Information
+open-elements.slack.user-authorization.client-secret=${SLACK_CLIENT_SECRET}
+open-elements.slack.user-authorization.public-base-url=https://app.example.com
+open-elements.slack.user-authorization.token-encryption-key=${SLACK_TOKEN_ENCRYPTION_KEY}  # Base64, 32 bytes
+open-elements.slack.user-authorization.path=/slack/oauth                                  # optional, this is the default
+```
+
+The module serves `GET /slack/oauth/authorize` (the link to send) and `GET /slack/oauth/callback` through
+its own filter chain. In the Slack app, add the redirect URL `https://<host>/slack/oauth/callback` and the
+**user** token scope `chat:write` under *OAuth & Permissions*, and keep token rotation off. Subscribing to
+the bot event `tokens_revoked` (with incoming messages enabled) removes a token as soon as its user
+withdraws the permission; otherwise it is removed on the next edit Slack refuses. Tokens are stored in the
+table `oe_spring_services.slack_user_tokens` — create it with the SQL in
+[`docs/releases/upgrade-to-2.1.md`](docs/releases/upgrade-to-2.1.md), or declare your own
+`SlackUserTokenStore` bean. Without the required properties the application starts with a warning and the
+feature refuses to work. A key can be generated with `openssl rand -base64 32`.
+
 If a feature stays disabled, none of its beans are created and no connection settings are needed.
-Secrets (`master-key`, `api-token`, `hmac-key`, `signing-secret`) must come from environment variables or secret
-management, never from committed configuration.
+Secrets (`master-key`, `api-token`, `hmac-key`, `signing-secret`, `client-secret`, `token-encryption-key`) must come
+from environment variables or secret management, never from committed configuration.
 
 ## Features
 
@@ -611,7 +648,7 @@ spring-services/                    — reactor parent (packaging=pom)
 │                                        services/   — apikey, settings, tag, comment, audit,
 │                                                      webhook, translation, system
 │                                        tenant/, apitoken/
-├── spring-services-slack           — Slack messaging; receiving opt-in via open-elements.slack.events.enabled (→ slack-api-client)
+├── spring-services-slack           — Slack messaging; receiving and editing user messages opt-in (→ slack-api-client)
 ├── spring-services-mcp             — MCP server (→ MCP SDK)
 ├── spring-services-email           — SMTP email (→ spring-boot-starter-mail)
 ├── spring-services-search          — Meilisearch full-text search (RestClient, no extra dep)
